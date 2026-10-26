@@ -8,7 +8,7 @@ From `backend/`, run `npm start` after `npm run build`. In another terminal in `
 
 ## Use
 
-- Tap the head, grant microphone permission, speak, then tap again to send. Recording ends automatically at 60 seconds.
+- Tap the head, grant microphone permission, speak, then pause for about 1.1 seconds to send automatically (or tap again to send immediately). Recording ends automatically at 60 seconds. The watch shows listening, then thinking throughout transcription and processing, then the reply.
 - Actual microphone volume enlarges the head. No decorative audio waves are shown.
 - Meta transcribes the mono WAV and handles the conversation. A typed request exercises the same agent without recording.
 - Browser speech reads replies; the head speaks during playback and returns to idle afterward. Tap to interrupt. Voice quality depends on installed system voices; mouth movement is expressive animation, not phoneme-level lip sync.
@@ -34,3 +34,7 @@ The conversation sidebar is a debugging aid, not the final watch screen. The wat
 - Physical microphone capture in this browser remains for the user's first hands-on test. Calendar writes remain unverified until Google is connected.
 
 Run `node --test preview/emulator/audio.test.mjs` and `node preview/animation/check.cjs` from the repository root; run `npm test` in `backend/`.
+
+## iPhone companion preview
+
+Scroll the left device column below the watch to reach the iPhone setup screen. Calendar status is read from the same backend as the watch. Connect requests a Google consent link; check connection refreshes status; disconnect appears when an actual Google connection exists. These actions are recorded in the right-hand activity stream. Missing OAuth configuration is displayed in the phone, without pretending sign-in succeeded. This remains a single-user browser preview, not a native iPhone app or multi-user pairing flow.

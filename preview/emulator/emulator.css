@@ -19,3 +19,111 @@ main{height:100dvh;max-width:none;padding:0;gap:0;grid-template-columns:minmax(2
 #api-log li.log-row{padding:0 16px}#api-log .log-heading{padding:10px 0;margin:0;display:flex;gap:9px;flex-wrap:nowrap;cursor:pointer;font-size:10px}#api-log .log-heading::before{content:'›';color:#9aa08f;width:8px;flex-shrink:0}#api-log details[open]>.log-heading::before{content:'⌄'}#api-log .call-route{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}#api-log details>pre{padding:4px 0 14px;font-size:11px}#api-log #approval-log-row{padding:16px}
 
 .emotions-link{position:fixed;left:20px;top:18px;z-index:2;padding:8px 12px;border:1px solid #d9ded0;border-radius:9px;background:#f5f3ee;color:#627154;font-size:12px}
+
+
+/* Companion: native-style setup, with a fixed viewport and scrollable content. */
+.watch-column{flex-direction:column;justify-content:flex-start;gap:64px;height:100dvh;overflow-y:auto;padding:86px 24px 48px;scrollbar-width:thin}
+.watch-shell{flex-shrink:0}.phone-shell{--phone-ink:#1c1c1e;--phone-secondary:#636366;--phone-rule:#e5e5ea;--phone-accent:#0066d6;width:350px;max-width:100%;aspect-ratio:393/852;flex-shrink:0;display:flex;flex-direction:column;min-height:0;background:#fff;border:7px solid #272729;border-radius:46px;box-shadow:0 0 0 2px #a3a3a6,0 14px 28px #00000012;overflow:hidden;text-align:left;color:var(--phone-ink)}
+.phone-status{height:46px;min-height:46px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 23px;font-size:11px;font-weight:650;position:relative;background:#fff}.phone-island{position:absolute;left:50%;transform:translateX(-50%);top:10px;width:90px;height:25px;border-radius:20px;background:#171719}
+.phone-content{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#d1d1d6 transparent;padding:13px 20px 24px}.phone-nav{font-size:12px;font-weight:600;color:var(--phone-secondary);margin:3px 0 17px}.phone-title{font-size:32px;letter-spacing:-.9px;line-height:1.1;font-weight:700;margin:0 0 22px}.buddy-profile{display:flex;align-items:center;gap:13px;padding-bottom:23px;border-bottom:1px solid var(--phone-rule)}.buddy-profile img{width:60px;height:60px;object-fit:contain}.buddy-profile h2{font-size:17px;font-weight:600;margin:0 0 4px}.buddy-profile p{font-size:12px;color:var(--phone-secondary);margin:0}
+.phone-calendar{padding-top:24px}.phone-shell .section-label{font-size:11px;font-weight:500;letter-spacing:.3px;color:var(--phone-secondary);margin:0 0 15px}.calendar-heading{display:flex;gap:12px;align-items:center}.calendar-icon{width:26px;height:26px;flex-shrink:0;color:var(--phone-ink)}.calendar-heading h2{font-size:14px;font-weight:600;margin:0 0 5px}.calendar-heading p{font-size:11px;color:var(--phone-secondary);margin:0}.calendar-dot{width:6px;height:6px;border-radius:50%;background:#aeaeb2;margin-left:auto}.calendar-dot.connected{background:#248a3d}
+#phone-calendar-description{font-size:12px;line-height:1.6;color:var(--phone-secondary);margin:18px 0}.phone-shell .phone-primary{width:100%;min-height:44px;border:0;border-radius:11px;background:var(--phone-accent);color:#fff;font-size:12px;font-weight:600;padding:12px}.phone-shell .phone-primary:hover:not(:disabled){background:#0055b3}.phone-shell .phone-secondary{display:block;width:100%;min-height:40px;background:transparent;border:0;font-size:11px;color:var(--phone-accent);padding:10px 0}.phone-shell #disconnect-calendar{color:#b42323}.phone-shell #consent{display:block;background:#edf4ff;border-radius:9px;padding:13px;text-align:center;color:var(--phone-accent);text-decoration:none;font-size:12px;line-height:1.5}.phone-shell #phone-error{font-size:11px;line-height:1.5;color:#a12622;padding:10px 0;margin:0}
+.phone-permissions{margin-top:22px;padding-top:23px;border-top:1px solid var(--phone-rule)}.phone-permissions ul{list-style:none;margin:0;padding:0}.phone-permissions li{padding:9px 0;display:flex;flex-direction:column;gap:4px;font-size:12px}.permission-detail{font-size:11px;color:var(--phone-secondary)}.phone-permissions>p{font-size:11px;line-height:1.6;color:var(--phone-secondary);margin:16px 0 0}.phone-footnote{font-size:9px;color:var(--phone-secondary);margin:28px 0 0}.home-indicator{flex-shrink:0;width:100px;height:4px;background:#171719;border-radius:4px;margin:8px auto 9px}
+@media(max-width:850px){.watch-column{padding-left:16px;padding-right:16px;gap:48px}.phone-content{padding-left:17px;padding-right:17px}.phone-title{font-size:29px}.phone-status{font-size:10px;padding:0 18px}.phone-island{width:76px;height:22px}}
+@media(max-width:580px){.watch-column{height:auto;overflow:visible}.phone-shell{width:330px}}
+
+/* Dense, tappable service rows; room for a future buddy collection. */
+.phone-title{font-size:29px;margin-bottom:18px}.buddies{display:flex;gap:12px;padding-bottom:22px;border-bottom:1px solid var(--phone-rule);align-items:center}.buddy-profile{flex:1;min-width:0;border:0;padding:0;gap:9px}.buddy-profile img{width:58px;height:58px;flex-shrink:0}.buddy-profile h2{font-size:16px}.buddy-profile p{font-size:10px;line-height:1.4}.buddy-current{font-size:9px;color:#407047;display:block;margin-top:6px}.future-buddy{flex-shrink:0;text-align:center;border-left:1px solid var(--phone-rule);padding-left:12px;color:#636366}.future-buddy>span{display:block;font-size:23px;font-weight:300;line-height:24px}.future-buddy p{font-size:9px;line-height:1.4;margin:4px 0 0}.future-buddy small{font-size:8px;color:#76767b}.phone-calendar{padding-top:12px}.services-heading{display:flex;align-items:center;justify-content:space-between;min-height:44px}.services-heading .section-label{margin:0;font-size:12px;font-weight:600;color:var(--phone-ink);letter-spacing:0}.phone-shell .refresh-services{width:44px;height:44px;border:0;background:none;border-radius:9px;color:var(--phone-accent);font-size:23px;padding:0}.service-list{border-top:1px solid var(--phone-rule)}.service-row{display:flex;align-items:center;gap:9px;min-height:66px;border-bottom:1px solid var(--phone-rule);padding:9px 0}.service-icon{width:22px;height:22px;flex-shrink:0;color:#424247}.service-letter{display:grid;place-items:center;font-size:24px;font-weight:500}.service-name{flex:1;min-width:0}.service-name h2{font-size:12px;line-height:1.3;font-weight:550;margin:0 0 4px;letter-spacing:-.15px}.service-name p{font-size:10px;line-height:1.4;color:var(--phone-secondary);margin:0}.phone-shell .service-connect{min-width:65px;min-height:44px;padding:8px;border:0;border-radius:10px;background:#edf4ff;color:var(--phone-accent);font-size:11px;font-weight:600;flex-shrink:0}.phone-shell .service-connect:hover:not(:disabled){background:#daeaff}.planned-label{font-size:9px;color:#727278;flex-shrink:0}.services-note{font-size:10px;line-height:1.5;color:var(--phone-secondary);margin:13px 0 0}.calendar-followup:has(> :not([hidden])){padding-bottom:12px;border-bottom:1px solid var(--phone-rule)}.phone-permissions{margin-top:18px;padding-top:0;border-top:0}.phone-permissions summary{font-size:11px;min-height:44px;line-height:44px;color:var(--phone-secondary)}.phone-permissions #phone-calendar-description{margin:0 0 8px;font-size:11px}.phone-permissions>p{margin:0 0 10px}.phone-footnote{margin-top:16px}.phone-shell button:focus-visible,.phone-shell summary:focus-visible{outline:2px solid var(--phone-accent);outline-offset:2px}
+@media(max-width:850px){.phone-content{padding-left:14px;padding-right:14px}.phone-title{font-size:27px}.buddy-profile img{width:48px;height:48px}.buddy-profile h2{font-size:14px}.future-buddy{padding-left:9px}.service-row{gap:7px}.service-icon{width:20px;height:20px}.service-name h2{font-size:11px}.phone-shell .service-connect{min-width:57px;font-size:10px;padding:7px}.planned-label{font-size:8px}}
+
+/* Give each buddy a full portrait rather than an account-avatar treatment. */
+.buddies{align-items:stretch;gap:16px;padding-bottom:24px}
+.buddy-profile{flex-direction:column;align-items:center;text-align:center;gap:8px;padding:2px 0 0}
+.buddy-profile img{width:116px;height:116px;max-width:100%;object-fit:contain}
+.buddy-profile h2{font-size:17px;margin-bottom:5px}
+.buddy-profile p{font-size:11px}
+.buddy-current{margin-top:6px;font-size:10px}
+.future-buddy{display:flex;flex-direction:column;justify-content:center;padding-left:16px;min-width:68px}
+@media(max-width:850px){.buddy-profile img{width:104px;height:104px}.buddy-profile h2{font-size:16px}.future-buddy{padding-left:12px;min-width:61px}}
+
+/* Buddy list: one buddy per row, portrait beside its details. */
+.buddies{flex-direction:column;gap:0;padding-bottom:0}
+.buddy-profile{flex-direction:row;justify-content:flex-start;align-items:center;text-align:left;gap:16px;padding:4px 0 18px}
+.buddy-profile img{width:94px;height:94px;flex-shrink:0}
+.future-buddy{flex-direction:row;justify-content:flex-start;align-items:center;gap:12px;border-left:0;border-top:1px solid var(--phone-rule);padding:12px 0;text-align:left;min-width:0}
+.future-buddy>span{width:30px;text-align:center}.future-buddy p{margin:0;font-size:10px}.future-buddy br{display:none}.future-buddy small{margin-left:8px;font-size:9px}
+@media(max-width:850px){.buddy-profile img{width:82px;height:82px}.buddy-profile{gap:12px}.future-buddy{padding-left:0}}
+
+.service-dot,.service-row .calendar-dot{display:block;width:6px;height:6px;flex-shrink:0;border-radius:50%;background:#b6b6bc;margin-left:0}.service-row .calendar-dot.connected{background:#248a3d}.service-openable{cursor:pointer}.service-openable:hover{background:#f7f8fa}.phone-shell .service-connect{min-width:50px;font-size:10px;padding:6px}.service-status{font-size:12px;color:#636366;display:flex;align-items:center;gap:7px;margin:0 0 24px}.service-status:before{content:'';width:7px;height:7px;border-radius:50%;background:#b6b6bc}.service-status.is-connected:before{background:#248a3d}.phone-shell .service-back{min-height:44px;padding:0;border:0;background:none;color:var(--phone-accent);font-size:12px;margin:0 0 18px}#service-detail .phone-title{font-size:27px;line-height:1.15;margin-bottom:12px}#service-description{font-size:13px;line-height:1.6;margin:0 0 24px}#service-access{padding-left:16px;margin:0 0 22px;font-size:12px;line-height:1.7;color:#48484b}#service-access li{margin:8px 0}#service-availability,#planned-controls p,#calendar-edit p{font-size:11px;line-height:1.6;color:#636366;margin:0 0 20px}#service-detail .phone-secondary{min-height:44px}#calendar-edit{padding:15px 0;border-top:1px solid var(--phone-rule);margin-top:8px}#service-detail .calendar-followup{padding-top:8px}#service-title:focus{outline:none}
+
+/* The chevron button covers its entire service row: one focus and tap target. */
+.service-openable{position:relative;padding-right:30px}
+.phone-shell .service-openable .service-connect{position:absolute;inset:0;width:100%;height:100%;min-height:44px;padding:0 2px 0 0;border:0;border-radius:0;background:transparent;display:flex;align-items:center;justify-content:flex-end;color:#8e8e93;font-size:25px;font-weight:400}
+.phone-shell .service-openable .service-connect:hover:not(:disabled){background:#00000003}
+.phone-shell .service-openable .service-connect:focus-visible{outline:2px solid var(--phone-accent);outline-offset:-2px;border-radius:6px}
+
+/* iOS Settings-inspired grouped lists. */
+.phone-shell{background:#f2f2f7;--phone-rule:#c6c6c8;--phone-accent:#007aff}
+.phone-status{background:#f2f2f7}
+.phone-content{padding:12px 16px 26px}
+.phone-nav{font-size:11px;color:#6c6c70;margin:4px 4px 13px;font-weight:500}
+.phone-title{font-size:30px;letter-spacing:-.8px;margin:0 4px 22px;font-weight:700}
+.buddies{background:#fff;border:0;border-radius:12px;overflow:hidden;gap:0;padding:0}
+.buddy-profile{padding:15px 13px;gap:12px}
+.buddy-profile img{width:78px;height:78px}
+.buddy-profile h2{font-size:18px;font-weight:500;margin:0 0 5px}
+.buddy-profile p{font-size:11px;color:#6c6c70}
+.buddy-current{font-size:10px;color:#6c6c70;margin-top:5px}
+.future-buddy{margin-left:15px;padding:13px 14px 13px 0;border-top:1px solid #e5e5ea;gap:10px;color:#6c6c70;min-height:46px}
+.future-buddy>span{font-size:22px;width:24px}.future-buddy p{font-size:11px}.future-buddy small{color:#8e8e93}
+.phone-calendar{padding-top:20px}.services-heading{padding:0 4px 0 12px;min-height:38px}
+.services-heading .section-label{font-size:11px;font-weight:400;text-transform:uppercase;letter-spacing:.2px;color:#6c6c70}
+.phone-shell .refresh-services{font-size:20px;min-width:44px;height:44px}
+.service-list{background:#fff;border:0;border-radius:12px;overflow:hidden}
+.service-row{min-height:62px;margin:0;padding:11px 39px 11px 12px;border:0;gap:10px}
+.service-row:not(:last-child)::after{content:'';position:absolute;left:51px;right:0;bottom:0;height:1px;background:#e5e5ea;pointer-events:none}
+.service-icon{width:28px;height:28px;border-radius:6px;background:#8e8e93;color:#fff;padding:4px}
+.service-letter{padding:0;font-size:24px}
+.service-row:nth-child(1) .service-icon{background:#ee4545}
+.service-row:nth-child(2) .service-icon{background:#b94686}
+.service-row:nth-child(3) .service-icon{background:#1877f2}
+.service-row:nth-child(4) .service-icon{background:#d9ad22}
+.service-row:nth-child(5) .service-icon{background:#527ad8}
+.service-row:nth-child(6) .service-icon{background:#00a2d8}
+.service-name h2{font-size:13px;font-weight:400;letter-spacing:0;margin-bottom:3px}
+.service-name p{font-size:10px;color:#8e8e93;line-height:1.3}
+.service-dot,.service-row .calendar-dot{width:6px;height:6px;background:#c7c7cc;margin-left:auto}
+.phone-shell .service-openable .service-connect{padding-right:14px;color:#c4c4c6;font-size:25px}
+.service-openable:hover{background:#f5f5f7}
+.phone-permissions{background:#fff;border-radius:12px;margin-top:24px;padding:0 14px;overflow:hidden}
+.phone-permissions summary{font-size:12px;min-height:48px;line-height:48px;color:#1c1c1e}
+.phone-permissions #phone-calendar-description,.phone-permissions>p{color:#6c6c70;font-size:11px}
+.phone-footnote{margin:16px 12px 0;font-size:9px;color:#8e8e93;line-height:1.5}
+.phone-shell .service-back{margin:0 0 14px;font-size:14px}
+#service-detail .phone-title{margin:0 0 10px;font-size:27px}
+.service-status{margin-bottom:20px;color:#6c6c70}
+#service-description{font-size:13px;line-height:1.6;margin:0 0 24px}
+#service-detail>.section-label{margin:0 12px 8px;text-transform:uppercase;font-size:10px;color:#6c6c70}
+#service-access{list-style:none;background:#fff;border-radius:12px;margin:0 0 12px;padding:0 14px;overflow:hidden}
+#service-access li{padding:13px 0;margin:0;font-size:12px;color:#1c1c1e;line-height:1.5}
+#service-access li+li{border-top:1px solid #e5e5ea}
+#service-availability{margin:0 12px 22px;color:#6c6c70;font-size:11px}
+.phone-shell .phone-primary{background:#fff;color:var(--phone-accent);border-radius:12px;font-size:13px;font-weight:400;min-height:48px}
+.phone-shell .phone-primary:hover:not(:disabled){background:#e5e5ea}
+.phone-shell .phone-secondary{background:#fff;border-radius:12px;margin-top:10px;font-size:12px;min-height:48px}
+.phone-shell #disconnect-calendar{color:#ff3b30}
+#calendar-edit{border:0;padding:14px 0 0}#calendar-edit p{margin-left:12px;margin-right:12px}
+@media(max-width:850px){.phone-content{padding-left:13px;padding-right:13px}.phone-title{font-size:28px}.buddy-profile{padding:14px 11px;gap:10px}.buddy-profile img{width:66px;height:66px}.buddy-profile h2{font-size:16px}.service-row{padding-left:10px;padding-right:32px;gap:8px}.service-icon{width:26px;height:26px}.service-name h2{font-size:12px}.service-name p{font-size:9px}.phone-shell .service-openable .service-connect{padding-right:10px}.service-row:not(:last-child)::after{left:44px}}
+
+/* Separate navigation and switch targets; separators align to the text inset. */
+.service-row{padding-right:80px;min-height:66px;gap:9px}.service-row .service-name{min-width:0}.service-name h2{overflow-wrap:normal}.service-row .calendar-dot,.service-row .service-dot{position:absolute;left:46px;bottom:12px;width:5px;height:5px}.service-name p{padding-left:9px}.service-row:not(:last-child)::after{left:49px;right:0;transform:scaleY(.5);transform-origin:bottom}.phone-shell .service-openable .service-connect{inset:0 56px 0 0;width:calc(100% - 56px);padding-right:4px;font-size:22px}.service-switch{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:44px;height:44px;display:grid;place-items:center;margin:0;cursor:pointer;z-index:1}.service-switch input{position:absolute;inset:0;width:44px;height:44px;margin:0;opacity:0;cursor:pointer}.switch-track{width:39px;height:24px;border-radius:20px;background:#e9e9eb;transition:background .18s;pointer-events:none;position:relative}.switch-track:after{content:'';position:absolute;left:2px;top:2px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px #0002;transition:transform .18s}.service-switch input:checked+.switch-track{background:#34c759}.service-switch input:checked+.switch-track:after{transform:translateX(15px)}.service-switch input:disabled+.switch-track{opacity:.45}.service-switch input:disabled{cursor:not-allowed}.service-switch input:focus-visible+.switch-track{outline:2px solid #007aff;outline-offset:3px}.buddies .future-buddy{border-top-color:#e5e5ea}.services-heading{padding-left:12px}.phone-permissions{margin-top:20px}.service-row .service-name p{position:relative}.service-name h2{font-size:12px}.service-name p{font-size:10px}
+@media(max-width:850px){.service-row{padding-right:77px;gap:7px}.service-row .calendar-dot,.service-row .service-dot{left:43px}.service-row:not(:last-child)::after{left:43px}.service-name h2{font-size:11px}.service-name p{font-size:9px}}
+@media(prefers-reduced-motion:reduce){.switch-track,.switch-track:after{transition:none}}
+
+.service-row .calendar-dot,.service-row .service-dot{display:none}.service-name p{padding-left:0;display:flex;align-items:center;gap:4px}.service-name p:before{content:'';width:5px;height:5px;border-radius:50%;background:#c7c7cc;flex-shrink:0}.service-linked .service-name p:before{background:#248a3d}
+
+.phone-shell .service-row .connector-logo{background:transparent;padding:0;object-fit:contain;border-radius:0;flex-shrink:0}
+
+/* Compact grouped connection rows with one hairline per boundary. */
+.service-row{min-height:56px;padding-top:7px;padding-bottom:7px}.service-row:not(:last-child)::after{background:#d8d8dc;left:49px;right:12px;height:1px;transform:scaleY(.5)}.service-name h2{margin-bottom:2px}.service-list{border-radius:11px}.services-heading{min-height:38px}.phone-calendar{padding-top:14px}
+@media(max-width:850px){.service-row:not(:last-child)::after{left:43px;right:10px}}

@@ -135,6 +135,8 @@ export async function buildApp(
         : google.connected()
           ? "connected"
           : "disconnected",
+    calendarEnabled:
+      store.get<boolean>("integration", "calendar-enabled") !== false,
     speechOutput: "client_tts",
     audio: { format: "mono PCM WAV", bits: 16, maxSeconds: 60 },
     singleUser: true,
@@ -206,6 +208,20 @@ export async function buildApp(
         "use live mode to connect a real account",
       );
     return { url: google.authorizationUrl() };
+  });
+  app.patch("/v1/integrations/google", async (req) => {
+    const { enabled } = z
+      .object({ enabled: z.boolean() })
+      .strict()
+      .parse(req.body);
+    if (enabled && config.APP_MODE !== "mock" && !google.connected())
+      throw new AppError(
+        409,
+        "calendar_disconnected",
+        "Connect Google Calendar before enabling it.",
+      );
+    store.put("integration", "calendar-enabled", enabled);
+    return { enabled };
   });
   app.delete("/v1/integrations/google", async () => {
     google.disconnect();

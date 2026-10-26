@@ -11,6 +11,7 @@ export function summarizeLog(kind, path, data) {
   if (path.endsWith('/status')) return 'checking backend and Calendar connection';
   if (path.endsWith('/events')) return 'checking conversation progress';
   if (path.endsWith('/connect')) return 'requesting Google Calendar connection';
+  if (path === 'DELETE /v1/integrations/google') return 'disconnecting Google Calendar';
   if (path.startsWith('DELETE ')) return 'clearing this conversation';
   if (path === 'POST /v1/sessions') return `starting conversation · ${short(data?.timeZone)}`;
   if (path.includes('/actions/')) return 'checking the proposed event and save status';
@@ -20,6 +21,7 @@ export function summarizeLog(kind, path, data) {
   if (body?.action) return `${short(body.action.event?.title || 'event')} · ${short(body.action.status)}`;
   if (body?.mode) return `${short(body.mode)} backend · Calendar ${short(body.calendar)}`;
   if (Array.isArray(body?.events)) return body.events.length ? `latest: ${short(body.events.at(-1).statusText)}` : 'conversation ready · no activity yet';
+  if (body?.disconnected) return 'Google Calendar disconnected';
   if (body?.url) return 'Google consent link ready';
   if (body?.id && path.endsWith('/sessions')) return 'conversation started';
   if (data?.status === 204) return 'conversation cleared';

@@ -31,6 +31,14 @@ export class Service {
       if (value.status === "processing")
         store.put("turn", id, { ...value, status: "failed" });
   }
+  private requireCalendarEnabled() {
+    if (this.store.get<boolean>("integration", "calendar-enabled") === false)
+      throw new AppError(
+        409,
+        "calendar_disabled",
+        "Calendar is switched off. Enable it in connections to use it.",
+      );
+  }
   session(id: string) {
     const s = this.store.get<Session>("session", id);
     if (!s) throw new AppError(404, "not_found", "session not found");
@@ -120,6 +128,8 @@ export class Service {
         const plan = planSchema.parse(
           await this.planner.plan(messages, session.timeZone),
         );
+        if (["create_event", "list_events", "availability"].includes(plan.kind))
+          this.requireCalendarEnabled();
         let result: TurnResult;
         // A new request supersedes earlier unapproved proposals in this session.
         const supersede = () => {
@@ -287,6 +297,7 @@ export class Service {
           "ask again to refresh this proposal",
         );
       }
+      this.requireCalendarEnabled();
       action.status = "executing";
       this.store.put("action", action.id, action);
       this.emit(sessionId, "working", "adding your event…");

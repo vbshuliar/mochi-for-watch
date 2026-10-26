@@ -277,3 +277,39 @@ test("mode switching on a shared database fails closed", async () => {
   store.put("config", "mode", "live");
   await assert.rejects(buildApp(config(), { store }), /separate DATABASE_PATH/);
 });
+
+test("Calendar switch blocks new tasks and pending saves without losing proposals", async (t) => {
+  const f = await fixture();
+  t.after(() => f.app.close());
+  const id = await f.create();
+  const proposal = (await f.turn(id)).json();
+  assert.equal(
+    (await f.request("PATCH", "/v1/integrations/google", { enabled: false }))
+      .statusCode,
+    200,
+  );
+  assert.equal(
+    (await f.request("GET", "/v1/status")).json().calendarEnabled,
+    false,
+  );
+  assert.equal((await f.turn(id)).json().error.code, "calendar_disabled");
+  assert.equal(
+    (await f.decision(id, proposal.action.id)).json().error.code,
+    "calendar_disabled",
+  );
+  assert.equal(f.store.list("mock_event").length, 0);
+  assert.equal(
+    f.store.get<{ status: string }>("action", proposal.action.id)?.status,
+    "pending",
+  );
+  await f.request("PATCH", "/v1/integrations/google", { enabled: true });
+  assert.equal(
+    (await f.decision(id, proposal.action.id)).json().state,
+    "happy",
+  );
+  assert.equal(
+    (await f.request("PATCH", "/v1/integrations/google", { enabled: "yes" }))
+      .statusCode,
+    400,
+  );
+});

@@ -1,20 +1,29 @@
+import {setupServices} from './services.mjs';
+import {EndOfSpeech} from './end-of-speech.mjs';
 import {summarizeLog} from './log-summary.mjs';
 import {VoiceRecorder} from './audio.mjs';
 const $=selector=>document.querySelector(selector),watch=$('#watch');
 let sessionId=sessionStorage.getItem('muse-session'),pending=null,busy=false,recording=false,recordingPending=false,connected=false,lastRequest=null,lastReply='',speechVersion=0,idleTimer,pollTimer,polling=false,recordVersion=0;
+const serviceViews=setupServices(enabled=>calendarOperation(async()=>{await api('/v1/integrations/google',{method:'PATCH',body:{enabled}});await status();log(`Calendar ${enabled?'enabled':'disabled'}`);}));
+let calendarBusy=false;
 let currentView={type:'muse-state',state:'sleep',text:'tap on me to wake up'};
 function send(message){watch.contentWindow?.postMessage(message,location.origin);}
-function face(state,text){if(currentView.state!==state||currentView.text!==text)log(`${state} · ${text||state}`);currentView={type:'muse-state',state,text};send(currentView);}
+function face(state,text){if(['transcribe','think','search','working'].includes(state)){state='think';text='thinking…';}if(currentView.state!==state||currentView.text!==text)log(`${state} · ${text||state}`);currentView={type:'muse-state',state,text};send(currentView);}
 function log(text){apiLog('state','',text);}
 function message(role,text){apiLog(role==='user'?'input':'reply','',text);}
 function controls(){
+ serviceViews.setBusy(calendarBusy||busy||recording||recordingPending);
  $('#send').disabled=busy||recording||recordingPending||!connected||!!(pending&&pending.status!=='pending');
  $('#reset').disabled=busy||recording||recordingPending;
  $('#confirm').disabled=busy||recording||recordingPending||!pending;
  $('#cancel').disabled=busy||recording||recordingPending||!pending||pending.status!=='pending';
  $('#stop').hidden=!recording&&!recordingPending;
  $('#stop').textContent=recordingPending?'cancel microphone request':'finish talking';
- $('#connect-calendar').disabled=busy||recording||recordingPending;
+ $('#connect-calendar').disabled=calendarBusy||busy||recording||recordingPending;
+ $('#refresh-calendar').disabled=calendarBusy||busy||recording||recordingPending;
+ $('#disconnect-calendar').disabled=calendarBusy||busy||recording||recordingPending;
+ $('#edit-calendar').disabled=calendarBusy||busy||recording||recordingPending;
+ $('#calendar-reconnect').disabled=calendarBusy||busy||recording||recordingPending;
 }
 function apiLog(kind,path,data,failed=false){
  const list=$('#api-log'),row=document.createElement('li'),details=document.createElement('details'),heading=document.createElement('summary');
@@ -78,7 +87,12 @@ async function renderResult(result){
  face(result.state,result.statusText);speak(result.speechText,result);
 }
 function errorView(error){apiLog('error','',error.message,true);$('#error').textContent=error.message;face(error.code==='calendar_disconnected'?'permission':'error',error.code==='calendar_disconnected'?'connect Calendar':'something went wrong');$('#hint').textContent=error.message;log(`error: ${error.code||'connection'}`);}
-async function status(){const result=await api('/v1/status');connected=true;$('#connection').textContent=result.mode==='live'?'● live Meta backend':'● simulation backend';$('#mode-note').textContent=result.mode==='live'?'Real Meta requests use your API credits. No service key is exposed to this page.':'SIMULATION MODE — fixed replies and simulated Calendar.';$('#calendar-status').textContent=`Google Calendar: ${result.calendar}`;controls();return result;}
+async function status(){const result=await api('/v1/status');connected=true;$('#connection').textContent=result.mode==='live'?'● live Meta backend':'● simulation backend';$('#mode-note').textContent=result.mode==='live'?'Real Meta requests use your API credits. No service key is exposed to this page.':'SIMULATION MODE — fixed replies and simulated Calendar.';const linked=result.calendar==='connected';
+ $('#calendar-status').textContent=result.mode==='mock'?'simulated connection':linked?(result.calendarEnabled===false?'connected · disabled':'connected'):'not connected';
+ $('#calendar-dot').classList.toggle('connected',linked);
+ $('#connect-calendar').textContent=linked?'reconnect':'connect';
+ $('#disconnect-calendar').hidden=!linked;
+ if(linked)$('#consent').hidden=true;serviceViews.update(result.calendar,result.mode,result.calendarEnabled!==false);controls();return result;}
 async function session(){if(!sessionId){const created=await api('/v1/sessions',{method:'POST',body:{timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone||'Europe/London'}});sessionId=created.id;sessionStorage.setItem('muse-session',sessionId);}return sessionId;}
 async function poll(since){
  if(!polling||!sessionId)return;
@@ -87,7 +101,7 @@ async function poll(since){
 }
 async function submit(request){
  if(busy)return;stopSpeech();busy=true;controls();$('#error').textContent='';$('#retry').hidden=true;lastRequest=request;
- face(request.audio?'transcribe':'think',request.audio?'hearing your words…':'thinking…');$('#hint').textContent='Working with Meta…';const since=Date.now();
+ face('think','thinking…');$('#hint').textContent='Working with Meta…';const since=Date.now();
  try{
   await session();polling=true;pollTimer=setTimeout(()=>poll(since),900);
   const result=await api(`/v1/sessions/${sessionId}/${request.audio?'audio':'turns'}`,{method:'POST',body:request.audio||{text:request.text,requestId:request.id},requestId:request.audio?request.id:undefined});
@@ -95,19 +109,20 @@ async function submit(request){
  }catch(error){polling=false;busy=false;clearTimeout(pollTimer);errorView(error);$('#retry').hidden=false;}
  finally{busy=false;controls();}
 }
-const recorder=new VoiceRecorder(level=>send({type:'muse-level',level}),()=>finishRecording(),text=>{recordVersion++;recording=recordingPending=false;controls();errorView(new Error(text));});
+const endOfSpeech=new EndOfSpeech();
+const recorder=new VoiceRecorder(level=>{send({type:'muse-level',level});if(recording&&endOfSpeech.sample(level,performance.now())){log('finished speaking · silence detected');void finishRecording();}},()=>finishRecording(),text=>{recordVersion++;recording=recordingPending=false;controls();errorView(new Error(text));});
 async function startRecording(){
  if(busy||recording||recordingPending)return;
  if(!connected){try{await status();await session();}catch(error){errorView(error);return;}}
  stopSpeech();$('#error').textContent='';recordingPending=true;controls();face('listen','allow microphone…');const version=++recordVersion;
- try{const started=await recorder.start();if(version!==recordVersion||!started)return;recordingPending=false;recording=true;face('listen','listening…');$('#hint').textContent='Listening. Tap Jolly again to send (60-second maximum).';log('recording started');}
+ try{const started=await recorder.start();if(version!==recordVersion||!started)return;recordingPending=false;endOfSpeech.reset();recording=true;face('listen','listening…');$('#hint').textContent='Listening. Pause when done, or tap Jolly to send (60-second maximum).';log('recording started');}
  catch(error){if(version!==recordVersion)return;recordingPending=false;errorView(new Error(error.name==='NotAllowedError'?'Microphone permission denied. Allow it in browser settings, or type below.':error.message));}
  finally{controls();}
 }
 async function finishRecording(){
  if(recordingPending){recordVersion++;recorder.cancel();recordingPending=false;face('idle','tap to talk');controls();return;}
  if(!recording)return;
- recording=false;busy=true;controls();
+ recording=false;busy=true;face('think','thinking…');controls();
  try{const audio=await recorder.finish();busy=false;message('user','[voice message]');await submit({audio,id:crypto.randomUUID()});}
  catch(error){busy=false;errorView(error);controls();}
 }
@@ -125,7 +140,25 @@ async function decision(value){
 }
 $('#confirm').onclick=()=>decision('confirm');$('#cancel').onclick=()=>decision('cancel');
 $('#reset').onclick=async()=>{if(busy||recording||recordingPending)return;stopSpeech();busy=true;controls();try{if(sessionId)await api(`/v1/sessions/${sessionId}`,{method:'DELETE'});sessionId=null;sessionStorage.removeItem('muse-session');actionView(null);lastRequest=null;$('#retry').hidden=true;$('#replay').hidden=true;$('#conversation').replaceChildren();$('#error').textContent='';await session();face('sleep','tap on me to wake up');$('#hint').textContent='A fresh conversation. Tap Jolly to start.';}catch(error){errorView(error);}finally{busy=false;controls();}};
-$('#connect-calendar').onclick=async()=>{try{const {url}=await api('/v1/integrations/google/connect',{method:'POST',body:{}});const parsed=new URL(url);if(parsed.origin!=='https://accounts.google.com')throw new Error('Unexpected consent destination');$('#consent').href=url;$('#consent').hidden=false;$('#error').textContent='';}catch(error){errorView(error);}};
+async function calendarOperation(operation){
+ if(calendarBusy||busy||recording||recordingPending)return;
+ calendarBusy=true;controls();$('#phone-error').hidden=true;
+ try{await operation();}
+ catch(error){$('#phone-error').textContent=error.message.includes('configure Google OAuth')?'I’m not quite ready to connect to Google yet. Please try again once setup is finished.':'I couldn’t connect just now. Please try again.';$('#phone-error').hidden=false;apiLog('error','Calendar connection',error.message,true);}
+ finally{calendarBusy=false;controls();}
+}
+$('#connect-calendar').onclick=()=>calendarOperation(async()=>{
+ $('#consent').hidden=true;
+ const {url}=await api('/v1/integrations/google/connect',{method:'POST',body:{}});
+ const parsed=new URL(url);if(parsed.origin!=='https://accounts.google.com')throw new Error('Unexpected consent destination');
+ $('#consent').href=url;$('#consent').hidden=false;
+ $('#calendar-status').textContent='awaiting Google sign-in';
+});
+$('#refresh-calendar').onclick=()=>calendarOperation(()=>status());
+$('#disconnect-calendar').onclick=()=>calendarOperation(async()=>{
+ await api('/v1/integrations/google',{method:'DELETE'});
+ $('#consent').hidden=true;await status();log('Google Calendar disconnected');
+});
 window.addEventListener('focus',()=>{void status().catch(()=>{});});
 function voices(){
  const selected=$('#voice-choice').value;
