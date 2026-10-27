@@ -97,6 +97,8 @@ Every `/v1` endpoint requires `Authorization: Bearer <API_TOKEN>`. No tokens in 
 | WS | `/v1/realtime` | PCM audio input, partial transcripts and final transcript |
 | PATCH | `/v1/integrations/google` | `{ "enabled": boolean }` → connection enablement |
 | POST | `/v1/sessions` | `{ "timeZone": "Europe/London" }` → session ID |
+| POST | `/v1/sessions/:id/stream` | Text/request ID → NDJSON text and validated final result |
+| POST | `/v1/sessions/:id/turns/:requestId/cancel` | Cancel an unfinished turn; never undo an approved write |
 | POST | `/v1/sessions/:id/turns` | `{ "requestId": "UUID", "text": "..." }` → turn result |
 | POST | `/v1/sessions/:id/audio` | Raw `audio/wav`; UUID `Idempotency-Key` header → turn result |
 | GET | `/v1/sessions/:id/events` | Bounded timestamped state/status timeline; poll during a pending request |

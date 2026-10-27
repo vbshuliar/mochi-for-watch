@@ -8,6 +8,7 @@ Read [the idea](idea.md), [hackathon requirements](hackathon.md), [MVP scope](mv
 
 | Document | What belongs here |
 |---|---|
+| [Conversation quality](research/conversation-ux.md) | Turn-taking research, interruption semantics, live measurements and regression coverage |
 | [Backend implementation](../backend/README.md) | Local setup, API, live-provider configuration, simulation, tests and deployment limits; [verification record](backend-verification.md) |
 | [Sponsor credits](research/sponsor-credits.md) | Verified event partners, credit amounts, eligibility, claim routes and outstanding conditions |
 | [User context](user-context.md) | Confirmed UI direction, SE 2 hardware, expected credits, available accounts and pending scope choices |

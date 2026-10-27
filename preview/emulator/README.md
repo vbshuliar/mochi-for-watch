@@ -8,10 +8,10 @@ From `backend/`, run `npm start` after `npm run build`. In another terminal in `
 
 ## Use
 
-- Tap the head, grant microphone permission, speak, then pause for about 1.1 seconds to send automatically (or tap again to send immediately). Recording ends automatically at 60 seconds. The watch shows listening, then thinking throughout transcription and processing, then the reply.
+- Tap the head, grant microphone permission, speak, then pause for about 0.9–1.7 seconds to send automatically (or tap again to send immediately). Recording ends automatically at 60 seconds. The watch shows listening, then thinking throughout transcription and processing, then the reply.
 - Actual microphone volume enlarges the head. No decorative audio waves are shown.
 - Meta transcribes live microphone audio while you speak, with WAV upload as a fallback, then handles the conversation.
-- ElevenLabs Jessica reads replies; the head speaks during playback and returns to idle afterward. Tap to interrupt. Mouth movement is expressive animation, not phoneme-level lip sync.
+- ElevenLabs Jessica reads replies; the head speaks during playback and returns to idle afterward. Tap during thinking or speech to interrupt and start a new recording. If autoplay is blocked, tap to hear the downloaded reply. Mouth movement is expressive animation, not phoneme-level lip sync.
 - Event proposals show exact title, times and timezone beside the watch. Confirm explicitly or cancel. Uncertain saves retain the same action for verification/retry.
 - The state log exposes backend progress. Simulation mode is clearly labelled if the backend uses it.
 - Hiding the page discards an unfinished recording. Raw microphone audio is held only in memory; failed uploads retain the same recording for an explicit retry.
@@ -37,4 +37,26 @@ Run `node --test preview/emulator/audio.test.mjs` and `node preview/animation/ch
 
 ## iPhone companion preview
 
-Scroll the left device column below the watch to reach Jolly’s iPhone setup screen. There is one companion, no bot picker or additional-buddies placeholder. Connections add capabilities to Jolly; unavailable services remain placeholders. Calendar status is read from the same backend as the watch. Connect requests a Google consent link; check connection refreshes status; disconnect appears when an actual Google connection exists. These actions are recorded in the right-hand activity stream. Missing OAuth configuration is displayed in the phone, without pretending sign-in succeeded. This remains a single-user browser preview, not a native iPhone app or multi-user pairing flow.
+Scroll the left device column below the watch to reach Jolly’s iPhone setup screen. There is one companion, no bot picker or additional-buddies placeholder. Connections add capabilities to Jolly; unavailable services remain placeholders. Calendar status is read from the same backend as the watch. Connect requests a Google consent link; check connection refreshes status; disconnect appears when an actual Google connection exists. These actions are recorded in the right-hand activity stream. Missing OAuth configuration shows a simple temporary-unavailability message; developer instructions never appear in the phone. This remains a single-user browser preview, not a native iPhone app or multi-user pairing flow.
+
+### Calendar connection experience
+
+Open Calendar → Connect with Google. The emulator opens Google sign-in in a new tab and checks connection status every 2.5 seconds for up to ten minutes. If the browser blocks the new tab, a Continue with Google link is shown instead. Returning focus also refreshes status. Declining consent does not save new access. The phone never exposes developer credentials or configuration steps.
+
+### One-time developer setup
+
+This is performed by the app developer, not each end user:
+
+1. In Google Cloud, choose a project and enable Google Calendar API.
+2. Configure Google Auth Platform Branding and Audience. For personal accounts use External, and add the test account under Test users while the app is in testing.
+3. Create a Web application OAuth client. Register exactly `http://127.0.0.1:8787/oauth/google/callback` as an authorised redirect URI (or the deployed backend's configured URI).
+4. Save its Client ID and Client secret privately in `backend/.env` as `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. Never put these in the phone UI or browser code.
+5. Restart the backend. Users can now choose Connect with Google and grant consent.
+
+See [backend configuration](../../backend/README.md#connect-live-providers) and [Google's server-side OAuth guide](https://developers.google.com/identity/protocols/oauth2/web-server). Public distribution needs the appropriate Google consent/verification process and real per-user authentication; the current backend is a single-user prototype.
+
+## Conversation quality
+
+See [research, timing measurements and regression cases](../../docs/research/conversation-ux.md). An empty recording ends locally after eight seconds; incomplete phrases get more pause time. Interrupted replies cannot take over the current UI. Requests remain serial on the backend; interruption aborts the old turn and waits for cancellation acknowledgement before the next is submitted. It does not undo external actions.
+
+Conversational replies now stream in sentence clips; exact repeat/stop commands skip Meta reasoning. See [streaming design and verification](../../docs/streaming-replies.md).
