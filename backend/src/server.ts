@@ -1,10 +1,13 @@
 import { buildApp } from "./app.ts";
 import { readConfig } from "./config.ts";
+import { attachRealtime } from "./realtime.ts";
 try {
   const config = readConfig();
   const { app } = await buildApp(config);
+  const closeRealtime = attachRealtime(app.server, config);
   for (const signal of ["SIGINT", "SIGTERM"] as const)
     process.once(signal, () => {
+      closeRealtime();
       void app.close().then(() => process.exit(0));
     });
   await app.listen({ host: config.HOST, port: config.PORT });

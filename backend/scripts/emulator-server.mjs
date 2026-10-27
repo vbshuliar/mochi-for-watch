@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { resolve, extname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { WebSocket, WebSocketServer } from "ws";
 const root = resolve(fileURLToPath(new URL("../../", import.meta.url)));
 const port = Number(process.env.EMULATOR_PORT || 4174),
   origin = `http://127.0.0.1:${port}`;
@@ -28,7 +29,7 @@ const server = createServer(async (req, res) => {
   res.setHeader("Referrer-Policy", "no-referrer");
   res.setHeader(
     "Content-Security-Policy",
-    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-src 'self'; frame-ancestors 'self'; object-src 'none'; base-uri 'none'",
+    `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' blob:; connect-src 'self' ${origin.replace("http:", "ws:")}; frame-src 'self'; frame-ancestors 'self'; object-src 'none'; base-uri 'none'`,
   );
   if (req.headers.host !== `127.0.0.1:${port}`) {
     send(403, { error: { message: "invalid host" } });
@@ -112,8 +113,57 @@ const server = createServer(async (req, res) => {
     });
   }
 });
+const streams = new WebSocketServer({ noServer: true, maxPayload: 65536 });
+server.on("upgrade", (req, socket, head) => {
+  if (
+    req.url !== "/api/v1/realtime" ||
+    req.headers.host !== `127.0.0.1:${port}` ||
+    req.headers.origin !== origin ||
+    streams.clients.size >= 2
+  ) {
+    socket.end("HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n");
+    return;
+  }
+  streams.handleUpgrade(req, socket, head, (client) => {
+    const upstream = new WebSocket(
+      backend.replace("http:", "ws:") + "/v1/realtime",
+      {
+        headers: { Authorization: `Bearer ${process.env.API_TOKEN}` },
+        maxPayload: 65536,
+      },
+    );
+    const timer = setTimeout(() => {
+      client.terminate();
+      upstream.terminate();
+    }, 80000);
+    client.on("message", (data, binary) => {
+      if (
+        upstream.readyState !== WebSocket.OPEN ||
+        upstream.bufferedAmount > 256000
+      ) {
+        client.close(1011);
+        return;
+      }
+      upstream.send(data, { binary });
+    });
+    upstream.on("message", (data, binary) => {
+      if (client.readyState === WebSocket.OPEN) client.send(data, { binary });
+    });
+    upstream.on("error", () => client.close(1011));
+    client.on("error", () => upstream.close());
+    upstream.on("close", () => client.close());
+    client.on("close", () => {
+      clearTimeout(timer);
+      upstream.close();
+    });
+  });
+});
 server.listen(port, "127.0.0.1", () =>
   console.log(`Muse for Watch emulator: ${origin}/preview/emulator/`),
 );
 for (const signal of ["SIGINT", "SIGTERM"])
-  process.once(signal, () => server.close(() => process.exit(0)));
+  process.once(signal, () => {
+    for (const client of streams.clients) client.terminate();
+    streams.close();
+    server.close(() => process.exit(0));
+  });
