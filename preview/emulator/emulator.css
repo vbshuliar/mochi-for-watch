@@ -127,3 +127,15 @@ main{height:100dvh;max-width:none;padding:0;gap:0;grid-template-columns:minmax(2
 /* Compact grouped connection rows with one hairline per boundary. */
 .service-row{min-height:56px;padding-top:7px;padding-bottom:7px}.service-row:not(:last-child)::after{background:#d8d8dc;left:49px;right:12px;height:1px;transform:scaleY(.5)}.service-name h2{margin-bottom:2px}.service-list{border-radius:11px}.services-heading{min-height:38px}.phone-calendar{padding-top:14px}
 @media(max-width:850px){.service-row:not(:last-child)::after{left:43px;right:10px}}
+
+/* Single-line Settings rows; details live on their destination screen. */
+.phone-shell .service-row{min-height:48px;padding-top:2px;padding-bottom:2px;align-items:center}
+.phone-shell .service-name h2{margin:0;font-size:13px;line-height:1.35;font-weight:400;letter-spacing:-.15px}
+.phone-shell .service-row:not(:last-child)::after{left:49px;right:0;background:rgba(60,60,67,.25)}
+.phone-shell .service-row .connector-logo{width:26px;height:26px}
+.phone-shell .service-connect>span{font-size:0;width:7px;height:7px;border-top:1.5px solid currentColor;border-right:1.5px solid currentColor;transform:rotate(45deg);margin-right:3px}
+.phone-shell .service-openable:active{background:#e5e5ea}
+.connection-status-accessible{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
+.phone-shell .service-row .calendar-dot,.phone-shell .service-row .service-dot{display:block;position:absolute;left:30px;bottom:10px;width:6px;height:6px;border:1.5px solid #fff;box-sizing:content-box;background:#c7c7cc;pointer-events:none}
+.phone-shell .service-linked .calendar-dot{background:#248a3d}
+@media(max-width:850px){.phone-shell .service-name h2{font-size:12px}.phone-shell .service-row:not(:last-child)::after{left:43px}.phone-shell .service-row .calendar-dot,.phone-shell .service-row .service-dot{left:28px}}
