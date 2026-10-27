@@ -83,7 +83,7 @@ If FFmpeg is already installed, an example conversion is:
 ffmpeg -i input.m4a -ac 1 -ar 16000 -c:a pcm_s16le -t 60 recording.wav
 ```
 
-Speech synthesis stays on the Apple client. The backend returns `speechText`; no TTS voice service or phoneme timings are implemented. Watch recording/encoding, networking, microphone permissions and audio playback still require native-device validation.
+The backend returns `speechText` and provides authenticated ElevenLabs Jessica synthesis through `POST /v1/speech`. The emulator plays the resulting MP3. Phoneme timings are not implemented. Watch recording/encoding, networking, microphone permissions and audio playback still require native-device validation.
 
 ## HTTP contract
 
@@ -93,6 +93,9 @@ Every `/v1` endpoint requires `Authorization: Bearer <API_TOKEN>`. No tokens in 
 |---|---|---|
 | GET | `/health` | Minimal liveness |
 | GET | `/v1/status` | Mode, Calendar connection and audio contract |
+| POST | `/v1/speech` | `{ "text": "..." }` → Jessica MP3 in live mode |
+| WS | `/v1/realtime` | PCM audio input, partial transcripts and final transcript |
+| PATCH | `/v1/integrations/google` | `{ "enabled": boolean }` → connection enablement |
 | POST | `/v1/sessions` | `{ "timeZone": "Europe/London" }` → session ID |
 | POST | `/v1/sessions/:id/turns` | `{ "requestId": "UUID", "text": "..." }` → turn result |
 | POST | `/v1/sessions/:id/audio` | Raw `audio/wav`; UUID `Idempotency-Key` header → turn result |
@@ -104,7 +107,7 @@ Every `/v1` endpoint requires `Authorization: Bearer <API_TOKEN>`. No tokens in 
 | DELETE | `/v1/integrations/google` | Remove local credentials |
 | GET | `/oauth/google/callback` | Browser OAuth callback; one-time state and code |
 
-A successful turn contains `sessionId`, `state`, `statusText`, `speechText`, `simulated`, optional `action`, optional `data`, and optional `returnTo`. Available task states include `transcribe`, `think`, `search`, `approval`, `working`, `happy`, `clarify`, `speak`, `cancelled`, `permission` and `error`. Progress is polling-based, not WebSocket streaming. While recording, the watch owns its `listen` state. Idle, sleep, offline, gestures, lip movement and reaction timing are client responsibilities.
+A successful turn contains `sessionId`, `state`, `statusText`, `speechText`, `simulated`, optional `action`, optional `data`, and optional `returnTo`. Available task states include `transcribe`, `think`, `search`, `approval`, `working`, `happy`, `clarify`, `speak`, `cancelled`, `permission` and `error`. Task progress is polling-based. Live transcription separately uses the authenticated `/v1/realtime` WebSocket. While recording, the watch owns its `listen` state. Idle, sleep, offline, gestures, lip movement and reaction timing are client responsibilities.
 
 For `approval`, `action.event` contains the exact title, start, end and timezone that will be saved. `speechText` reads the complete proposal. The native client must present that full proposal before sending confirmation; the short status line alone is not sufficient. On successful save, honour `returnTo: { "state": "idle", "afterMs": 2400 }`; interrupt this timer if the user starts another interaction.
 
