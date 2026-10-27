@@ -8,6 +8,9 @@ Read [the idea](idea.md), [hackathon requirements](hackathon.md), [MVP scope](mv
 
 | Document | What belongs here |
 |---|---|
+| [Private deployment](private-deployment.md) | Current Fly.io setup, operations, device import and retired Render deployment |
+| [Cloud access investigation](meta-cloud-access-issue.md) | Meta diagnostics, evidence and successful Fly.io migration |
+| [Native apps](../native/README.md) | Xcode setup, device pairing, voice implementation and physical-device checks |
 | [Conversation quality](research/conversation-ux.md) | Turn-taking research, interruption semantics, live measurements and regression coverage |
 | [Backend implementation](../backend/README.md) | Local setup, API, live-provider configuration, simulation, tests and deployment limits; [verification record](backend-verification.md) |
 | [Sponsor credits](research/sponsor-credits.md) | Verified event partners, credit amounts, eligibility, claim routes and outstanding conditions |
