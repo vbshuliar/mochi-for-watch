@@ -5,6 +5,7 @@ export function summarizeLog(kind, path, data) {
  if (body?.error) return short(body.error.message || 'request failed');
  if (data?.message) return short(data.message);
  if (kind === 'request') {
+  if (path.endsWith('/speech')) return `giving Jolly a voice: ${short(data?.text)}`;
   if (path.endsWith('/turns')) return `asking Muse: ${short(data?.text)}`;
   if (path.endsWith('/audio')) return `sending voice recording for transcription · ${Math.round((data?.bytes || 0) / 1024)} KB`;
   if (path.endsWith('/decision')) return data?.decision === 'confirm' ? 'confirming the proposed Calendar event' : 'cancelling the proposed Calendar event';

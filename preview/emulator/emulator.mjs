@@ -2,7 +2,12 @@ import {setupServices} from './services.mjs';
 import {EndOfSpeech} from './end-of-speech.mjs';
 import {summarizeLog} from './log-summary.mjs';
 import {VoiceRecorder} from './audio.mjs';
+import {SpeechPlayer} from './speech.mjs';
+import {RealtimeTranscriber} from './realtime.mjs';
 const $=selector=>document.querySelector(selector),watch=$('#watch');
+const speechPlayer=new SpeechPlayer();
+let speechOutput=null;
+let liveTranscript=null;
 let sessionId=sessionStorage.getItem('muse-session'),pending=null,busy=false,recording=false,recordingPending=false,connected=false,lastRequest=null,lastReply='',speechVersion=0,idleTimer,pollTimer,polling=false,recordVersion=0;
 const serviceViews=setupServices(enabled=>calendarOperation(async()=>{await api('/v1/integrations/google',{method:'PATCH',body:{enabled}});await status();log(`Calendar ${enabled?'enabled':'disabled'}`);}));
 let calendarBusy=false;
@@ -46,7 +51,8 @@ async function api(path,{method='GET',body,requestId}={}){
  if(response.status===204){apiLog('response',path,{status:204,ms:Math.round(performance.now()-started)});return null;}
  const result=await response.json();apiLog('response',path,{status:response.status,ms:Math.round(performance.now()-started),body:result},!response.ok);if(!response.ok){const error=new Error(result.error?.message||'Request failed');error.code=result.error?.code;error.status=response.status;throw error;}return result;
 }
-function stopSpeech(){speechVersion++;clearTimeout(idleTimer);window.speechSynthesis?.cancel();}
+function stopSpeech(){speechVersion++;clearTimeout(idleTimer);speechPlayer.stop();window.speechSynthesis?.cancel();}
+window.addEventListener('pagehide',stopSpeech);
 function rest(result){
  if(pending){face('approval','review event · tap to hear');return;}
  if(result?.state==='happy'){face('happy',result.statusText);idleTimer=setTimeout(()=>face('idle','tap to talk'),2400);}
@@ -55,14 +61,17 @@ function rest(result){
 }
 function speak(text,result){
  stopSpeech();lastReply=text;$('#replay').hidden=!text;
- if(!$('#spoken').checked||!window.speechSynthesis){rest(result);return;}
- const version=speechVersion,utterance=new SpeechSynthesisUtterance(text);utterance.rate=.96;utterance.pitch=1.16;
- const selected=speechSynthesis.getVoices().find(v=>v.voiceURI===$('#voice-choice').value);if(selected)utterance.voice=selected;
- const fallback=setTimeout(()=>{if(version!==speechVersion)return;stopSpeech();rest(result);$('#hint').textContent='Reply is ready. Tap “hear reply again” if speech was blocked.';},Math.max(12000,text.length*130));
- utterance.onstart=()=>{if(version===speechVersion){face('speak','speaking…');$('#hint').textContent='Tap Jolly to interrupt and talk.';}};
- const finish=()=>{clearTimeout(fallback);if(version===speechVersion){rest(result);$('#hint').textContent=pending?'Review the exact event, then choose add or cancel.':'Tap Jolly to talk again.';}};
- utterance.onend=finish;utterance.onerror=()=>{finish();if(version===speechVersion)$('#hint').textContent='Browser speech unavailable. Read the reply or try replay.';};
- speechSynthesis.speak(utterance);
+ if(!$('#spoken').checked){rest(result);return;}
+ if(speechOutput!=='elevenlabs'){apiLog('error','/v1/speech','Jessica is unavailable · check ElevenLabs configuration',true);rest(result);return;}
+ const version=speechVersion,started=performance.now();
+ apiLog('request','POST /v1/speech',{text});
+ face('think','getting my voice ready…');
+ void speechPlayer.play(text,{
+  onReady:bytes=>apiLog('response','/v1/speech',{status:200,ms:Math.round(performance.now()-started),message:`ElevenLabs audio ready · ${Math.round(performance.now()-started)} ms`,bytes}),
+  onStart:()=>{if(version!==speechVersion)return;face('speak','speaking…');log(`ElevenLabs playback started · ${Math.round(performance.now()-started)} ms`);},
+  onEnd:()=>{if(version===speechVersion){log('ElevenLabs playback finished');rest(result);}},
+  onError:error=>{if(version!==speechVersion)return;apiLog('error','/v1/speech',`Jessica could not play · ${error.message}`,true);rest(result);$('#hint').textContent='Jessica could not play. Tap to try again.';},
+ });
 }
 function actionView(action){
  pending=action&&['pending','uncertain','executing'].includes(action.status)?action:null;
@@ -84,10 +93,11 @@ async function renderResult(result){
  if(result.action){const authoritative=await api(`/v1/sessions/${sessionId}/actions/${result.action.id}`);actionView(authoritative.action);}else actionView(null);
  message('assistant',result.speechText);displayData(result.data);
  if(result.simulated)$('#mode-note').textContent='SIMULATION MODE: this backend is not using real Meta or Calendar.';
- face(result.state,result.statusText);speak(result.speechText,result);
+ // Keep thinking until audio actually starts; do not flash the result pose first.
+ speak(result.speechText,result);
 }
 function errorView(error){apiLog('error','',error.message,true);$('#error').textContent=error.message;face(error.code==='calendar_disconnected'?'permission':'error',error.code==='calendar_disconnected'?'connect Calendar':'something went wrong');$('#hint').textContent=error.message;log(`error: ${error.code||'connection'}`);}
-async function status(){const result=await api('/v1/status');connected=true;$('#connection').textContent=result.mode==='live'?'● live Meta backend':'● simulation backend';$('#mode-note').textContent=result.mode==='live'?'Real Meta requests use your API credits. No service key is exposed to this page.':'SIMULATION MODE — fixed replies and simulated Calendar.';const linked=result.calendar==='connected';
+async function status(){const result=await api('/v1/status');speechOutput=result.speechOutput;connected=true;$('#connection').textContent=result.mode==='live'?'● live Meta backend':'● simulation backend';$('#mode-note').textContent=result.mode==='live'?'Real Meta requests use your API credits. No service key is exposed to this page.':'SIMULATION MODE — fixed replies and simulated Calendar.';const linked=result.calendar==='connected';
  $('#calendar-status').textContent=result.mode==='mock'?'simulated connection':linked?(result.calendarEnabled===false?'connected · disabled':'connected'):'not connected';
  $('#calendar-dot').classList.toggle('connected',linked);
  $('#connect-calendar').textContent=linked?'reconnect':'connect';
@@ -110,21 +120,32 @@ async function submit(request){
  finally{busy=false;controls();}
 }
 const endOfSpeech=new EndOfSpeech();
-const recorder=new VoiceRecorder(level=>{send({type:'muse-level',level});if(recording&&endOfSpeech.sample(level,performance.now())){log('finished speaking · silence detected');void finishRecording();}},()=>finishRecording(),text=>{recordVersion++;recording=recordingPending=false;controls();errorView(new Error(text));});
+const recorder=new VoiceRecorder(level=>{send({type:'muse-level',level});if(recording&&endOfSpeech.sample(level,performance.now())){log('finished speaking · silence detected');void finishRecording();}},()=>finishRecording(),text=>{liveTranscript?.cancel();liveTranscript=null;recordVersion++;recording=recordingPending=false;controls();errorView(new Error(text));},(chunk,rate)=>liveTranscript?.push(chunk,rate));
 async function startRecording(){
  if(busy||recording||recordingPending)return;
  if(!connected){try{await status();await session();}catch(error){errorView(error);return;}}
  stopSpeech();$('#error').textContent='';recordingPending=true;controls();face('listen','allow microphone…');const version=++recordVersion;
+ liveTranscript?.cancel();let lastPartial='';
+ liveTranscript=new RealtimeTranscriber({onPartial:text=>{if(version===recordVersion&&text!==lastPartial){lastPartial=text;apiLog('transcript','',text);}},onFailure:reason=>{if(version===recordVersion)log(`${reason} · recording upload fallback available`);}});
  try{const started=await recorder.start();if(version!==recordVersion||!started)return;recordingPending=false;endOfSpeech.reset();recording=true;face('listen','listening…');$('#hint').textContent='Listening. Pause when done, or tap Jolly to send (60-second maximum).';log('recording started');}
- catch(error){if(version!==recordVersion)return;recordingPending=false;errorView(new Error(error.name==='NotAllowedError'?'Microphone permission denied. Allow it in browser settings, or type below.':error.message));}
+ catch(error){if(version!==recordVersion)return;liveTranscript?.cancel();liveTranscript=null;recordingPending=false;errorView(new Error(error.name==='NotAllowedError'?'Microphone permission denied. Allow it in browser settings, or type below.':error.message));}
  finally{controls();}
 }
 async function finishRecording(){
- if(recordingPending){recordVersion++;recorder.cancel();recordingPending=false;face('idle','tap to talk');controls();return;}
+ if(recordingPending){recordVersion++;liveTranscript?.cancel();liveTranscript=null;recorder.cancel();recordingPending=false;face('idle','tap to talk');controls();return;}
  if(!recording)return;
  recording=false;busy=true;face('think','thinking…');controls();
- try{const audio=await recorder.finish();busy=false;message('user','[voice message]');await submit({audio,id:crypto.randomUUID()});}
- catch(error){busy=false;errorView(error);controls();}
+ const stream=liveTranscript,version=recordVersion;
+ try{
+  const audio=await recorder.finish();let text;
+  const finalizedAt=performance.now();
+  try{text=await stream.finish();log(`live transcript finalized · ${Math.round(performance.now()-finalizedAt)} ms after recording`);}
+  catch{if(version!==recordVersion)return;log('live transcription failed · uploading recording to Meta');}
+  if(version!==recordVersion)return;
+  liveTranscript=null;busy=false;message('user',text||'[voice message]');
+  await submit(text?{text,id:crypto.randomUUID()}:{audio,id:crypto.randomUUID()});
+ }catch(error){if(version===recordVersion){busy=false;errorView(error);controls();}}
+ finally{stream?.cancel();if(liveTranscript===stream)liveTranscript=null;}
 }
 async function tap(){if(busy)return;if(recording||recordingPending){await finishRecording();return;}if(pending&&(currentView.state==='approval'||pending.status!=='pending')){speak(`${pending.event.title}, from ${pending.event.start} until ${pending.event.end}, ${pending.event.timeZone}. Review the event beside the watch to approve.`,{state:'approval'});return;}await startRecording();}
 window.addEventListener('message',event=>{if(event.source!==watch.contentWindow||event.origin!==location.origin)return;if(event.data?.type==='muse-ready')send(currentView);if(event.data?.type==='muse-tap')void tap();});
@@ -171,7 +192,7 @@ function voices(){
 
 voices();window.speechSynthesis?.addEventListener('voiceschanged',voices);
 $('#spoken').onchange=()=>{if(!$('#spoken').checked){stopSpeech();rest();}};
-function discardRecording(){if(recording||recordingPending){recordVersion++;recorder.cancel();recording=recordingPending=false;face('idle','recording discarded');$('#hint').textContent='Recording stopped because the page was hidden. Nothing was sent.';controls();}stopSpeech();if(currentView.state==='speak')rest();}
+function discardRecording(){if(recording||recordingPending||liveTranscript){recordVersion++;liveTranscript?.cancel();liveTranscript=null;recorder.cancel();recording=recordingPending=busy=false;face('idle','recording discarded');$('#hint').textContent='Recording stopped. Streamed audio may already have reached Meta; no request was submitted to the agent.';controls();}stopSpeech();if(currentView.state==='speak')rest();}
 document.addEventListener('visibilitychange',()=>{if(document.hidden)discardRecording();});window.addEventListener('pagehide',discardRecording);
 try{
  await status();

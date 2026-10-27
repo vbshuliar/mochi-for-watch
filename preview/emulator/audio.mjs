@@ -12,12 +12,12 @@ export function encodeWav(chunks,inputRate){
  return new Blob([buffer],{type:'audio/wav'});
 }
 export class VoiceRecorder {
- constructor(onLevel,onLimit,onFailure){this.onLevel=onLevel;this.onLimit=onLimit;this.onFailure=onFailure;this.generation=0;this.chunks=[];this.active=false;}
+ constructor(onLevel,onLimit,onFailure,onChunk=()=>{}){this.onLevel=onLevel;this.onLimit=onLimit;this.onFailure=onFailure;this.onChunk=onChunk;this.generation=0;this.chunks=[];this.active=false;}
  async start(){
   this.cancel();const generation=this.generation;this.chunks=[];this.count=0;
   if(!navigator.mediaDevices?.getUserMedia||!window.AudioContext)throw new Error('Microphone recording is unavailable in this browser. You can type instead.');
   try{
-   const context=new AudioContext({sampleRate:16000});this.context=context;
+   const context=new AudioContext({sampleRate:24000});this.context=context;
    const resumed=context.resume();void resumed.catch(()=>{});
    const stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true},video:false});
    if(generation!==this.generation){stream.getTracks().forEach(track=>track.stop());return false;}
@@ -30,7 +30,7 @@ export class VoiceRecorder {
     if(event.data.done){this.flushed?.();return;}
     const samples=event.data.samples;if(!(samples instanceof Float32Array))return;
     const remaining=Math.max(0,this.rate*60-this.count),chunk=samples.slice(0,remaining);
-    if(chunk.length){this.chunks.push(chunk);this.count+=chunk.length;}
+    if(chunk.length){this.chunks.push(chunk);this.count+=chunk.length;this.onChunk(chunk,this.rate);}
     let sum=0;for(const sample of samples)sum+=sample*sample;
     this.onLevel(Math.min(1,Math.max(0,(Math.sqrt(sum/samples.length)-.003)*14)));
     if(this.active&&this.count>=this.rate*60){this.active=false;this.onLimit();}
