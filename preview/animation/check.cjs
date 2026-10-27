@@ -2,13 +2,21 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 let now=0,frame,timerId=0;const timers=new Map(),nodes=new Map();
 const gradient={addColorStop(){}};
-const context2d=new Proxy({createRadialGradient:()=>gradient,createLinearGradient:()=>gradient},{get:(o,k)=>o[k]||(()=>{})});
+const context2d=new Proxy({createRadialGradient:()=>gradient,createLinearGradient:()=>gradient,measureText:text=>({width:text.length*11})},{get:(o,k)=>o[k]||(()=>{})});
 function element(){return {style:{},attrs:{},children:[],dataset:{},textContent:'',setAttribute(k,v){assert(!/NaN|Infinity/.test(v));this.attrs[k]=v;},getAttribute(k){return this.attrs[k];},getContext:()=>context2d,prepend(row){this.children.unshift(row);row.remove=()=>this.children.pop();},replaceChildren(){this.children=[];},get lastElementChild(){return this.children.at(-1);}};}
 function node(k){if(!nodes.has(k)){const n=element();n.value=k==='#pixel-zoom'?'2':k==='#state-filter'?'conversation':k==='#scenario'?'calendar':'';nodes.set(k,n);}return nodes.get(k);}
 const reduced={matches:false};
 const ctx=vm.createContext({document:{querySelector:node,querySelectorAll:()=>[],createElement:element,addEventListener(){}},window:{devicePixelRatio:2,addEventListener(){}},matchMedia:()=>reduced,performance:{now:()=>now},requestAnimationFrame:f=>(frame=f,1),cancelAnimationFrame(){},setTimeout:(f,t)=>(timers.set(++timerId,{f,at:now+t}),timerId),clearTimeout:id=>timers.delete(id),Math,Date,Path2D:class{constructor(path){assert(!/NaN|Infinity|undefined/.test(path));}}});
 for(const file of ['workflow.js','microphone.js','lab.js'])vm.runInContext(fs.readFileSync(__dirname+'/'+file,'utf8'),ctx);
 function step(ms){for(let i=0;i<ms/16;i++){now+=16;for(const [id,t]of timers){if(t.at<=now){timers.delete(id);t.f();}}frame(now);}}
+// Captions remain readable for one second and never queue obsolete intermediate text.
+assert.equal(vm.runInContext("captionAt('listening…',0)",ctx),'listening…');
+assert.equal(vm.runInContext("captionAt('thinking…',400)",ctx),'listening…');
+assert.equal(vm.runInContext("captionAt('speaking…',999)",ctx),'listening…');
+assert.equal(vm.runInContext("captionAt('speaking…',1000)",ctx),'speaking…');
+assert.equal(vm.runInContext("captionAt('tap to talk',1999)",ctx),'speaking…');
+assert.equal(vm.runInContext("captionAt('tap to talk',2000)",ctx),'tap to talk');
+vm.runInContext("visibleCaption='';captionShownAt=-Infinity",ctx);
 node('#story').onclick();step(6000);assert.equal(node('#message').textContent,'add lunch at 1? tap yes');step(20000);assert.equal(node('#message').textContent,'add lunch at 1? tap yes','must not auto-approve');
 node('#mascot').onclick();step(3000);assert.equal(node('#message').textContent,'lunch added · 1 pm');
 assert.equal(vm.runInContext('state',ctx),'happy');step(2200);assert.equal(vm.runInContext('state',ctx),'idle');assert.equal(node('#message').textContent,'tap to talk');
@@ -55,7 +63,20 @@ assert(loudScale>quietScale+.1&&loudScale<=1.121,'head grows with measured voice
 vm.runInContext('microphone.level=0',ctx);step(1800);
 assert(Math.abs(vm.runInContext('pose.scale',ctx)-quietScale)<.001,'head settles back in silence');
 const ids=vm.runInContext('Object.keys(definitions)',ctx);for(const id of ids){vm.runInContext(`setState('${id}')`,ctx);step(9000);}
+// Thinking visibly looks both ways and has no discontinuity at beat/loop boundaries.
+vm.runInContext("setState('think')",ctx);
+const thoughts=[];for(let i=0;i<90;i++){step(100);thoughts.push(vm.runInContext('({...pose})',ctx));}
+assert(thoughts.some(p=>p.gx<-20)&&thoughts.some(p=>p.gx>20),'thinking looks left and right');
+const thinkingPose=vm.runInContext('({...pose})',ctx);
+vm.runInContext("setState('speak')",ctx);step(16);
+const speechPose=vm.runInContext('({...pose})',ctx);
+assert(Math.abs(speechPose.gx-thinkingPose.gx)<1,'speaking keeps the current gaze on its first frame');
+assert(Math.abs(speechPose.angle-thinkingPose.angle)<1,'speaking does not snap head rotation');
+for(const at of [2.1,4.5,6.4,8.6]){
+ const a=vm.runInContext(`thinkingAt(${at-.001})`,ctx),b=vm.runInContext(`thinkingAt(${at+.001})`,ctx);
+ assert(Math.abs(a.gx-b.gx)<.01&&Math.abs(a.angle-b.angle)<.01,'thinking loop stays continuous');
+}
 for(let i=0;i<80;i++)vm.runInContext("setState('idle')",ctx);assert.equal(node('#event-log').children.length,60);node('#clear-log').onclick();assert.equal(node('#event-log').children.length,0);
 assert.equal(node('#watch-pixels').width,368);assert.equal(node('#watch-pixels').height,448);
-reduced.matches=true;vm.runInContext("setState('speak')",ctx);step(4000);const before=node('#mouth').attrs.d;step(4000);assert.equal(node('#mouth').attrs.d,before);
+reduced.matches=true;vm.runInContext("setState('speak')",ctx);step(4000);const before=node('#mouth').attrs.d;step(4000);const pathNumbers=s=>s.match(/-?\d+(?:\.\d+)?/g).map(Number);const settledMouth=pathNumbers(before),laterMouth=pathNumbers(node('#mouth').attrs.d);assert(settledMouth.every((value,i)=>Math.abs(value-laterMouth[i])<1e-8),'reduced motion mouth stays settled');
 console.log(`PASS: ${ids.length} states, explicit approval, cancellation, recovery, clarification, bounded/clearable log, fixed pixel buffer and reduced motion.`);

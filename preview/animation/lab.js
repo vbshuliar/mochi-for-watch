@@ -7,7 +7,7 @@ const definitions={
  sleep:{name:'Sleep',icon:'☾',sub:'Resting',message:'Taking a little rest.',hint:'Tap to wake and start listening. Offline is a separate recovery state.'},
  wake:{name:'Wake up',icon:'✧',sub:'A gentle hello',message:'Oh, hello there.',hint:'A little stretch, then listening.'},
  listen:{name:'Listen',icon:'◖',sub:'All ears',message:'You have my attention.',hint:'Adjust the voice slider to see me respond.'},
- think:{name:'Think',icon:'∴',sub:'Considering',message:'Let me think…',hint:'Wonder, weigh it up, focus… then a little spark.'},
+ think:{name:'Think',icon:'∴',sub:'Considering',message:'Let me think…',hint:'Eyes glance left and right; the head follows gently, with little pauses to consider.'},
  search:{name:'Search',icon:'⌕',sub:'Looking around',message:'Looking into it.',hint:'Following a thought, from one place to the next.'},
  speak:{name:'Speak',icon:'♫',sub:'A lively reply',message:'I found something for you.',hint:'Vowel shapes, phrase pauses and little moments of emphasis.'},
  confused:{name:'Confused',icon:'≈',sub:'Working it out',message:'Hmm…',hint:'A small double take and an uncertain smile.'},
@@ -25,6 +25,13 @@ let pose={x:0,y:0,angle:0,scale:1,eye:1,gx:0,gy:0,smile:24,open:0,width:49,skew:
 const statuses={idle:'tap to talk',sleep:'tap on me to wake up',wake:'waking up…',listen:'listening…',think:'thinking…',search:'looking into it…',speak:'speaking…',confused:'hmm…',curious:'let me understand…',surprised:'oh! I see…',delighted:'hello!',loved:'aww, thank you!',happy:'all done!'};
 for(const [id,d] of Object.entries(workflowStates))statuses[id]=d.status;
 const headVelocity={x:0,y:0,angle:0,scale:0};
+let speechEntrancePose=null;
+let visibleCaption='',captionShownAt=-Infinity;
+function captionAt(requested,now){
+ // Keep only the latest pending caption, rather than replaying stale statuses.
+ if(requested!==visibleCaption&&now-captionShownAt>=1000){visibleCaption=requested;captionShownAt=now;}
+ return visibleCaption;
+}
 const events=[];
 const microphone=new MuseMicrophone(status=>{
  if(state!=='listen')return;
@@ -71,7 +78,8 @@ function setState(id,fromDemo=false){
  if(!definitions[id])return;
  clearTimeout(reactionTimer);
  if(!fromDemo)cancelDemo();
- const previous=state;if(previous==='listen')microphone.stop();state=id;started=performance.now();if(id==='offline')online=false;
+ const previous=state;speechEntrancePose=previous==='think'&&id==='speak'?{...pose}:null;
+ if(previous==='listen')microphone.stop();state=id;started=performance.now();if(id==='offline')online=false;
  pendingAction=id==='approval';
  logEvent('state',`${previous} → ${id}`);
  connection();
@@ -149,6 +157,22 @@ function idleGestureAt(time){
  return {gx:cue.gx*gaze*direction,gy:cue.gy*gaze,angle:cue.angle*head*direction,
   brow:(cue.brow||0)*head,smile:24+(cue.smile||0)*head};
 }
+// Uneven pauses make each glance deliberate. Eyes lead; the head follows.
+const thinkingBeats=[
+ {at:0,gx:-30,gy:-15,angle:-6,eye:.94,smile:12,asym:8},
+ {at:2.1,gx:29,gy:-10,angle:6,eye:.88,smile:8,asym:-7},
+ {at:4.5,gx:-18,gy:-23,angle:-4,eye:1,smile:15,asym:5},
+ {at:6.4,gx:22,gy:-8,angle:4,eye:.9,smile:10,asym:-5},
+ {at:8.6,gx:-30,gy:-15,angle:-6,eye:.94,smile:12,asym:8},
+];
+function thinkingAt(time){
+ const phase=((time%8.6)+8.6)%8.6;
+ const index=thinkingBeats.findIndex((beat,i)=>i<thinkingBeats.length-1&&phase>=beat.at&&phase<thinkingBeats[i+1].at);
+ const a=thinkingBeats[index],b=thinkingBeats[index+1];
+ const blend=Math.max(0,Math.min(1,(phase-(b.at-.85))/.85));
+ const ease=blend*blend*blend*(blend*(blend*6-15)+10);
+ return Object.fromEntries(['gx','gy','angle','eye','smile','asym'].map(key=>[key,a[key]+(b[key]-a[key])*ease]));
+}
 function render(now){const dt=Math.min((now-last)/1000,.05);last=now;const t=(now-started)/1000;const active=motion&&!reduced.matches;const breath=active?Math.sin(now/1100):0;
  if(state==='listen'&&!emulatorMode)microphone.sample();
  let target={x:0,y:breath*1.3,angle:0,scale:1+breath*.012,eye:1,gx:0,gy:0,smile:24,open:0,width:49,skew:0,brow:0,asym:0,joy:0,round:0};
@@ -177,10 +201,8 @@ function render(now){const dt=Math.min((now-last)/1000,.05);last=now;const t=(no
  const beat=active?Math.sin(t*2.8):0;
  if(state==='listen'){const nod=active?Math.max(0,Math.sin(t*1.8))**8:0;Object.assign(target,{angle:-5*energy,y:nod*4,scale:1+(active?Math.max(0,Math.min(1,microphone.level))*.12:0),eye:1.1,gx:0,gy:-4+nod*9,smile:22,brow:9,asym:3});}
  if(state==='think'){
-  // A thought has beats: wonder, weigh an alternative, concentrate, then recognition.
-  const phase=active?Math.floor((t%8)/2):0;
-  const thoughts=[{gx:-24,gy:-24,angle:-7,eye:.88,smile:3,width:30,skew:-8,brow:12,asym:12},{gx:23,gy:-16,angle:6,eye:.74,smile:0,width:26,skew:9,brow:4,asym:-10},{gx:2,gy:8,angle:1,eye:.57,smile:-5,width:23,skew:0,brow:-5,asym:5},{gx:0,gy:-7,angle:-3,eye:1.12,smile:30,width:48,brow:15,asym:0}];
-  Object.assign(target,thoughts[phase]);
+  const gaze=thinkingAt(active?t:0),head=thinkingAt(active?Math.max(0,t-.18):0);
+  Object.assign(target,gaze,{angle:head.angle,x:head.gx*.055,width:39,brow:8,skew:gaze.gx*.08});
  }
  if(state==='search'){const step=Math.floor(t/1.1)%5;const points=[[-22,-12],[23,-15],[18,10],[-17,7],[0,-20]];Object.assign(target,{gx:points[step][0],gy:points[step][1],angle:points[step][0]/6,eye:1.02,smile:13});}
  if(state==='speak'){
@@ -205,6 +227,11 @@ function render(now){const dt=Math.min((now-last)/1000,.05);last=now;const t=(no
  if(state==='happy'){Object.assign(target,{eye:.08,joy:1,smile:36,width:63,brow:12,angle:active&&t<1?Math.sin(t*9)*4:0,y:active&&t<.8?-Math.sin(t/.8*Math.PI)*12:0,scale:1.025});}
  if(pressed)target.scale*=.975;
  target.angle*=energy;target.gx*=energy;target.gy*=energy;target.brow*=energy;target.asym*=energy;
+ if(state==='speak'&&speechEntrancePose&&active&&t<.65){
+  const u=Math.min(1,t/.65),blend=u*u*u*(u*(u*6-15)+10);
+  // Ease gaze and expression out of the current thought; speech mouth stays responsive.
+  for(const key of ['gx','gy','eye','smile','brow','asym','skew'])target[key]=speechEntrancePose[key]+(target[key]-speechEntrancePose[key])*blend;
+ }
  if(active&&state!=='sleep'&&state!=='offline'&&state!=='wake'){if(now>nextBlink){blinkStarted=now;nextBlink=now+3400+Math.random()*2400;}const b=(now-blinkStarted)/1000;if(b>=0&&b<.22){target.eye*=1-Math.sin(b/.22*Math.PI);}}
  if(!active){target.x=0;target.y=0;target.angle=0;target.scale=1;target.gx=state==='think'?8:0;target.gy=state==='think'?-12:0;}
  const eyeSmooth=1-Math.exp(-dt*48);
@@ -273,9 +300,9 @@ window.addEventListener('pagehide',()=>microphone.stop());
 function eyeContour(openness,joy){
  const o=Math.max(0,Math.min(1.45,openness));
  const close=1-Math.min(1,o/.7),curve=(12-joy*34)*close;
- const halfWidth=30+close*2,thickness=5+o*43;
- const control=halfWidth*(1-close*.35);
- return new Path2D(`M ${-halfWidth} 0 C ${-control} ${curve-thickness}, ${control} ${curve-thickness}, ${halfWidth} 0 C ${control} ${curve+thickness}, ${-control} ${curve+thickness}, ${-halfWidth} 0 Z`);
+ const rx=33-close,ry=3+o*32,k=.5522848;
+ // Rounded bead eyes become a single curved lid as they close.
+ return new Path2D(`M ${-rx} 0 C ${-rx} ${-ry*k}, ${-rx*k} ${curve-ry}, 0 ${curve-ry} C ${rx*k} ${curve-ry}, ${rx} ${-ry*k}, ${rx} 0 C ${rx} ${ry*k}, ${rx*k} ${curve+ry}, 0 ${curve+ry} C ${-rx*k} ${curve+ry}, ${-rx} ${ry*k}, ${-rx} 0 Z`);
 }
 function drawWatch(t,active){
  const c=pixelContext,w=pixelCanvas.width,h=pixelCanvas.height,head=w*.86;
@@ -289,21 +316,30 @@ function drawWatch(t,active){
  for(const [side,ex,sign]of [['left',335,-1],['right',665,1]]){
   const openness=Math.max(0,pose.eye*(1+sign*pose.asym*.008));
   c.save();c.translate(ex+pose.gx*.75,520+pose.gy*.82);
-  const eye=eyeContour(openness,pose.joy),gloss=c.createRadialGradient(-10,-14,2,0,0,43);
-  gloss.addColorStop(0,'#4b4037');gloss.addColorStop(.5,'#1b1714');gloss.addColorStop(1,'#100d0b');
-  c.fillStyle=openness<.25?'#443125':gloss;c.fill(eye);c.clip(eye);
-  c.globalAlpha=Math.max(0,Math.min(.9,(openness-.3)*1.4));c.fillStyle='#fff';
-  c.beginPath();c.ellipse(-10,-12,8,7,0,0,Math.PI*2);c.fill();c.restore();
+  const eye=eyeContour(openness,pose.joy),gloss=c.createRadialGradient(10,-17,1,0,0,38);
+  gloss.addColorStop(0,'#292b30');gloss.addColorStop(.45,'#101114');gloss.addColorStop(1,'#030405');
+  c.fillStyle=openness<.25?'#211916':gloss;c.fill(eye);c.clip(eye);
+  const shine=Math.max(0,Math.min(1,(openness-.3)*1.4));
+  c.globalAlpha=shine*.2;c.fillStyle='#e5e9f4';
+  c.beginPath();c.ellipse(12,-17,10,15,-.55,0,Math.PI*2);c.fill();
+  c.globalAlpha=shine*.85;c.fillStyle='#fff';
+  c.beginPath();c.ellipse(12,-18,5,9,-.55,0,Math.PI*2);c.fill();c.restore();
   c.save();c.globalAlpha=Number($('#'+side+'-brow').style.opacity)||0;c.strokeStyle='#80634e';c.lineWidth=6;c.lineCap='round';c.stroke(new Path2D($('#'+side+'-brow').getAttribute('d')));c.restore();
  }
  const mouth=new Path2D($('#mouth').getAttribute('d')),depth=c.createLinearGradient(0,590,0,675);
- depth.addColorStop(0,'#361613');depth.addColorStop(1,'#71332e');c.fillStyle=depth;c.fill(mouth);c.strokeStyle='#502820';c.lineWidth=5;c.lineJoin='round';c.stroke(mouth);
+ depth.addColorStop(0,'#281311');depth.addColorStop(1,'#71332e');c.fillStyle=depth;c.fill(mouth);c.strokeStyle='#281b17';c.lineWidth=7;c.lineJoin='round';c.lineCap='round';c.stroke(mouth);
  c.save();c.clip(mouth);c.globalAlpha=Number($('#tongue').style.opacity)||0;c.fillStyle='#bd7773';c.fill(new Path2D($('#tongue').getAttribute('d')));c.restore();c.restore();
  if(state==='loved'){
   const points=[[.13,.49,25],[.86,.29,31],[.22,.22,19]];
   points.forEach(([hx,hy,size],i)=>{const age=t-i*.22;if(age<0)return;c.save();c.globalAlpha=Math.max(0,Math.min(1,age/.35,(4.3-t)/.7));c.font=`${size}px sans-serif`;c.textAlign='center';c.fillText('❤️',hx*w,hy*h-(active?Math.min(1,age/3.6)*25:0));c.restore();});
  }
- c.fillStyle='#e6e2db';c.font='400 22px -apple-system, BlinkMacSystemFont, sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText($('#message').textContent,w/2,h*.87+6,w-24);
+ c.fillStyle='#e6e2db';c.font='400 22px -apple-system, BlinkMacSystemFont, sans-serif';c.textAlign='center';c.textBaseline='middle';
+ // Preserve normal letter shapes rather than horizontally squeezing long replies.
+ const fullText=captionAt($('#message').textContent,performance.now());
+ let caption=fullText;
+ while(caption.length&&c.measureText(caption).width>w-32)caption=caption.slice(0,-1);
+ if(caption!==fullText){while(caption.length&&c.measureText(caption+'…').width>w-32)caption=caption.slice(0,-1);caption=caption.trimEnd()+'…';}
+ c.fillText(caption,w/2,h*.87+6);
 }
 const emotionsOnly=typeof location!=='undefined'&&new URLSearchParams(location.search).get('view')==='emotions';
 if(emotionsOnly){
@@ -323,7 +359,8 @@ if(emulatorMode){
   if(event.origin!==location.origin||event.source!==window.parent)return;
   const data=event.data;
   if(data?.type==='muse-state'&&definitions[data.state]){
-   setState(data.state);
+   // Progress polling must not restart the thinking gesture every time.
+   if(state!==data.state)setState(data.state);
    if(typeof data.text==='string'){$('#message').textContent=data.text;$('#message').setAttribute('aria-label',data.text);}
    $('#mascot').setAttribute('aria-label',data.state==='listen'?'Finish recording':data.state==='approval'?'Review the proposed event beside the watch':'Tap to talk');
   }
