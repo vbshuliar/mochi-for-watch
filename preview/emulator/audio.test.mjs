@@ -20,6 +20,6 @@ test('worklet flushes final partial buffer and stops collecting',async()=>{
  vm.runInNewContext(await readFile(new URL('./pcm-worklet.js',import.meta.url),'utf8'),{AudioWorkletProcessor:Base,Float32Array,registerProcessor:(_,p)=>Processor=p});
  const processor=new Processor();processor.process([[new Float32Array(2200).fill(.25)]]);
  processor.port.onmessage({data:'finish'});processor.process([[new Float32Array(128)]]);
- assert.deepEqual(messages.filter(m=>m.samples).map(m=>m.samples.length),[2048,152]);
+ assert.deepEqual(messages.filter(m=>m.samples).map(m=>m.samples.length),[768,768,664]);
  assert.equal(messages.at(-1).done,true);
 });

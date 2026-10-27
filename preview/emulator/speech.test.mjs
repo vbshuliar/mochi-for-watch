@@ -24,3 +24,14 @@ test('default fetch is not called with the player as its receiver',async t=>{
  const player=new SpeechPlayer({createAudio:()=>({pause(){},removeAttribute(){},load(){},async play(){}}),urls:{createObjectURL:()=> 'blob:test',revokeObjectURL(){}}});
  let error;await player.play('hello',{onReady(){},onStart(){},onEnd(){},onError:e=>{error=e;}});player.stop();assert.equal(error,undefined);assert.equal(calls,1);
 });
+test('autoplay block offers tap-to-play using the already fetched audio',async()=>{
+ let fetches=0,attempts=0,blocked=0,starts=0,revoked=0;
+ const player=new SpeechPlayer({fetchAudio:async()=>{fetches++;return audioResponse();},createAudio:()=>({pause(){},removeAttribute(){},load(){},async play(){if(++attempts===1)throw Object.assign(new Error('gesture required'),{name:'NotAllowedError'});this.onplaying();}}),urls:{createObjectURL:()=> 'blob:ready',revokeObjectURL(){revoked++;}}});
+ await player.play('hello',{onReady(){},onStart(){starts++;},onEnd(){},onError:e=>assert.fail(e.message),onBlocked(){blocked++;}});
+ assert.equal(blocked,1);assert.equal(player.current.blocked,true);assert.equal(starts,0);
+ await player.resume();assert.equal(fetches,1);assert.equal(starts,1);assert.equal(player.current.blocked,false);player.stop();assert.equal(revoked,1);
+});
+test('a late playback rejection after interruption cannot report an error',async()=>{
+ let reject;const f=fixture();f.player.createAudio=()=>({pause(){},removeAttribute(){},load(){},play(){return new Promise((_,r)=>{reject=r;});}});
+ const pending=f.player.play('hello',f.callbacks);while(!reject)await new Promise(r=>setImmediate(r));f.player.stop();reject(new Error('late error'));await pending;assert.equal(f.stats().errors,0);
+});
