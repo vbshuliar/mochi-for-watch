@@ -1,15 +1,15 @@
 const catalog={
- calendar:{name:'Google Calendar',title:'Calendar',description:'Let your bots access your calendar to view meetings, find free time and add events.',access:['View meetings and free time','Add events with your approval']},
- instagram:{name:'Instagram',title:'Instagram',description:'Let your bots help with Instagram posts, comments and replies.',access:['View posts and comments','Draft replies for approval']},
- facebook:{name:'Facebook Pages',title:'Facebook Pages',description:'Let your bots follow page activity and help with replies.',access:['View page activity','Help draft replies']},
- notion:{name:'Notion',title:'Notion Workspace',description:'Let your bots find and save information in your Notion pages.',access:['Find pages and notes','Create or update pages with your approval']},
- gmail:{name:'Gmail',title:'Gmail Inbox',description:'Let your bots help you catch up on email and draft replies.',access:['Find and summarise emails','Draft replies for your review']},
- search:{name:'web search',title:'Web Search',description:'Let your bots search the web and bring back answers with sources.',access:['Search the web','Include sources']}
+ calendar:{name:'Google Calendar',title:'Calendar',description:'Let Jolly access your calendar to view meetings, find free time and add events.',access:['View meetings and free time','Add events with your approval']},
+ instagram:{name:'Instagram',title:'Instagram',description:'Let Jolly help with Instagram posts, comments and replies.',access:['View posts and comments','Draft replies for approval']},
+ facebook:{name:'Facebook Pages',title:'Facebook Pages',description:'Let Jolly follow page activity and help with replies.',access:['View page activity','Help draft replies']},
+ notion:{name:'Notion',title:'Notion Workspace',description:'Let Jolly find and save information in your Notion pages.',access:['Find pages and notes','Create or update pages with your approval']},
+ gmail:{name:'Gmail',title:'Gmail Inbox',description:'Let Jolly help you catch up on email and draft replies.',access:['Find and summarise emails','Draft replies for your review']},
+ search:{name:'web search',title:'Web Search',description:'Let Jolly search the web and bring back answers with sources.',access:['Search the web','Include sources']}
 };
 export function setupServices(onToggle){
  const $=s=>document.querySelector(s);let active=null,calendar='unknown',mode='live',trigger=null,homeScroll=0,enabled=true,blocked=false;
  const switches=[];
- function syncSwitches(){for(const {key,input} of switches){const ready=key==='calendar'&&(calendar==='connected'||calendar==='simulated');input.closest('.service-row').classList.toggle('service-linked',ready);input.checked=ready&&enabled;input.disabled=!ready||blocked;input.title=ready?'Allow your bots to use this service':'Connect this service first';}}
+ function syncSwitches(){for(const {key,input} of switches){const ready=key==='calendar'&&(calendar==='connected'||calendar==='simulated');input.closest('.service-row').classList.toggle('service-linked',ready);input.checked=ready&&enabled;input.disabled=!ready||blocked;input.title=ready?'Allow Jolly to use this service':'Connect this service first';}}
  function render(){
   if(!active)return;
   const entry=catalog[active],isCalendar=active==='calendar',linked=isCalendar&&calendar==='connected';

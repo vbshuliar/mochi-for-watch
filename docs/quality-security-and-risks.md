@@ -46,11 +46,7 @@ The watch should never display false success messages.
 
 Agents must operate within their assigned tool permissions.
 
-Pip should not gain calendar modification capabilities unless explicitly authorised.
-
-Milo should not publish to Instagram.
-
-Nori should not send external messages through research tools.
+Jolly must have explicit Calendar permissions before modifying events. A Calendar connection does not authorise social publishing, and research tools must not send messages. Enforce service-specific permissions even though all capabilities share one companion.
 
 The model's instructions should not substitute for backend permission enforcement.
 

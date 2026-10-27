@@ -6,9 +6,11 @@ Updated: 26 October 2026.
 
 [Documentation index](README.md) · [Original brief](sources/original-project-brief.md) · [Open questions](open-questions.md)
 
+> Current product scope: one companion, Jolly. Earlier infrastructure proposals below are not a commitment to multiple bots. See [current roadmap](roadmap.md) and [realtime implementation](realtime-transcription.md).
+
 ## Implementation update — 26 October 2026
 
-The [Calendar MVP backend](../backend/README.md) now implements Fastify/TypeScript, encrypted SQLite persistence, one-user bearer authentication, Meta file transcription/planning, Google OAuth and confirmed event creation. SQLite replaces the proposed Supabase dependency for local development. Provider contracts have mocked-HTTP tests; live credentials and Watch integration remain untested. The broader architecture below remains a proposal, including additional bots and Supabase migration.
+The [Calendar MVP backend](../backend/README.md) now implements Fastify/TypeScript, encrypted SQLite persistence, one-user bearer authentication, Meta file transcription/planning, Google OAuth and confirmed event creation. SQLite replaces the proposed Supabase dependency for local development. Provider contracts have mocked-HTTP tests; live credentials and Watch integration remain untested. The broader architecture below remains a proposal, including optional infrastructure changes; multiple user-facing bots are no longer in scope.
 
 ## Reference validation update — 26 October 2026
 
@@ -90,7 +92,7 @@ Connects to real applications and stores authorised user information.
 
 The expected flow is:
 
-1. The user selects Pip on Apple Watch.
+1. The user opens Jolly on Apple Watch.
 2. The user taps the microphone.
 3. The watch records a short audio clip.
 4. Recording ends.
@@ -98,7 +100,7 @@ The expected flow is:
 6. The backend validates the authenticated request.
 7. The backend sends the audio to Muse Voice Transcribe.
 8. Muse Voice Transcribe returns text.
-9. The backend loads Pip's configuration and conversation context.
+9. The backend loads Jolly's configuration and conversation context.
 10. The backend sends the user's request to Muse Spark.
 11. Muse Spark either responds directly or requests one or more tools.
 12. The backend validates and executes allowed tools.
@@ -279,11 +281,7 @@ type AgentConfig = {
 };
 ```
 
-Pip would have access to approved social media tools.
-
-Milo would have access to calendar tools.
-
-Nori would have access to research and note-storage tools.
+Jolly uses only tools allowed by each connected service. Calendar is the first integration; social, research and note tools are future capabilities. Authorisation remains per service, not per character.
 
 This architecture avoids duplicating model integration logic for every agent.
 
@@ -406,13 +404,13 @@ Recent exchanges used to maintain continuity within a conversation.
 
 Facts relevant to an agent's specialisation.
 
-For example, Pip may remember preferred caption tone and frequently managed social accounts.
+For example, Jolly could remember a preferred caption tone when that capability is implemented and authorised.
 
 **Shared user memory**
 
-Information that multiple agents may use when authorised.
+Information Jolly may use across authorised capabilities.
 
-For example, Nori saves information about an upcoming event, and Milo later uses that information to help schedule preparation time.
+For example, a future research capability could save event information that Jolly later uses for scheduling, with appropriate permissions.
 
 #### Memory implementation
 

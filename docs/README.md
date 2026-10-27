@@ -1,6 +1,6 @@
 # Project knowledge base
 
-Updated: 26 October 2026.
+Updated: 27 October 2026.
 
 ## Start here
 
@@ -16,7 +16,7 @@ Read [the idea](idea.md), [hackathon requirements](hackathon.md), [MVP scope](mv
 | [Participant Guide record](sources/participant-guide-notes.md) | Structured extraction of the guide supplied in chat and corrections to the original brief |
 | [Hackathon](hackathon.md) | Reported rules, tracks, themes, eligibility of models, originality, submission deadline, judging, prizes, credits and workshops |
 | [Idea](idea.md) | Problem, audience, product promise, positioning and long-term vision |
-| [Agents](agents.md) | Pip, Milo and Nori; personalities, proposed tools and example conversations |
+| [Agents](agents.md) | Jolly’s identity, capabilities and permission boundaries |
 | [Figma UI concept](design/README.md) | Editable Moment-inspired watch screens, linked Milo flow and preview |
 | [Experience design](experience-design.md) | Watch screens, voice interaction, character states and accessibility |
 | [Architecture](architecture.md) | Watch-to-cloud flow, client, backend, approvals, storage, authentication and memory |
@@ -35,7 +35,7 @@ Read [the idea](idea.md), [hackathon requirements](hackathon.md), [MVP scope](mv
 - **Supplied claim:** information stated in the original brief, including event rules and external API capabilities. This documentation pass did not independently verify those claims.
 - **Working decision:** the current preferred product or engineering direction; it can change.
 - **Proposed feature:** intended behaviour, not evidence that it exists.
-- **Verified:** reserve this label for a dated primary source check or recorded test result. No runtime capability is currently verified.
+- **Verified:** reserve this label for a dated primary source check or recorded test result. See the dated backend and realtime transcription verification records for tested capabilities.
 - **Open:** a question or dependency still requiring evidence or a decision.
 
 The user has now supplied the Participant Guide text. Its [structured record](sources/participant-guide-notes.md) supersedes conflicting event details in the original brief. [Moment research](research/moment.md) records dated public-source checks, and [user context](user-context.md) records direct preferences and available hardware/accounts. Live guide links and later amendments remain unverified.
@@ -44,4 +44,4 @@ The user has now supplied the Participant Guide text. Its [structured record](so
 
 Update the relevant topic document when a decision changes. Record the date, reason and supporting evidence in the decision log. Resolve questions with links or test results, and distinguish implemented work from planned work. Keep the original brief as a historical record; its app naming was normalized at the user’s request. Use the hackathon document as the home for event details and the MVP document as the home for scope.
 
-All 25 numbered sections of the supplied brief are retained in the topic documents. Topic documents are updated as new evidence arrives; the original archive remains unchanged. Current status notes and recorded corrections take precedence over the historical brief.
+The original source brief preserves the early multi-character proposal. Current product docs now describe one companion, Jolly. Topic documents are updated as new evidence arrives; the original archive remains unchanged. Current status notes and recorded corrections take precedence over the historical brief.

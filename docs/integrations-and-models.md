@@ -73,11 +73,11 @@ Calendar is a useful second integration because it demonstrates non-Meta tool ex
 
 Potential flow:
 
-1. User asks Milo for available time.
+1. User asks Jolly for available time.
 2. Muse Spark requests calendar information.
 3. The backend retrieves events.
 4. Muse Spark identifies suitable availability.
-5. Milo proposes a time.
+5. Jolly proposes a time.
 6. User approves.
 7. The backend creates the event.
 8. The watch confirms success.
@@ -148,7 +148,7 @@ Potential future use:
 
 "Create an Instagram graphic announcing tomorrow's hackathon."
 
-This could become a compelling feature for Pip, but producing and approving visual content on a watch introduces interface challenges.
+This could become a compelling feature for Jolly, but producing and approving visual content on a watch introduces interface challenges.
 
 Image previews would be better displayed on an iPhone, web dashboard or shared link.
 

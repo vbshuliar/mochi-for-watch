@@ -10,8 +10,8 @@ From `backend/`, run `npm start` after `npm run build`. In another terminal in `
 
 - Tap the head, grant microphone permission, speak, then pause for about 1.1 seconds to send automatically (or tap again to send immediately). Recording ends automatically at 60 seconds. The watch shows listening, then thinking throughout transcription and processing, then the reply.
 - Actual microphone volume enlarges the head. No decorative audio waves are shown.
-- Meta transcribes the mono WAV and handles the conversation. A typed request exercises the same agent without recording.
-- Browser speech reads replies; the head speaks during playback and returns to idle afterward. Tap to interrupt. Voice quality depends on installed system voices; mouth movement is expressive animation, not phoneme-level lip sync.
+- Meta transcribes live microphone audio while you speak, with WAV upload as a fallback, then handles the conversation.
+- ElevenLabs Jessica reads replies; the head speaks during playback and returns to idle afterward. Tap to interrupt. Mouth movement is expressive animation, not phoneme-level lip sync.
 - Event proposals show exact title, times and timezone beside the watch. Confirm explicitly or cancel. Uncertain saves retain the same action for verification/retry.
 - The state log exposes backend progress. Simulation mode is clearly labelled if the backend uses it.
 - Hiding the page discards an unfinished recording. Raw microphone audio is held only in memory; failed uploads retain the same recording for an explicit retry.
@@ -37,4 +37,4 @@ Run `node --test preview/emulator/audio.test.mjs` and `node preview/animation/ch
 
 ## iPhone companion preview
 
-Scroll the left device column below the watch to reach the iPhone setup screen. Calendar status is read from the same backend as the watch. Connect requests a Google consent link; check connection refreshes status; disconnect appears when an actual Google connection exists. These actions are recorded in the right-hand activity stream. Missing OAuth configuration is displayed in the phone, without pretending sign-in succeeded. This remains a single-user browser preview, not a native iPhone app or multi-user pairing flow.
+Scroll the left device column below the watch to reach Jolly’s iPhone setup screen. There is one companion, no bot picker or additional-buddies placeholder. Connections add capabilities to Jolly; unavailable services remain placeholders. Calendar status is read from the same backend as the watch. Connect requests a Google consent link; check connection refreshes status; disconnect appears when an actual Google connection exists. These actions are recorded in the right-hand activity stream. Missing OAuth configuration is displayed in the phone, without pretending sign-in succeeded. This remains a single-user browser preview, not a native iPhone app or multi-user pairing flow.
