@@ -1,10 +1,10 @@
 const catalog={
- calendar:{name:'Google Calendar',description:'Let your bots access your calendar to view meetings, find free time and add events.',access:['View meetings and free time','Add events with your approval']},
- instagram:{name:'Instagram',description:'Let your bots help with Instagram posts, comments and replies.',access:['View posts and comments','Draft replies for approval']},
- facebook:{name:'Facebook Pages',description:'Let your bots follow page activity and help with replies.',access:['View page activity','Help draft replies']},
- notion:{name:'Notion',description:'Let your bots find and save information in your Notion pages.',access:['Find pages and notes','Create or update pages with your approval']},
- gmail:{name:'Gmail',description:'Let your bots help you catch up on email and draft replies.',access:['Find and summarise emails','Draft replies for your review']},
- search:{name:'web search',description:'Let your bots search the web and bring back answers with sources.',access:['Search the web','Include sources']}
+ calendar:{name:'Google Calendar',title:'Calendar',description:'Let your bots access your calendar to view meetings, find free time and add events.',access:['View meetings and free time','Add events with your approval']},
+ instagram:{name:'Instagram',title:'Instagram',description:'Let your bots help with Instagram posts, comments and replies.',access:['View posts and comments','Draft replies for approval']},
+ facebook:{name:'Facebook Pages',title:'Facebook Pages',description:'Let your bots follow page activity and help with replies.',access:['View page activity','Help draft replies']},
+ notion:{name:'Notion',title:'Notion Workspace',description:'Let your bots find and save information in your Notion pages.',access:['Find pages and notes','Create or update pages with your approval']},
+ gmail:{name:'Gmail',title:'Gmail Inbox',description:'Let your bots help you catch up on email and draft replies.',access:['Find and summarise emails','Draft replies for your review']},
+ search:{name:'web search',title:'Web Search',description:'Let your bots search the web and bring back answers with sources.',access:['Search the web','Include sources']}
 };
 export function setupServices(onToggle){
  const $=s=>document.querySelector(s);let active=null,calendar='unknown',mode='live',trigger=null,homeScroll=0,enabled=true,blocked=false;
@@ -13,7 +13,7 @@ export function setupServices(onToggle){
  function render(){
   if(!active)return;
   const entry=catalog[active],isCalendar=active==='calendar',linked=isCalendar&&calendar==='connected';
-  $('#service-title').textContent=entry.name;
+  $('#service-title').textContent=entry.title;
   $('#service-status').textContent=isCalendar?(mode==='mock'?'just a practice calendar':linked?(enabled?'connected · enabled':'connected · disabled'):calendar==='unknown'?'let me check…':'not connected'):'not connected';
   $('#service-status').classList.toggle('is-connected',linked);
   $('#service-description').textContent=entry.description;
