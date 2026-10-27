@@ -25,7 +25,7 @@ let pose={x:0,y:0,angle:0,scale:1,eye:1,gx:0,gy:0,smile:24,open:0,width:49,skew:
 const statuses={idle:'tap to talk',sleep:'tap on me to wake up',wake:'waking up…',listen:'listening…',think:'thinking…',search:'looking into it…',speak:'speaking…',confused:'hmm…',curious:'let me understand…',surprised:'oh! I see…',delighted:'hello!',loved:'aww, thank you!',happy:'all done!'};
 for(const [id,d] of Object.entries(workflowStates))statuses[id]=d.status;
 const headVelocity={x:0,y:0,angle:0,scale:0};
-let speechEntrancePose=null;
+let speechEntrancePose=null,speechExitPose=null;
 let visibleCaption='',captionShownAt=-Infinity;
 function captionAt(requested,now){
  // Keep only the latest pending caption, rather than replaying stale statuses.
@@ -41,6 +41,8 @@ const microphone=new MuseMicrophone(status=>{
  logEvent('microphone',status);
 });
 $('#mic-retry').onclick=()=>{if(state==='listen')void microphone.start();else setState('listen');};
+let heartOverlay=false,heartStarted=-Infinity;
+function heartTime(t){return heartOverlay?(performance.now()-heartStarted)/1000:t;}
 let story='calendar',pendingAction=false,pressed=false,reactionTimer;
 const reactionDurations={confused:3000,curious:3000,surprised:2400,delighted:2800,loved:4400,happy:2400};
 $('#mascot').onpointerdown=()=>{pressed=true;};
@@ -78,7 +80,10 @@ function setState(id,fromDemo=false){
  if(!definitions[id])return;
  clearTimeout(reactionTimer);
  if(!fromDemo)cancelDemo();
- const previous=state;speechEntrancePose=previous==='think'&&id==='speak'?{...pose}:null;
+ const previous=state;
+ speechExitPose=previous==='speak'&&id==='idle'?{...pose}:null;
+ if(speechExitPose)nextBlink=performance.now()+1800;
+ speechEntrancePose=previous==='think'&&id==='speak'?{...pose}:null;
  if(previous==='listen')microphone.stop();state=id;started=performance.now();if(id==='offline')online=false;
  pendingAction=id==='approval';
  logEvent('state',`${previous} → ${id}`);
@@ -176,7 +181,7 @@ function thinkingAt(time){
 function render(now){const dt=Math.min((now-last)/1000,.05);last=now;const t=(now-started)/1000;const active=motion&&!reduced.matches;const breath=active?Math.sin(now/1100):0;
  if(state==='listen'&&!emulatorMode)microphone.sample();
  let target={x:0,y:breath*1.3,angle:0,scale:1+breath*.012,eye:1,gx:0,gy:0,smile:24,open:0,width:49,skew:0,brow:0,asym:0,joy:0,round:0};
- if(state==='idle'&&active)Object.assign(target,idleGestureAt(t));
+ if(state==='idle'&&active)Object.assign(target,idleGestureAt(speechExitPose?Math.max(0,t-1.4):t));
  if(workflowStates[state]){
   Object.assign(target,workflowStates[state].pose);
   if(active){
@@ -232,6 +237,15 @@ function render(now){const dt=Math.min((now-last)/1000,.05);last=now;const t=(no
   // Ease gaze and expression out of the current thought; speech mouth stays responsive.
   for(const key of ['gx','gy','eye','smile','brow','asym','skew'])target[key]=speechEntrancePose[key]+(target[key]-speechEntrancePose[key])*blend;
  }
+ // Let the last spoken gesture settle before the idle glances begin.
+ // Close the mouth sooner so the face never looks frozen mid-word.
+ if(state==='idle'&&speechExitPose&&active&&t<1.4){
+  for(const key of Object.keys(pose)){
+   const duration=['open','width','round'].includes(key)?.4:1.4;
+   const u=Math.min(1,t/duration),blend=u*u*u*(u*(u*6-15)+10);
+   target[key]=speechExitPose[key]+(target[key]-speechExitPose[key])*blend;
+  }
+ }
  if(active&&state!=='sleep'&&state!=='offline'&&state!=='wake'){if(now>nextBlink){blinkStarted=now;nextBlink=now+3400+Math.random()*2400;}const b=(now-blinkStarted)/1000;if(b>=0&&b<.22){target.eye*=1-Math.sin(b/.22*Math.PI);}}
  if(!active){target.x=0;target.y=0;target.angle=0;target.scale=1;target.gx=state==='think'?8:0;target.gy=state==='think'?-12:0;}
  const eyeSmooth=1-Math.exp(-dt*48);
@@ -272,9 +286,9 @@ function render(now){const dt=Math.min((now-last)/1000,.05);last=now;const t=(no
  $('#tongue').style.opacity=Math.max(0,Math.min(1,(openness-.14)*3));
  // A short, interruptible compliment reaction; no persistent decoration.
  document.querySelectorAll('#hearts>span').forEach((heart,i)=>{
-  const age=t-i*.22,progress=Math.max(0,Math.min(1,age/3.6));
-  const show=state==='loved'&&age>=0;
-  const fade=Math.min(1,age/.35)*Math.min(1,(4.3-t)/.7);
+  const ht=heartTime(t),age=ht-i*.22,progress=Math.max(0,Math.min(1,age/3.6));
+  const show=(state==='loved'||heartOverlay)&&age>=0;
+  const fade=Math.min(1,age/.35)*Math.min(1,((heartOverlay?3.6:4.3)-heartTime(t))/.7);
   heart.style.opacity=show?String(Math.max(0,fade)):'0';
   heart.style.transform=active?`translate(${Math.sin(age*1.6+i)*5}px,${-progress*25}px) scale(${.8+.2*Math.min(1,Math.max(0,age)/.4)}) rotate(${Math.sin(age+i)*8}deg)`:'none';
  });
@@ -329,9 +343,9 @@ function drawWatch(t,active){
  const mouth=new Path2D($('#mouth').getAttribute('d')),depth=c.createLinearGradient(0,590,0,675);
  depth.addColorStop(0,'#281311');depth.addColorStop(1,'#71332e');c.fillStyle=depth;c.fill(mouth);c.strokeStyle='#281b17';c.lineWidth=7;c.lineJoin='round';c.lineCap='round';c.stroke(mouth);
  c.save();c.clip(mouth);c.globalAlpha=Number($('#tongue').style.opacity)||0;c.fillStyle='#bd7773';c.fill(new Path2D($('#tongue').getAttribute('d')));c.restore();c.restore();
- if(state==='loved'){
+ if(state==='loved'||heartOverlay){
   const points=[[.13,.49,25],[.86,.29,31],[.22,.22,19]];
-  points.forEach(([hx,hy,size],i)=>{const age=t-i*.22;if(age<0)return;c.save();c.globalAlpha=Math.max(0,Math.min(1,age/.35,(4.3-t)/.7));c.font=`${size}px sans-serif`;c.textAlign='center';c.fillText('❤️',hx*w,hy*h-(active?Math.min(1,age/3.6)*25:0));c.restore();});
+  points.forEach(([hx,hy,size],i)=>{const age=heartTime(t)-i*.22;if(age<0)return;c.save();c.globalAlpha=Math.max(0,Math.min(1,age/.35,((heartOverlay?3.6:4.3)-heartTime(t))/.7));c.font=`${size}px sans-serif`;c.textAlign='center';c.fillText('❤️',hx*w,hy*h-(active?Math.min(1,age/3.6)*25:0));c.restore();});
  }
  c.fillStyle='#e6e2db';c.font='400 22px -apple-system, BlinkMacSystemFont, sans-serif';c.textAlign='center';c.textBaseline='middle';
  // Preserve normal letter shapes rather than horizontally squeezing long replies.
@@ -359,6 +373,8 @@ if(emulatorMode){
   if(event.origin!==location.origin||event.source!==window.parent)return;
   const data=event.data;
   if(data?.type==='muse-state'&&definitions[data.state]){
+   if(data.hearts===true&&!heartOverlay)heartStarted=performance.now();
+   heartOverlay=data.hearts===true;
    // Progress polling must not restart the thinking gesture every time.
    if(state!==data.state)setState(data.state);
    if(typeof data.text==='string'){$('#message').textContent=data.text;$('#message').setAttribute('aria-label',data.text);}
