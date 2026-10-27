@@ -14,6 +14,7 @@ import { Store } from "./store.ts";
 import { MetaPlanner, MockPlanner } from "./meta.ts";
 import { GoogleCalendar, MockCalendar } from "./calendar.ts";
 import { Service } from "./service.ts";
+import { synthesizeSpeech } from "./speech.ts";
 const sessionParams = z.object({ id: z.uuid() });
 const actionParams = z.object({ id: z.uuid(), actionId: z.uuid() });
 export async function buildApp(
@@ -137,10 +138,26 @@ export async function buildApp(
           : "disconnected",
     calendarEnabled:
       store.get<boolean>("integration", "calendar-enabled") !== false,
-    speechOutput: "client_tts",
+    speechOutput:
+      config.APP_MODE === "live" && config.ELEVENLABS_API_KEY
+        ? "elevenlabs"
+        : "client_tts",
     audio: { format: "mono PCM WAV", bits: 16, maxSeconds: 60 },
     singleUser: true,
   }));
+  app.post(
+    "/v1/speech",
+    { config: { rateLimit: { max: 20, timeWindow: "1 minute" } } },
+    async (req, reply) => {
+      const { text } = z
+        .object({ text: z.string().trim().min(1).max(2000) })
+        .strict()
+        .parse(req.body);
+      return reply
+        .type("audio/mpeg")
+        .send(await synthesizeSpeech(config, text));
+    },
+  );
   app.post("/v1/sessions", async (req, reply) => {
     const body = z.object({ timeZone: timezone }).strict().parse(req.body);
     const session = service.createSession(body.timeZone);

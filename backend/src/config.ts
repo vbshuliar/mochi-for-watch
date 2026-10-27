@@ -11,7 +11,18 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env) {
       MODEL_API_KEY: z.string().default(""),
       META_BASE_URL: z.url().default("https://api.meta.ai/v1"),
       META_MODEL: z.string().default("muse-spark-1.3"),
+      META_REASONING_EFFORT: z
+        .enum(["minimal", "low", "medium", "high"])
+        .default("low"),
       META_TRANSCRIBE_MODEL: z.string().default("muse-voice-transcribe-1.0"),
+      ELEVENLABS_API_KEY: z.string().default(""),
+      ELEVENLABS_VOICE_ID: z
+        .string()
+        .regex(/^[a-zA-Z0-9]{20}$/)
+        .default("cgSgspJ2msm6clMCkdW9"),
+      ELEVENLABS_MODEL: z
+        .enum(["eleven_flash_v2_5", "eleven_multilingual_v2"])
+        .default("eleven_flash_v2_5"),
       GOOGLE_CLIENT_ID: z.string().default(""),
       GOOGLE_CLIENT_SECRET: z.string().default(""),
       GOOGLE_REDIRECT_URI: z

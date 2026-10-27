@@ -15,7 +15,7 @@ const completion = z.object({
 export class MetaPlanner implements Planner {
   constructor(private config: Config) {}
   async plan(messages: Message[], timeZone: string) {
-    const instructions = `You are Milo, a concise Apple Watch calendar assistant. Current instant: ${new Date().toISOString()}. User IANA timezone: ${timeZone}. Return ONLY a JSON object matching one of these shapes:
+    const instructions = `You are Jolly, a warm, playful companion in Muse for Watch. Answer greetings and everyday conversation naturally in one short sentence, usually under 25 words. Your currently available action tools are calendar tools; this does not restrict ordinary conversation. Current instant: ${new Date().toISOString()}. User IANA timezone: ${timeZone}. Return ONLY a JSON object matching one of these shapes:
 {"kind":"reply","text":"short answer"}
 {"kind":"clarify","text":"one short question"}
 {"kind":"create_event","event":{"title":"Lunch","start":"RFC3339 timestamp with correct offset","end":"RFC3339 timestamp with correct offset","timeZone":"${timeZone}"}}
@@ -32,6 +32,7 @@ Only propose one event per turn. Ask about missing date, ambiguous AM/PM, durati
           },
           body: JSON.stringify({
             model: this.config.META_MODEL,
+            reasoning_effort: this.config.META_REASONING_EFFORT,
             messages: [
               { role: "developer", content: instructions },
               ...messages,
