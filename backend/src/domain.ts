@@ -98,12 +98,16 @@ export type TurnResult = {
   data?: unknown;
 };
 export interface Planner {
-  plan(messages: Message[], timeZone: string): Promise<Plan>;
-  transcribe(audio: Buffer): Promise<string>;
+  plan(
+    messages: Message[],
+    timeZone: string,
+    options?: { signal?: AbortSignal; onText?: (text: string) => void },
+  ): Promise<Plan>;
+  transcribe(audio: Buffer, signal?: AbortSignal): Promise<string>;
 }
 export interface Calendar {
-  list(window: Window): Promise<Receipt[]>;
-  busy(window: Window): Promise<Window[]>;
+  list(window: Window, signal?: AbortSignal): Promise<Receipt[]>;
+  busy(window: Window, signal?: AbortSignal): Promise<Window[]>;
   create(id: string, event: EventInput): Promise<Receipt>;
 }
 export function validateWav(audio: Buffer) {

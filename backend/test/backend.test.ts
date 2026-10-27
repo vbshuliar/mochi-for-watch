@@ -313,3 +313,49 @@ test("Calendar switch blocks new tasks and pending saves without losing proposal
     400,
   );
 });
+
+test("Calendar setup status is safe and unconfigured connect is actionable", async (t) => {
+  const cfg = { ...config(), APP_MODE: "live" as const };
+  const { app } = await buildApp(cfg);
+  t.after(() => app.close());
+  const headers = { authorization: "Bearer " + cfg.API_TOKEN };
+  const status = await app.inject({ url: "/v1/status", headers });
+  assert.equal(status.json().calendarConfigured, false);
+  assert.equal(status.json().calendarRedirectUri, cfg.GOOGLE_REDIRECT_URI);
+  assert.equal(status.json().GOOGLE_CLIENT_SECRET, undefined);
+  const connect = await app.inject({
+    method: "POST",
+    url: "/v1/integrations/google/connect",
+    headers,
+  });
+  assert.equal(connect.statusCode, 503);
+  assert.equal(connect.json().error.code, "google_not_configured");
+});
+test("Google denied consent consumes only its valid pending state", async (t) => {
+  const cfg = {
+    ...config(),
+    APP_MODE: "live" as const,
+    GOOGLE_CLIENT_ID: "client",
+    GOOGLE_CLIENT_SECRET: "secret",
+  };
+  const { app, store } = await buildApp(cfg);
+  t.after(() => app.close());
+  const connect = await app.inject({
+    method: "POST",
+    url: "/v1/integrations/google/connect",
+    headers: { authorization: "Bearer " + cfg.API_TOKEN },
+  });
+  const state = new URL(connect.json().url).searchParams.get("state")!;
+  const bad = await app.inject({
+    url: "/oauth/google/callback?error=access_denied&state=wrong",
+  });
+  assert.equal(bad.statusCode, 400);
+  assert(store.get("oauth", "pending"));
+  const denied = await app.inject({
+    url: "/oauth/google/callback?error=access_denied&state=" + state,
+  });
+  assert.equal(denied.statusCode, 200);
+  assert.match(denied.body, /not connected/);
+  assert.equal(store.get("oauth", "pending"), undefined);
+  assert.equal(store.get("secret", "google"), undefined);
+});

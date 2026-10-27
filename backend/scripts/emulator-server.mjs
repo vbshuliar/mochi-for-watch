@@ -66,6 +66,10 @@ const server = createServer(async (req, res) => {
       for (const name of ["content-type", "idempotency-key"])
         if (typeof req.headers[name] === "string")
           headers[name] = req.headers[name];
+      const controller = new AbortController();
+      res.on("close", () => {
+        if (!res.writableEnded) controller.abort();
+      });
       const upstream = await fetch(backend + route + url.search, {
         method: req.method,
         headers,
@@ -73,13 +77,37 @@ const server = createServer(async (req, res) => {
           ? undefined
           : Buffer.concat(chunks),
         redirect: "error",
-        signal: AbortSignal.timeout(90000),
+        signal: AbortSignal.any([
+          controller.signal,
+          AbortSignal.timeout(90000),
+        ]),
       });
       res.writeHead(upstream.status, {
         "Content-Type":
           upstream.headers.get("content-type") || "application/json",
       });
-      res.end(Buffer.from(await upstream.arrayBuffer()));
+      if (upstream.body) {
+        for await (const chunk of upstream.body) {
+          if (!res.write(chunk))
+            await new Promise((resolve, reject) => {
+              const drain = () => {
+                  cleanup();
+                  resolve();
+                },
+                close = () => {
+                  cleanup();
+                  reject(new Error("client disconnected"));
+                };
+              const cleanup = () => {
+                res.off("drain", drain);
+                res.off("close", close);
+              };
+              res.once("drain", drain);
+              res.once("close", close);
+            });
+        }
+      }
+      res.end();
       return;
     }
     if (!["GET", "HEAD"].includes(req.method)) {
@@ -103,6 +131,10 @@ const server = createServer(async (req, res) => {
     res.writeHead(200, { "Content-Type": mime[extname(absolute)] });
     res.end(req.method === "HEAD" ? undefined : data);
   } catch (error) {
+    if (res.headersSent || res.destroyed) {
+      res.destroy();
+      return;
+    }
     send(error.code === "ENOENT" ? 404 : 502, {
       error: {
         message:

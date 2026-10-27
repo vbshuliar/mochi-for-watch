@@ -2,7 +2,11 @@ import type { Config } from "./config.ts";
 import { AppError } from "./domain.ts";
 import { externalFetch } from "./http.ts";
 
-export async function synthesizeSpeech(config: Config, text: string) {
+export async function synthesizeSpeech(
+  config: Config,
+  text: string,
+  signal?: AbortSignal,
+) {
   if (config.APP_MODE !== "live" || !config.ELEVENLABS_API_KEY)
     throw new AppError(
       409,
@@ -13,6 +17,7 @@ export async function synthesizeSpeech(config: Config, text: string) {
     `https://api.elevenlabs.io/v1/text-to-speech/${config.ELEVENLABS_VOICE_ID}?output_format=mp3_44100_128`,
     {
       method: "POST",
+      signal,
       headers: {
         "xi-api-key": config.ELEVENLABS_API_KEY,
         "Content-Type": "application/json",

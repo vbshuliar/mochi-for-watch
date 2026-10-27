@@ -7,7 +7,9 @@ export async function externalFetch(
     return await fetch(url, {
       ...init,
       redirect: "error",
-      signal: AbortSignal.timeout(25000),
+      signal: init.signal
+        ? AbortSignal.any([init.signal, AbortSignal.timeout(25000)])
+        : AbortSignal.timeout(25000),
     });
   } catch {
     throw new AppError(

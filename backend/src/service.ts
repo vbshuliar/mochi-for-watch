@@ -13,11 +13,32 @@ import {
 import { Store } from "./store.ts";
 type CachedTurn = {
   hash: string;
-  status: "processing" | "done" | "failed";
+  status: "processing" | "done" | "failed" | "cancelled";
   result?: TurnResult;
 };
 export class Service {
   private locks = new Set<string>();
+  private activeTurns = new Map<
+    string,
+    { controller: AbortController; done: Promise<void> }
+  >();
+  async cancelTurn(id: string, requestId: string) {
+    this.session(id);
+    const key = `${id}:${requestId}`,
+      active = this.activeTurns.get(key);
+    if (active) {
+      active.controller.abort();
+      await active.done;
+      return { cancelled: true };
+    }
+    const cached = this.store.get<CachedTurn>("turn", key);
+    if (cached?.status === "done") return { cancelled: false, completed: true };
+    this.store.put("turn", key, {
+      hash: cached?.hash || "",
+      status: "cancelled",
+    });
+    return { cancelled: true };
+  }
   constructor(
     readonly store: Store,
     private planner: Planner,
@@ -97,6 +118,7 @@ export class Service {
     id: string,
     requestId: string,
     input: { text: string } | { audio: Buffer },
+    options: { signal?: AbortSignal; onText?: (text: string) => void } = {},
   ) {
     return this.locked(id, async () => {
       const session = this.session(id),
@@ -105,6 +127,8 @@ export class Service {
           .update("text" in input ? "text:" + input.text : input.audio)
           .digest("hex");
       const cached = this.store.get<CachedTurn>("turn", key);
+      if (cached?.status === "cancelled" || options.signal?.aborted)
+        throw new AppError(409, "turn_cancelled", "request cancelled");
       if (cached && cached.hash !== hash)
         throw new AppError(
           409,
@@ -113,21 +137,40 @@ export class Service {
         );
       if (cached?.status === "done") return cached.result!;
       this.store.put("turn", key, { hash, status: "processing" });
+      const controller = new AbortController();
+      const signal = options.signal
+        ? AbortSignal.any([controller.signal, options.signal])
+        : controller.signal;
+      let release!: () => void;
+      const done = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      this.activeTurns.set(key, { controller, done });
+      const check = () => {
+        if (signal.aborted)
+          throw new AppError(409, "turn_cancelled", "request cancelled");
+      };
       try {
+        check();
         let text: string;
         if ("text" in input) text = input.text;
         else {
           this.emit(id, "transcribe", "making sense of your words…");
-          text = await this.planner.transcribe(input.audio);
+          text = await this.planner.transcribe(input.audio, signal);
         }
+        check();
         this.emit(id, "think", "thinking…");
         const messages = [
           ...session.messages,
           { role: "user" as const, content: text },
         ].slice(-16);
         const plan = planSchema.parse(
-          await this.planner.plan(messages, session.timeZone),
+          await this.planner.plan(messages, session.timeZone, {
+            signal,
+            onText: options.onText,
+          }),
         );
+        check();
         if (["create_event", "list_events", "availability"].includes(plan.kind))
           this.requireCalendarEnabled();
         let result: TurnResult;
@@ -172,7 +215,8 @@ export class Service {
           });
         } else if (plan.kind === "list_events") {
           this.emit(id, "search", "checking Calendar…");
-          const events = await this.calendar.list(plan.window);
+          const events = await this.calendar.list(plan.window, signal);
+          check();
           supersede();
           result = this.result(
             id,
@@ -184,7 +228,8 @@ export class Service {
           );
         } else if (plan.kind === "availability") {
           this.emit(id, "search", "checking availability…");
-          const busy = await this.calendar.busy(plan.window);
+          const busy = await this.calendar.busy(plan.window, signal);
+          check();
           supersede();
           result = this.result(
             id,
@@ -213,9 +258,21 @@ export class Service {
         });
         return result;
       } catch (error) {
-        this.store.put("turn", key, { hash, status: "failed" });
-        this.emit(id, "error", "couldn’t complete that request");
+        this.store.put("turn", key, {
+          hash,
+          status: signal.aborted ? "cancelled" : "failed",
+        });
+        this.emit(
+          id,
+          signal.aborted ? "cancelled" : "error",
+          signal.aborted
+            ? "request cancelled"
+            : "couldn’t complete that request",
+        );
         throw error;
+      } finally {
+        this.activeTurns.delete(key);
+        release();
       }
     });
   }

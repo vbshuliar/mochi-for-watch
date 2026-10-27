@@ -85,7 +85,7 @@ export class GoogleCalendar implements Calendar {
     });
     return `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
   }
-  async callback(state: string, code: string) {
+  private consumeAuthorization(state: string) {
     const pending = this.store.get<{
       state: string;
       verifier: string;
@@ -98,6 +98,13 @@ export class GoogleCalendar implements Calendar {
         "connection expired; start again",
       );
     this.store.delete("oauth", "pending");
+    return pending;
+  }
+  cancelAuthorization(state: string) {
+    this.consumeAuthorization(state);
+  }
+  async callback(state: string, code: string) {
+    const pending = this.consumeAuthorization(state);
     const data = tokenSchema.parse(
       await externalJson(
         await externalFetch("https://oauth2.googleapis.com/token", {
@@ -200,7 +207,7 @@ export class GoogleCalendar implements Calendar {
       },
     );
   }
-  async list(window: Window) {
+  async list(window: Window, signal?: AbortSignal) {
     const items: Receipt[] = [];
     let pageToken: string | undefined;
     for (let page = 0; page < 10; page++) {
@@ -217,7 +224,11 @@ export class GoogleCalendar implements Calendar {
           items: z.array(googleEvent).default([]),
           nextPageToken: z.string().optional(),
         })
-        .parse(await externalJson(await this.request(`events?${params}`)));
+        .parse(
+          await externalJson(
+            await this.request(`events?${params}`, { signal }),
+          ),
+        );
       items.push(
         ...data.items.filter((e) => e.status !== "cancelled").map(receipt),
       );
@@ -226,11 +237,12 @@ export class GoogleCalendar implements Calendar {
     }
     throw new AppError(422, "too_many_events", "choose a shorter date range");
   }
-  async busy(window: Window) {
+  async busy(window: Window, signal?: AbortSignal) {
     // Use Google's freeBusy endpoint so all-day and transparent events are handled by Google.
     const response = await externalFetch(
       "https://www.googleapis.com/calendar/v3/freeBusy",
       {
+        signal,
         method: "POST",
         headers: {
           Authorization: `Bearer ${await this.token()}`,

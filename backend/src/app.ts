@@ -1,3 +1,4 @@
+import { PassThrough } from "node:stream";
 import Fastify from "fastify";
 import rateLimit from "@fastify/rate-limit";
 import { timingSafeEqual } from "node:crypto";
@@ -136,6 +137,10 @@ export async function buildApp(
         : google.connected()
           ? "connected"
           : "disconnected",
+    calendarConfigured: Boolean(
+      config.GOOGLE_CLIENT_ID && config.GOOGLE_CLIENT_SECRET,
+    ),
+    calendarRedirectUri: config.GOOGLE_REDIRECT_URI,
     calendarEnabled:
       store.get<boolean>("integration", "calendar-enabled") !== false,
     speechOutput:
@@ -153,9 +158,18 @@ export async function buildApp(
         .object({ text: z.string().trim().min(1).max(2000) })
         .strict()
         .parse(req.body);
-      return reply
-        .type("audio/mpeg")
-        .send(await synthesizeSpeech(config, text));
+      const controller = new AbortController();
+      const close = () => {
+        if (!reply.raw.writableEnded) controller.abort();
+      };
+      reply.raw.on("close", close);
+      try {
+        return reply
+          .type("audio/mpeg")
+          .send(await synthesizeSpeech(config, text, controller.signal));
+      } finally {
+        reply.raw.off("close", close);
+      }
     },
   );
   app.post("/v1/sessions", async (req, reply) => {
@@ -184,6 +198,71 @@ export async function buildApp(
         .strict()
         .parse(req.body);
       return service.turn(id, input.requestId, { text: input.text });
+    },
+  );
+  app.post("/v1/sessions/:id/turns/:requestId/cancel", async (req) => {
+    const { id, requestId } = z
+      .object({ id: z.uuid(), requestId: z.uuid() })
+      .parse(req.params);
+    return service.cancelTurn(id, requestId);
+  });
+  app.post(
+    "/v1/sessions/:id/stream",
+    { config: { rateLimit: { max: 20, timeWindow: "1 minute" } } },
+    async (req, reply) => {
+      const { id } = sessionParams.parse(req.params);
+      const input = z
+        .object({
+          requestId: z.uuid(),
+          text: z.string().trim().min(1).max(4000),
+        })
+        .strict()
+        .parse(req.body);
+      service.session(id);
+      const output = new PassThrough(),
+        controller = new AbortController();
+      const close = () => {
+        if (!reply.raw.writableEnded) controller.abort();
+      };
+      reply.raw.on("close", close);
+      const send = (data: unknown) => {
+        if (!output.destroyed && !controller.signal.aborted) {
+          if (output.writableLength > 65536) {
+            controller.abort();
+            output.destroy();
+            return;
+          }
+          output.write(JSON.stringify(data) + "\n");
+        }
+      };
+      void service
+        .turn(
+          id,
+          input.requestId,
+          { text: input.text },
+          {
+            signal: controller.signal,
+            onText: (text) => send({ type: "text", text }),
+          },
+        )
+        .then((result) => send({ type: "result", result }))
+        .catch((error) =>
+          send({
+            type: "error",
+            message: controller.signal.aborted
+              ? "request cancelled"
+              : "couldn’t complete the reply; please try again",
+            code: error instanceof AppError ? error.code : "stream_failed",
+          }),
+        )
+        .finally(() => {
+          reply.raw.off("close", close);
+          output.end();
+        });
+      return reply
+        .header("Cache-Control", "no-store")
+        .type("application/x-ndjson")
+        .send(output);
     },
   );
   app.post(
@@ -251,11 +330,26 @@ export async function buildApp(
     const query = z
       .object({
         state: z.string().min(1).max(100),
-        code: z.string().min(1).max(4096),
+        code: z.string().min(1).max(4096).optional(),
+        error: z.string().max(200).optional(),
       })
       .parse(req.query);
     if (config.APP_MODE !== "live")
       throw new AppError(409, "mock_mode", "not available in mock mode");
+    if (query.error) {
+      google.cancelAuthorization(query.state);
+      return reply
+        .type("text/plain")
+        .send(
+          "Google Calendar was not connected. No new access was saved. Return to the emulator and tap Connect to try again.",
+        );
+    }
+    if (!query.code)
+      throw new AppError(
+        400,
+        "missing_oauth_code",
+        "No sign-in code received. Return to Calendar and try again.",
+      );
     await google.callback(query.state, query.code);
     return reply
       .type("text/plain")
