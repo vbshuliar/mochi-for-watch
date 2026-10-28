@@ -9,6 +9,7 @@ for (const file of [
   "index.html",
   "agent.md",
   "style.css",
+  "mouse-gaze.js",
   "assets/jolly.png",
   "assets/jolly-face.png",
   "assets/watch-3d.png",

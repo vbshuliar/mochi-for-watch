@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 
 // An explicit allowlist keeps app routes and filesystem contents private.
 const files = new Map([
+  ["/mouse-gaze.js", { file: "mouse-gaze.js", type: "text/javascript; charset=utf-8" }],
   ["/agent.md", { file: "agent.md", type: "text/plain; charset=utf-8" }],
   ["/assets/watch-3d.png", { file: "assets/watch-3d.png", type: "image/png" }],
   ["/", { file: "index.html", type: "text/html; charset=utf-8" }],
@@ -31,7 +32,7 @@ export function registerWebsite(app: FastifyInstance): void {
         .header("Cache-Control", "public, max-age=0, must-revalidate")
         .header(
           "Content-Security-Policy",
-          "default-src 'none'; img-src 'self'; style-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
+          "default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
         );
       return reply.send(createReadStream(new URL(asset.file, directory)));
     });

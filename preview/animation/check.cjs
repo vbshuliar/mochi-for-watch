@@ -95,4 +95,19 @@ vm.runInContext("trackMouse({pointerType:'mouse',clientX:2000,clientY:2000}); se
 assert(vm.runInContext('Math.abs(eyeAttention.x)<.001',ctx),'sleep ignores mouse');
 vm.runInContext("setState('idle')",ctx);reduced.matches=true;step(2000);
 assert(vm.runInContext('Math.abs(eyeAttention.x)<.001',ctx),'reduced motion ignores mouse');
+// Eyebrows retain clearance through wide eyes, asymmetric expressions and upward gaze.
+reduced.matches=false;
+for(const id of ['confused','curious','surprised','think','speak']){
+ vm.runInContext(`setState('${id}'); trackMouse({pointerType:'mouse',clientX:2000,clientY:-2000})`,ctx);
+ for(let n=0;n<20;n++){
+  step(80);
+  const p=vm.runInContext('({...pose})',ctx),a=vm.runInContext('({...eyeAttention})',ctx);
+  for(const [side,sign]of [['left',-1],['right',1]]){
+   const values=node('#'+side+'-brow').attrs.d.match(/-?\d+(?:\.\d+)?/g).map(Number);
+   const browBottom=Math.max(values[1],values[3],values[5])+3;
+   const eyeTop=520+p.gy*.82+a.y-(3+Math.min(1.45,Math.max(0,p.eye*(1+sign*p.asym*.008)))*32);
+   assert(browBottom<eyeTop-10,id+' eyebrows clear eyes');
+  }
+ }
+}
 console.log(`PASS: ${ids.length} states, explicit approval, cancellation, recovery, clarification, bounded/clearable log, fixed pixel buffer and reduced motion.`);

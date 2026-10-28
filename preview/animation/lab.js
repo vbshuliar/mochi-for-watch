@@ -293,7 +293,10 @@ function render(now){const dt=Math.min((now-last)/1000,.05);last=now;const t=(no
  for(const [side,x,sign]of [['left',335,-1],['right',665,1]]){
   const eye=Math.max(0,pose.eye*(1+sign*pose.asym*.008));
   const ex=x+pose.gx*.75+eyeAttention.x,ey=520+pose.gy*.82+eyeAttention.y;
-  const browY=450-pose.brow-sign*pose.asym;
+  // Keep the entire brow above the eye, including upward gaze and wide expressions.
+  const eyeTop=ey-(3+Math.min(1.45,eye)*32);
+  const browEnd=Math.max(4+sign*pose.asym*.4,4-sign*pose.asym*.4);
+  const browY=Math.min(450-pose.brow-sign*pose.asym+eyeAttention.y,eyeTop-18-browEnd);
   $('#'+side+'-brow').setAttribute('d',`M ${ex-29} ${browY+4+sign*pose.asym*.4} Q ${ex} ${browY-7} ${ex+29} ${browY+4-sign*pose.asym*.4}`);
   $('#'+side+'-brow').style.opacity=Math.min(.22,Math.abs(pose.brow)/70+Math.abs(pose.asym)/100)*Math.min(1,eye*2);
  }
