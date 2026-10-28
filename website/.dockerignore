@@ -4,6 +4,8 @@
 !dist/
 !dist/index.html
 !dist/agent.md
+!dist/site.js
+!dist/mouse-gaze.js
 !dist/style.css
 !dist/assets/
 !dist/assets/jolly.png

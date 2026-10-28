@@ -353,7 +353,7 @@ details[open] summary span {
   background: var(--soft);
 }
 footer {
-  padding-block: 24px;
+  padding-block: 8px;
   display: flex;
   justify-content: space-between;
   gap: 20px;
@@ -505,8 +505,8 @@ footer p:first-child {
 
 .watch-clock {
   position: absolute;
-  top: 1.5%;
-  right: 2.5%;
+  top: 5%;
+  right: 7%;
   font-size: 4.3cqw;
   font-weight: 600;
   line-height: 1.3;
@@ -528,7 +528,7 @@ footer p:first-child {
   display: block;
 }
 .idle-eyes {
-  animation: idle-glance 10s ease-in-out infinite;
+  animation: idle-glance 7s ease-in-out infinite;
 }
 .watch-caption {
   position: absolute;
@@ -558,20 +558,28 @@ footer p:first-child {
 }
 @keyframes idle-glance {
   0%,
-  12%,
-  42%,
-  55%,
-  87%,
+  9%,
+  44%,
+  51%,
+  94%,
   100% {
-    transform: translateX(0);
+    transform: translate(0, 0);
   }
-  20%,
-  34% {
-    transform: translateX(-20px);
+  16%,
+  25% {
+    transform: translate(-26px, -6px);
   }
-  63%,
-  79% {
-    transform: translateX(20px);
+  32%,
+  38% {
+    transform: translate(-10px, -18px);
+  }
+  59%,
+  70% {
+    transform: translate(27px, -3px);
+  }
+  78%,
+  85% {
+    transform: translate(12px, 12px);
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -754,37 +762,6 @@ footer p:first-child {
   }
 }
 
-/* Agent mode opens the plain Markdown companion to this page. */
-nav {
-  margin-left: auto;
-}
-.mode-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 12px;
-  white-space: nowrap;
-  min-height: 44px;
-}
-.switch-track {
-  width: 30px;
-  height: 18px;
-  border-radius: 999px;
-  background: #86868b;
-  padding: 2px;
-  flex-shrink: 0;
-}
-.switch-track::after {
-  content: "";
-  display: block;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: white;
-}
-.mode-toggle:hover .switch-track {
-  background: var(--blue);
-}
 .watch-steps {
   padding-left: 20px;
   margin: 16px 0;
@@ -798,29 +775,342 @@ nav {
 .watch-steps code {
   overflow-wrap: anywhere;
 }
-@media (max-width: 760px) {
-  .site-header nav {
-    display: none;
+
+/* Persistent view switch, with the raw Markdown also available as a file. */
+.human-view {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+.human-view > main {
+  flex: 1 0 auto;
+}
+.footer-surface {
+  margin-top: auto;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+.mode-dock {
+  position: fixed;
+  z-index: 50;
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 204px;
+  padding: 5px;
+  margin: 0;
+  border: 1px solid rgb(0 0 0 / 8%);
+  border-radius: 999px;
+  background: rgb(245 245 247 / 88%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 10%);
+}
+.mode-dock input {
+  position: absolute;
+  opacity: 0;
+  z-index: 2;
+  top: 5px;
+  left: 5px;
+  width: calc((100% - 10px) / 2);
+  height: 44px;
+  margin: 0;
+  cursor: pointer;
+}
+.mode-dock #agent-mode {
+  left: 50%;
+}
+.mode-dock label {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  min-height: 44px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 240ms;
+}
+.mode-dock input:checked + label {
+  color: var(--ink);
+}
+.mode-dock input:focus-visible + label {
+  outline: 3px solid var(--blue);
+  outline-offset: 2px;
+}
+.mode-indicator {
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  left: 5px;
+  width: calc((100% - 10px) / 2);
+  border-radius: 999px;
+  background: white;
+  box-shadow: 0 1px 5px rgb(0 0 0 / 9%);
+  transition: transform 300ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.mode-dock:has(#agent-mode:checked) .mode-indicator {
+  transform: translateX(100%);
+}
+.markdown-view {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: #fafafa;
+}
+.markdown-inner {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 44px 32px calc(110px + env(safe-area-inset-bottom));
+}
+.markdown-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 20px;
+  margin-bottom: 28px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+}
+.markdown-toolbar a {
+  color: #0066cc;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+.markdown-source {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 0;
+  padding: 0;
+  background: none;
+  border-radius: 0;
+  font:
+    13px/1.85 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+}
+body:has(#agent-mode:checked) {
+  overflow: hidden;
+}
+body:has(#agent-mode:checked) .human-view {
+  visibility: hidden;
+}
+body:has(#agent-mode:checked) .markdown-view {
+  display: block;
+  animation: mode-reveal 240ms ease-out;
+}
+body:has(#human-mode:checked) .human-view {
+  animation: mode-reveal 240ms ease-out;
+}
+@keyframes mode-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
   }
-  .mode-toggle {
-    margin-left: auto;
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
-@media (max-width: 380px) {
+@media (max-width: 760px) {
+  .markdown-inner {
+    padding: 24px 20px calc(110px + env(safe-area-inset-bottom));
+  }
+  .markdown-source {
+    font-size: 12px;
+  }
+  .mode-dock {
+    bottom: calc(14px + env(safe-area-inset-bottom));
+  }
+}
+
+/* Phone layouts: comfortable reading and touch targets without sideways scrolling. */
+@media (max-width: 760px) {
+  .wrap {
+    padding-inline: 20px;
+  }
   .site-header {
-    gap: 8px;
+    gap: 12px;
+  }
+  .github-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    min-width: 64px;
+    font-size: 12px;
   }
   .wordmark {
-    font-size: 16px;
+    min-height: 44px;
+  }
+  .hero {
+    padding-top: 28px;
+  }
+  .hero .intro {
+    font-size: 17px;
+    line-height: 1.5;
+  }
+  .inspired {
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .hero-art {
+    max-width: 300px;
+  }
+  .setup {
+    padding-inline: 18px;
+  }
+  .setup p,
+  .watch-steps {
+    font-size: 14px;
+  }
+  .setup pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-size: 12px;
+    line-height: 1.7;
+    padding: 14px;
+  }
+  .setup summary {
+    min-height: 48px;
+  }
+  .setup .text-link {
+    min-height: 44px;
+  }
+  footer {
+    align-items: center;
+    font-size: 12px;
+  }
+  footer a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  .markdown-inner {
+    padding-inline: 18px;
+  }
+  .markdown-source {
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  .markdown-toolbar {
+    gap: 12px;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+  }
+}
+@media (max-width: 360px) {
+  .wordmark {
+    font-size: 17px;
     gap: 4px;
   }
   .brand-face {
-    width: 24px;
-    height: 26px;
     margin-right: 2px;
   }
-  .mode-toggle {
-    font-size: 11px;
-    gap: 5px;
+  .hero h1 {
+    font-size: 35px;
   }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .mode-dock {
+    bottom: calc(8px + env(safe-area-inset-bottom));
+  }
+  .hero-art {
+    max-width: 240px;
+  }
+}
+@media (max-width: 1000px) {
+  .wrap {
+    padding-left: max(clamp(20px, 3vw, 32px), env(safe-area-inset-left));
+    padding-right: max(clamp(20px, 3vw, 32px), env(safe-area-inset-right));
+  }
+  .markdown-inner {
+    padding-left: max(18px, env(safe-area-inset-left));
+    padding-right: max(18px, env(safe-area-inset-right));
+  }
+}
+
+/* The face is a real keyboard- and touch-accessible preview button. */
+button.idle-face {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform 240ms ease;
+}
+button.idle-face:focus-visible {
+  outline: 2px solid white;
+  outline-offset: 4px;
+}
+button.idle-face:active {
+  transform: scale(0.97);
+}
+.confused-expression {
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+.idle-smile {
+  transition: opacity 180ms ease;
+}
+.idle-face[aria-pressed="true"] {
+  transform: rotate(-5deg);
+}
+.idle-face[aria-pressed="true"] .idle-eyes {
+  animation: none;
+  transform: translate(10px, -12px);
+}
+.idle-face[aria-pressed="true"] .idle-smile {
+  opacity: 0;
+}
+.idle-face[aria-pressed="true"] .confused-expression {
+  opacity: 1;
+}
+
+/* The fixed switch shares the footer row at the end of the page. */
+footer { align-items: center; min-height: 84px; }
+footer a { display: inline-flex; align-items: center; min-height: 44px; }
+.mode-dock {
+  bottom: calc(16px + env(safe-area-inset-bottom));
+}
+
+/* Quiet, file-oriented header for the machine-readable view. */
+.markdown-toolbar {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #748078;
+  border-bottom-color: #d6ded6;
+  letter-spacing: .02em;
+}
+.markdown-toolbar a { color: #507364; font-size: 14px; }
+@media (max-width: 360px) {
+  .markdown-toolbar { font-size: 10px; gap: 8px; }
+  .markdown-toolbar a { font-size: 12px; }
+}
+
+@media (max-width: 760px) {
+  /* GitHub remains in the header; the footer gives the switch its own row. */
+  footer > p, footer > a { display: none; }
 }

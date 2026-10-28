@@ -27,9 +27,13 @@
   eyes.style.animation = 'none';
   face.style.transition = 'none';
   const caption = document.querySelector('#watch-caption');
+  const expression = face.querySelector('.confused-expression');
+  const smile = face.querySelector('.idle-smile');
+  if (expression) expression.style.transition = 'none';
+  if (smile) smile.style.transition = 'none';
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   let reactionTimer, target = null, x = 0, y = 0, tilt = 0, lift = 0;
-  let frame = 0, last = 0, time = 0, nextBlink = 2.4, blinkStart = -Infinity;
+  let frame = 0, last = 0, time = 0, confusion = 0, nextBlink = 2.4, blinkStart = -Infinity;
   face.addEventListener('click', () => {
     clearTimeout(reactionTimer);
     face.setAttribute('aria-pressed', 'true');
@@ -50,16 +54,23 @@
     time += dt;
     const active = !reduced.matches;
     const confused = face.getAttribute('aria-pressed') === 'true';
-    const rest = confused
-      ? { x: Math.sin(time * 3.1) * 13, y: -10 + Math.sin(time * 2) * 3 }
-      : { x: Math.sin(time * .8) * 13 + Math.sin(time * 1.7) * 4, y: Math.sin(time * 1.1) * 5 };
+    confusion += ((confused ? 1 : 0) - confusion) * (1 - Math.exp(-dt * 6));
+    if (expression) expression.style.opacity = String(confusion);
+    if (smile) smile.style.opacity = String(1 - confusion);
+    const idleX = Math.sin(time * .8) * 13 + Math.sin(time * 1.7) * 4;
+    const idleY = Math.sin(time * 1.1) * 5;
+    const rest = {
+      x: idleX + (Math.sin(time * 3.1) * 13 - idleX) * confusion,
+      y: idleY + (-10 + Math.sin(time * 2) * 3 - idleY) * confusion,
+    };
     const goal = active ? (target
       ? { x: target.x + rest.x * .16, y: target.y + rest.y * .16 }
       : rest) : { x: 0, y: 0 };
     const ease = 1 - Math.exp(-dt * 8);
     x += (goal.x - x) * ease;
     y += (goal.y - y) * ease;
-    const desiredTilt = active ? (confused ? -4 + Math.sin(time * 2.7) * 2 : Math.sin(time * .7) * 1.5) : 0;
+    const idleTilt = Math.sin(time * .7) * 1.5;
+    const desiredTilt = active ? idleTilt + (-4 + Math.sin(time * 2.7) * 2 - idleTilt) * confusion : 0;
     tilt += (desiredTilt - tilt) * (1 - Math.exp(-dt * 5));
     lift += ((active ? Math.sin(time * 1.6) * .7 : 0) - lift) * ease;
     face.style.transform = `translateY(${lift}px) rotate(${tilt}deg)`;
@@ -72,7 +83,7 @@
     const age = time - blinkStart;
     const openness = active && age >= 0 && age < .2 ? 1 - .94 * Math.sin(age / .2 * Math.PI) : 1;
     lids.setAttribute('transform', `translate(0 520) scale(1 ${openness}) translate(0 -520)`);
-    if (active || Math.abs(x) + Math.abs(y) + Math.abs(tilt) + Math.abs(lift) > .01) {
+    if (active || Math.abs(x) + Math.abs(y) + Math.abs(tilt) + Math.abs(lift) + Math.abs(confusion - (confused ? 1 : 0)) > .01) {
       frame = requestAnimationFrame(render);
     }
   }
