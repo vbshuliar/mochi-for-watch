@@ -10,8 +10,12 @@ coverage/
 # Native local secrets and build products
 native/Local/
 native/DerivedData/
+native/DerivedDataSigned/
 native/MuseCore/.build/
 native/MuseCore/.swiftpm/
 **/xcuserdata/
 native/.build/
 native/.swiftpm/
+
+# Local implementation/review working notes
+.superpowers/sdd/

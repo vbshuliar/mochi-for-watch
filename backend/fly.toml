@@ -12,6 +12,9 @@ primary_region = "lhr"
   DATABASE_PATH = "/data/muse/muse.sqlite"
   META_BASE_URL = "https://api.meta.ai/v1"
   META_MODEL = "muse-spark-1.3"
+  CALLS_PUBLIC_URL = "https://muse-for-watch-vlad.fly.dev"
+  GMAIL_REDIRECT_URI = "https://muse-for-watch-vlad.fly.dev/oauth/gmail/callback"
+  NOTION_REDIRECT_URI = "https://muse-for-watch-vlad.fly.dev/oauth/notion/callback"
   GOOGLE_REDIRECT_URI = "https://muse-for-watch-vlad.fly.dev/oauth/google/callback"
 
 [[mounts]]
