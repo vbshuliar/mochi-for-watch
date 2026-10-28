@@ -56,6 +56,7 @@ export type CallAction = {
   slots: Window[];
   callSid?: string;
   startedAt?: number;
+  finishedAt?: number;
   turn: number;
   outcome?: "booked" | "not_booked";
   bookedSlot?: Window;
@@ -165,6 +166,18 @@ export class Calls {
     return this.config.CALLS_PUBLIC_URL.replace(/\/$/, "") + path;
   }
   private save(a: CallAction) {
+    const previous = this.store.get<CallAction>("call", a.id);
+    if (previous?.finishedAt !== undefined) {
+      a.finishedAt = previous.finishedAt;
+    } else if (
+      a.finishedAt === undefined &&
+      terminal.has(a.status) &&
+      a.status !== "uncertain" &&
+      previous &&
+      (!terminal.has(previous.status) || previous.status === "uncertain")
+    ) {
+      a.finishedAt = Date.now();
+    }
     this.store.put("call", a.id, a);
   }
   get(sessionId: string, id: string) {

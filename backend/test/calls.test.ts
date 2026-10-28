@@ -1280,3 +1280,108 @@ test("overdue active progress is factual without changing durable state or redia
   }
   assert.equal(fetch.mock.callCount(), 0);
 });
+
+test("true terminal transitions persist one completion time in public lists", async (t) => {
+  for (const status of [
+    "completed",
+    "failed",
+    "cancelled",
+    "expired",
+    "stopped",
+  ] as const) {
+    await t.test(status, async (t) => {
+      providers(t);
+      const { calls, store } = fixture(t);
+      let now = Date.now();
+      t.mock.method(Date, "now", () => now);
+      const a =
+        status === "cancelled" || status === "expired"
+          ? (await calls.prepare(randomUUID(), booking)).callAction!
+          : await started(calls);
+      assert.equal(a.finishedAt, undefined);
+      if (status === "expired") {
+        now = a.expiresAt + 1;
+        calls.get(a.sessionId, a.id);
+      } else if (status === "cancelled") {
+        await calls.decide(a.sessionId, a.id, "cancel");
+      } else if (status === "stopped") {
+        await calls.stop(a.sessionId, a.id);
+      } else {
+        calls.status(a.id, {
+          ...callback,
+          CallStatus: status,
+          SequenceNumber: "1",
+        });
+      }
+      const finishedAt = now;
+      assert.equal(store.get<CallAction>("call", a.id)?.finishedAt, finishedAt);
+      assert.equal(calls.list(a.sessionId)[0].finishedAt, finishedAt);
+      now += 3600000;
+      if (status === "completed" || status === "failed") {
+        calls.status(a.id, {
+          ...callback,
+          CallStatus: status,
+          SequenceNumber: "2",
+        });
+      } else {
+        await calls.stop(a.sessionId, a.id);
+      }
+      assert.equal(calls.get(a.sessionId, a.id).finishedAt, finishedAt);
+      assert.equal(calls.list(a.sessionId)[0].finishedAt, finishedAt);
+    });
+  }
+});
+
+test("calendar links preserve completion time and do not date legacy completions", async (t) => {
+  providers(t);
+  const { calls, store } = fixture(t, true);
+  let now = Date.now();
+  t.mock.method(Date, "now", () => now);
+  const a = await started(calls);
+  const booked = calls.get(a.sessionId, a.id);
+  booked.outcome = "booked";
+  booked.bookedSlot = booked.slots[0];
+  store.put("call", a.id, booked);
+  calls.status(a.id, {
+    ...callback,
+    CallStatus: "completed",
+    SequenceNumber: "1",
+  });
+  const finishedAt = now;
+  now += 3600000;
+  assert.equal(
+    calls.proposeCalendar(a.sessionId, a.id).callAction?.finishedAt,
+    finishedAt,
+  );
+  assert.equal(calls.list(a.sessionId)[0].finishedAt, finishedAt);
+
+  const legacy = { ...calls.get(a.sessionId, a.id), id: randomUUID() };
+  delete legacy.finishedAt;
+  delete legacy.calendarActionId;
+  store.put("call", legacy.id, legacy);
+  assert.equal(
+    calls.proposeCalendar(legacy.sessionId, legacy.id).callAction?.finishedAt,
+    undefined,
+  );
+  assert.equal(store.get<CallAction>("call", legacy.id)?.finishedAt, undefined);
+  assert.equal(
+    calls.list(legacy.sessionId).find((a) => a.id === legacy.id)?.finishedAt,
+    undefined,
+  );
+});
+
+test("uncertain calls remain undated until a verified stop", async (t) => {
+  providers(t);
+  const { calls, store } = fixture(t);
+  const a = await started(calls);
+  const recovered = new Calls(config, store, calendar, () => false);
+  assert.equal(recovered.get(a.sessionId, a.id).status, "uncertain");
+  assert.equal(recovered.list(a.sessionId)[0].finishedAt, undefined);
+  const now = Date.now();
+  t.mock.method(Date, "now", () => now);
+  assert.equal(
+    (await recovered.stop(a.sessionId, a.id)).callAction?.finishedAt,
+    now,
+  );
+  await recovered.close();
+});
