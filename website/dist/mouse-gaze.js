@@ -37,7 +37,7 @@
   face.addEventListener('click', () => {
     clearTimeout(reactionTimer);
     face.setAttribute('aria-pressed', 'true');
-    if (caption) caption.textContent = 'Download to use';
+    if (caption) caption.textContent = 'download to use';
     nextBlink = time + .3;
     reactionTimer = setTimeout(() => {
       face.setAttribute('aria-pressed', 'false');
