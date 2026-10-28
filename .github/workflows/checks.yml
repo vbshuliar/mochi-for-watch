@@ -25,10 +25,10 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
         working-directory: backend
-      - run: npm run format:check && npm run typecheck && npm run build && npm test
+      - run: npm run check
         working-directory: backend
-      - run: node --test preview/emulator/*.test.mjs
-      - run: node preview/animation/check.cjs
+      - run: npm run check:preview
+        working-directory: backend
 
   native-core:
     runs-on: macos-15
@@ -36,4 +36,4 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Test shared native models and conversation lifecycle
-        run: swift test --package-path native
+        run: sh native/scripts/check-core.sh

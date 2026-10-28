@@ -20,6 +20,9 @@
     "chat": "node --env-file-if-exists=.env scripts/chat.mjs",
     "format": "prettier --write src test scripts",
     "format:check": "prettier --check src test scripts",
+    "check": "npm run format:check && npm run typecheck && npm run build && npm test",
+    "check:preview": "node --test ../preview/emulator/*.test.mjs && node ../preview/animation/check.cjs",
+    "check:all": "npm run check && npm run check:preview && sh ../native/scripts/check-core.sh",
     "emulator": "node --env-file-if-exists=.env scripts/emulator-server.mjs",
     "website:stage": "node scripts/stage-website.mjs"
   },
