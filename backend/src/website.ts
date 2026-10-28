@@ -7,6 +7,7 @@ const files = new Map([
     "/mouse-gaze.js",
     { file: "mouse-gaze.js", type: "text/javascript; charset=utf-8" },
   ],
+  ["/site.js", { file: "site.js", type: "text/javascript; charset=utf-8" }],
   ["/agent.md", { file: "agent.md", type: "text/plain; charset=utf-8" }],
   ["/assets/watch-3d.png", { file: "assets/watch-3d.png", type: "image/png" }],
   ["/", { file: "index.html", type: "text/html; charset=utf-8" }],

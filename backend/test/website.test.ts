@@ -25,6 +25,8 @@ test("landing page is public while APIs and non-website files remain protected",
   assert.equal(homepage.headers["x-content-type-options"], "nosniff");
   for (const url of [
     "/index.html",
+    "/site.js",
+    "/mouse-gaze.js",
     "/style.css?v=1",
     "/assets/jolly.png",
     "/assets/jolly-face.png",

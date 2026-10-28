@@ -1,3 +1,4 @@
+import "../../website/scripts/sync-agent.mjs";
 import { cp, mkdir, stat } from "node:fs/promises";
 
 const source = new URL("../../website/dist/", import.meta.url);
@@ -10,6 +11,7 @@ for (const file of [
   "agent.md",
   "style.css",
   "mouse-gaze.js",
+  "site.js",
   "assets/jolly.png",
   "assets/jolly-face.png",
   "assets/watch-3d.png",
