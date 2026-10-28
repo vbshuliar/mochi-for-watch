@@ -321,6 +321,7 @@ summary::-webkit-details-marker {
   display: none;
 }
 summary span {
+  position: relative;
   display: grid;
   place-items: center;
   flex-shrink: 0;
@@ -328,8 +329,22 @@ summary span {
   height: 28px;
   border-radius: 50%;
   background: #e8e8ed;
-  font-size: 22px;
-  font-weight: 300;
+  font-size: 0;
+}
+summary span::before,
+summary span::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 1.5px;
+  border-radius: 1px;
+  background: currentColor;
+  transform: translate(-50%, -50%);
+}
+summary span::after {
+  transform: translate(-50%, -50%) rotate(90deg);
 }
 details[open] summary span {
   transform: rotate(45deg);
