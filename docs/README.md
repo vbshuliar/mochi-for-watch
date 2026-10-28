@@ -1,10 +1,10 @@
 # Project knowledge base
 
-Updated: 27 October 2026.
+Updated: 28 October 2026.
 
 ## Start here
 
-Read [the idea](idea.md), [hackathon requirements](hackathon.md), [MVP scope](mvp-and-success.md), and [open questions](open-questions.md) first. For implementation planning, continue with architecture, integrations and the roadmap.
+For the current product, start with the [project README](../README.md). To develop it, read [current architecture](architecture.md), [backend setup](../backend/README.md), and [verification](backend-verification.md). For the demo, read [booking calls](booking-calls.md) and [hackathon requirements](hackathon.md). Research and original briefs retain historical proposals; they do not override implemented behavior.
 
 | Document | What belongs here |
 |---|---|
