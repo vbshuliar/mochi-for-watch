@@ -91,3 +91,12 @@ The home screen’s **Memory** row opens saved facts shared with the Watch. Add,
 Native connection views support Gmail OAuth, Notion OAuth and destination selection. Document proposals show their full text and destination for confirmation on both phone and Watch. See [setup and limits](../docs/gmail-notion.md). Install updated clients before testing document approvals; installation remains deferred.
 
 Booking reviews on iPhone and Watch show each allowed window for flexible requests. Older single-window proposals still decode. Install an updated build to see the separate windows; app installation remains a manual follow-up.
+
+
+## Background booking cards
+
+After call approval, booking progress has its own review button and does not block talking to Jolly. The backend continues the call while the app is inactive; the apps refresh the tracked task when reopened. Session/task pointers and dismissed-card IDs are scoped to a hash of the backend connection and stored locally. Ordinary replies cannot erase a running booking.
+
+Completion cards wait until recording, thinking, speech, and foreground approvals finish. The compact card replaces Jolly until dismissal or another conversation, respecting Reduce Motion. Only a verified `booked` outcome is titled **booking confirmed**, with the actual booked start displayed in the viewer’s device timezone using a compact 12-hour clock (for example, `Fri, 6 Nov · 3:30 pm`), without a timezone label. Full call review retains the booking timezone. Other outcomes retain their honest summary. Review offers stop/refresh controls, including uncertain calls. Calendar writes still require a separate explicit approval. Dismissed completion cards do not reappear after refresh or restart.
+
+These are in-app cards, with catch-up on resume. This feature requires no APNs setup, system-notification permission, or paid Apple developer membership. It does not promise delivery while the app is suspended. Building remains unsigned; installation is a separate manual step.

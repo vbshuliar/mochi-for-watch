@@ -53,6 +53,8 @@ See [streaming replies](streaming-replies.md), [realtime transcription](realtime
 
 **Booking calls:** a proposal contains the destination, customer, purpose, duration and allowed windows. Calendar conflicts remove candidates. Approval rechecks availability; it never broadens the approved set. Twilio receives a call only after the durable decision. Signed callbacks drive a bounded Meta/ElevenLabs conversation. The model sees approved booking details and permitted times, not unrelated memories or Calendar event contents. Internal candidate slots stay on the server; clients receive the allowed windows and eventual booked slot, with an empty legacy `slots` field for decoding compatibility.
 
+The approved call runs independently of foreground conversation. Clients retain a separate task pointer and poll while active; resuming refreshes server state. Completion presentation waits until the conversation is idle and is deduplicated locally. There is no APNs delivery in this version.
+
 A provider's “call completed” status is not proof of a booking. The outcome validator requires explicit matching confirmation. Calendar saving is a second, separately approved action. Ambiguous call creation is never automatically redialled.
 
 **Notion:** generated content is reviewed before saving. Gmail access is read-only. Account setup for these connectors is currently paused; implemented code is not proof of a connected account.

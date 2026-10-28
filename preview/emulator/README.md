@@ -78,3 +78,9 @@ Conversational replies now stream in sentence clips; exact repeat/stop commands 
 In live mode, current-information questions can use Meta web search. Source links appear in a compact expandable log row. The Web Search connection shows availability through Meta and requires no separate sign-in. See [implementation and verification](../../docs/web-search.md).
 
 Flexible booking approval lists every allowed window separately (including multi-day requests). The date envelope is not a promise of continuous availability; Calendar busy periods further constrain the call.
+
+### Background booking
+
+Approved calls run separately from chat. The Watch preview keeps a compact task indicator; clicking it opens review/Stop without discarding a separate pending Calendar or document proposal. Progress questions are answered by the backend from actual call state. Completion cards wait for the conversation to be idle and replace the face with a compact result. Appointment times use the viewer’s local timezone and 12-hour am/pm, with no timezone label. Starting another exchange restores the full face; task review remains available.
+
+Task recovery and completion deduplication are scoped to this browser origin and conversation session. Reopening refreshes a saved task. This version uses in-app cards, not system push notifications. No demo card is evidence that a live booking succeeded.
