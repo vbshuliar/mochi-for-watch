@@ -1,6 +1,21 @@
 # Private deployment — Fly.io
 
-Updated 27 October 2026. **The owner confirmed Jolly works on Apple Watch after importing the Fly connection. The Mac no longer needs to stay on.** This is a private single-user deployment, not a public release.
+Updated 28 October 2026. **The owner confirmed Jolly works on Apple Watch after importing the Fly connection. The Mac no longer needs to stay on.** This is a private single-user deployment, not a public release. The latest backend release and remaining client/provisioning gates are recorded below.
+
+## Shared tasks and booking changes deployed — 28 October 2026
+
+Deployed source revision `f864398d287102cc93c5bacb979f81d3abc24ac4`, including the feature release `4bcc2b8` and complete website script packaging. The release was built from an isolated committed snapshot, with website assets staged before the remote build. Image: `registry.fly.io/muse-for-watch-vlad:deployment-01M61MS5MS2DR5SJWTSYYH0CAQ`. The existing single London Machine and encrypted volume were retained; no secrets or hosting resources were changed. A read-only preflight found no active calls.
+
+Verification at 16:18 London time:
+
+- Fly health check passed; public health, homepage, CSS, `site.js` and `mouse-gaze.js` returned 200.
+- Anonymous status, task-feed and notification-status requests returned 401; authenticated requests succeeded.
+- Live mode, ElevenLabs speech, connected Google Calendar and configured calling were reported.
+- Shared tasks returned existing data. A real Google Calendar availability read succeeded without writing an event.
+- A real Meta conversational response completed in 3,617 ms; ElevenLabs returned 18,851 bytes of MPEG audio in 153 ms. These are single synthetic smoke checks, not physical-device latency measurements. Temporary smoke sessions were removed.
+- Local aggregate validation passed (152 backend, 74 emulator, 47 native tests and animation checks); both GitHub CI jobs passed for the deployed revision.
+
+The backend now exposes shared task discovery, approved booking changes and the notification service. APNs reports `configured: false`: no signing key is present in Fly/project configuration, and Apple Developer requires sign-in before provisioning can continue. No live telephone call, Calendar write, app installation or physical-device test was performed. The earlier instruction to defer live calls remains pending explicit recipient readiness. Updated native UI still requires installation; see [acceptance](development-acceptance.md) and [push setup](task-notifications.md).
 
 ## Current configuration
 
