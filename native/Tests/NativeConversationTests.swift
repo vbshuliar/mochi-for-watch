@@ -48,8 +48,22 @@ private final class NativeFixture: URLProtocol, @unchecked Sendable {
   override func startLoading() {
     let path = request.url!.path
     let body: String
+    var responseStatus = 200
     if path.hasSuffix("/sessions") {
       body = #"{"id":"test-session"}"#
+    } else if path.contains("/actions/") {
+      if path.hasSuffix("/stale/decision") {
+        body = #"{"sessionId":"test-session","state":"approval","statusText":"Review event","speechText":"Private old conversation","simulated":true,"action":\#(calendarFixture(id: "stale", status: "pending"))}"#
+      } else if path.hasSuffix("/decision") {
+        responseStatus = 409
+        body = #"{"error":{"message":"Calendar decision could not be completed."}}"#
+      } else if path.hasSuffix("/unavailable") {
+        responseStatus = 503
+        body = #"{"error":{"message":"Temporarily unavailable."}}"#
+      } else {
+        let status = request.url!.lastPathComponent
+        body = "{\"action\":" + calendarFixture(id: status, status: status) + "}"
+      }
     } else if path.contains("/calls/") {
       body = "{\"callAction\":" + callFixture + "}"
     } else if path.hasSuffix("/stream") {
@@ -65,7 +79,7 @@ private final class NativeFixture: URLProtocol, @unchecked Sendable {
     client?.urlProtocol(
       self,
       didReceive: HTTPURLResponse(
-        url: request.url!, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: nil)!,
+        url: request.url!, statusCode: responseStatus, httpVersion: "HTTP/1.1", headerFields: nil)!,
       cacheStoragePolicy: .notAllowed)
     client?.urlProtocol(self, didLoad: Data(body.utf8))
     client?.urlProtocolDidFinishLoading(self)
@@ -183,5 +197,57 @@ extension NativeConversationTests {
     let flexible = try JSONDecoder().decode(CallAction.self, from: JSONSerialization.data(withJSONObject: object))
     XCTAssertEqual(flexible.booking.allowedWindows.count, 2)
     XCTAssertEqual(flexible.booking.allowedWindows[1].start, "2026-11-04T14:00:00Z")
+  }
+}
+
+
+private func calendarFixture(id: String, status: String) -> String {
+  #"{"id":"\#(id)","sessionId":"test-session","status":"\#(status)","expiresAt":1,"event":{"title":"Lunch","start":"2026-11-01T12:00:00Z","end":"2026-11-01T13:00:00Z","timeZone":"Europe/London"}}"#
+}
+
+extension NativeConversationTests {
+  func testFailedCalendarDecisionClearsAuthoritativeTerminalProposal() async throws {
+    for status in ["expired", "cancelled", "executed"] {
+      let (model, audio) = try makeModel()
+      defer { model.suspend() }
+      model.action = try JSONDecoder().decode(Action.self, from: Data(calendarFixture(id: status, status: "pending").utf8))
+      model.decide(true)
+      await eventually { !model.deciding }
+      XCTAssertNil(model.action, status)
+      XCTAssertFalse(model.hasProposal, status)
+      model.tap()
+      await eventually { model.recording }
+      XCTAssertTrue(audio.recording, status)
+    }
+  }
+
+  func testFailedCalendarDecisionPreservesRecoverableProposal() async throws {
+    for status in ["pending", "uncertain", "executing", "unavailable"] {
+      let (model, _) = try makeModel()
+      defer { model.suspend() }
+      model.action = try JSONDecoder().decode(Action.self, from: Data(calendarFixture(id: status, status: "pending").utf8))
+      model.decide(true)
+      await eventually { !model.deciding }
+      XCTAssertEqual(model.action?.status, status == "unavailable" ? "pending" : status)
+      XCTAssertTrue(model.hasProposal)
+      XCTAssertNotNil(model.failure)
+    }
+  }
+}
+
+
+extension NativeConversationTests {
+  func testCalendarDecisionResponseAfterConnectionResetCannotRestoreOldConversation() async throws {
+    let (model, audio) = try makeModel()
+    model.action = try JSONDecoder().decode(Action.self, from: Data(calendarFixture(id: "stale", status: "pending").utf8))
+    model.decide(true)
+    XCTAssertTrue(model.deciding)
+    model.connectionChanged()
+    await eventually { !model.deciding }
+    XCTAssertNil(model.action)
+    XCTAssertFalse(model.hasProposal)
+    XCTAssertEqual(model.reply, "")
+    XCTAssertTrue(model.sources.isEmpty)
+    XCTAssertEqual(audio.played, 0)
   }
 }

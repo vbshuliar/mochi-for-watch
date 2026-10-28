@@ -346,6 +346,8 @@ struct Activity: Identifiable {
   }
   func decide(_ confirm: Bool) {
     guard hasProposal, !deciding, let connection = store.connection else { return }
+    let calendarProposal = action
+    let documentProposal = documentAction
     let path: String
     if let action { path = "v1/sessions/\(action.sessionId)/actions/\(action.id)/decision" }
     else if let documentAction { path = "v1/sessions/\(documentAction.sessionId)/documents/\(documentAction.id)/decision" }
@@ -362,16 +364,31 @@ struct Activity: Identifiable {
           path,
           values: ["decision": confirm ? "confirm" : "cancel"])
         let result = try JSONDecoder().decode(TurnResult.self, from: bytes)
+        guard generation == ticket, store.connection == connection else { return }
+        if let proposal = calendarProposal {
+          guard action?.id == proposal.id, action?.sessionId == proposal.sessionId else { return }
+        } else if let proposal = documentProposal {
+          guard documentAction?.id == proposal.id, documentAction?.sessionId == proposal.sessionId else { return }
+        }
         speechTail = nil
         queue(result.speechText, client: client, ticket: ticket)
         try await complete(result, input: "", ticket: ticket)
       } catch {
-        if let document = documentAction {
+        guard generation == ticket, store.connection == connection else { return }
+        if let proposal = calendarProposal {
+          struct Envelope: Decodable, Sendable { let action: Action }
+          if let current = try? await makeClient(connection).get("v1/sessions/\(proposal.sessionId)/actions/\(proposal.id)", as: Envelope.self) {
+            guard generation == ticket, store.connection == connection, action?.id == proposal.id, action?.sessionId == proposal.sessionId else { return }
+            action = ["pending", "executing", "uncertain"].contains(current.action.status) ? current.action : nil
+          }
+        } else if let document = documentProposal {
           struct Envelope: Decodable, Sendable { let action: DocumentAction }
           if let current = try? await makeClient(connection).get("v1/sessions/\(document.sessionId)/documents/\(document.id)", as: Envelope.self) {
+            guard generation == ticket, store.connection == connection, documentAction?.id == document.id, documentAction?.sessionId == document.sessionId else { return }
             documentAction = ["pending", "executing", "uncertain"].contains(current.action.status) ? current.action : nil
           }
         }
+        guard generation == ticket, store.connection == connection else { return }
         fail(error)
       } // Preserve uncertain writes without automatically retrying them.
     }
