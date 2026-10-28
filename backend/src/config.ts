@@ -15,6 +15,11 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env) {
         .enum(["minimal", "low", "medium", "high"])
         .default("low"),
       META_TRANSCRIBE_MODEL: z.string().default("muse-voice-transcribe-1.0"),
+      TWILIO_ACCOUNT_SID: z.string().default(""),
+      TWILIO_AUTH_TOKEN: z.string().default(""),
+      TWILIO_ALLOWED_NUMBERS: z.string().default(""),
+      TWILIO_FROM_NUMBER: z.string().default(""),
+      CALLS_PUBLIC_URL: z.string().default(""),
       ELEVENLABS_API_KEY: z.string().default(""),
       ELEVENLABS_VOICE_ID: z
         .string()
@@ -23,6 +28,14 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env) {
       ELEVENLABS_MODEL: z
         .enum(["eleven_flash_v2_5", "eleven_multilingual_v2"])
         .default("eleven_flash_v2_5"),
+      GMAIL_REDIRECT_URI: z
+        .url()
+        .default("http://127.0.0.1:8787/oauth/gmail/callback"),
+      NOTION_CLIENT_ID: z.string().default(""),
+      NOTION_CLIENT_SECRET: z.string().default(""),
+      NOTION_REDIRECT_URI: z
+        .url()
+        .default("http://127.0.0.1:8787/oauth/notion/callback"),
       GOOGLE_CLIENT_ID: z.string().default(""),
       GOOGLE_CLIENT_SECRET: z.string().default(""),
       GOOGLE_REDIRECT_URI: z
@@ -34,12 +47,18 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env) {
     throw new Error("MODEL_API_KEY is required in live mode");
   if (new URL(c.META_BASE_URL).protocol !== "https:")
     throw new Error("Meta URL must use HTTPS");
-  const redirect = new URL(c.GOOGLE_REDIRECT_URI);
-  if (
-    redirect.protocol !== "https:" &&
-    !(redirect.protocol === "http:" && redirect.hostname === "127.0.0.1")
-  )
-    throw new Error("OAuth redirect must use HTTPS or loopback HTTP");
+  for (const value of [
+    c.GOOGLE_REDIRECT_URI,
+    c.GMAIL_REDIRECT_URI,
+    c.NOTION_REDIRECT_URI,
+  ]) {
+    const redirect = new URL(value);
+    if (
+      redirect.protocol !== "https:" &&
+      !(redirect.protocol === "http:" && redirect.hostname === "127.0.0.1")
+    )
+      throw new Error("OAuth redirect must use HTTPS or loopback HTTP");
+  }
   return c;
 }
 export type Config = ReturnType<typeof readConfig>;

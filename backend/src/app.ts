@@ -14,6 +14,8 @@ import {
 import { Store } from "./store.ts";
 import { MetaPlanner, MockPlanner } from "./meta.ts";
 import { GoogleCalendar, MockCalendar } from "./calendar.ts";
+import { Workflows } from "./workflows.ts";
+import { Calls } from "./calls.ts";
 import { Service } from "./service.ts";
 import { synthesizeSpeech } from "./speech.ts";
 const sessionParams = z.object({ id: z.uuid() });
@@ -35,6 +37,15 @@ export async function buildApp(
     calendar =
       overrides.calendar ||
       (config.APP_MODE === "mock" ? new MockCalendar(store) : google);
+  const workflows = new Workflows(config, store);
+  const calls = new Calls(
+    config,
+    store,
+    calendar,
+    () =>
+      google.connected() &&
+      store.get<boolean>("integration", "calendar-enabled") !== false,
+  );
   const service = new Service(
     store,
     overrides.planner ||
@@ -43,6 +54,8 @@ export async function buildApp(
         : new MetaPlanner(config)),
     calendar,
     config.APP_MODE === "mock",
+    workflows,
+    calls,
   );
   const app = Fastify({
     bodyLimit: 6 * 1024 * 1024,
@@ -55,13 +68,41 @@ export async function buildApp(
     { parseAs: "buffer" },
     (_req, body, done) => done(null, body),
   );
+  app.addContentTypeParser(
+    "application/x-www-form-urlencoded",
+    { parseAs: "string", bodyLimit: 16384 },
+    (_req, body, done) => {
+      const params = new URLSearchParams(body as string),
+        result: Record<string, string> = Object.create(null);
+      for (const [key, value] of params) {
+        if (Object.hasOwn(result, key)) {
+          done(
+            new AppError(400, "duplicate_field", "Duplicate callback field."),
+          );
+          return;
+        }
+        result[key] = value;
+      }
+      done(null, result);
+    },
+  );
   app.addHook("onRequest", async (req, reply) => {
     reply
       .header("Cache-Control", "no-store")
       .header("X-Content-Type-Options", "nosniff")
       .header("Referrer-Policy", "no-referrer");
     const path = req.url.split("?")[0];
-    if (path === "/health" || path === "/oauth/google/callback") return;
+    if (path.startsWith("/webhooks/calls/") || path.startsWith("/call-audio/"))
+      return;
+    if (
+      [
+        "/health",
+        "/oauth/google/callback",
+        "/oauth/gmail/callback",
+        "/oauth/notion/callback",
+      ].includes(path)
+    )
+      return;
     const provided = Buffer.from(
         req.headers.authorization?.replace(/^Bearer /, "") || "",
       ),
@@ -131,6 +172,9 @@ export async function buildApp(
   app.get("/health", async () => ({ ok: true }));
   app.get("/v1/status", async () => ({
     mode: config.APP_MODE,
+    callsConfigured: calls.configured(),
+    ...workflows.status(),
+    webSearch: config.APP_MODE === "live",
     calendar:
       config.APP_MODE === "mock"
         ? "simulated"
@@ -206,6 +250,21 @@ export async function buildApp(
       .parse(req.params);
     return service.cancelTurn(id, requestId);
   });
+  app.get("/v1/memories", async () => ({ memories: service.memories() }));
+  app.post("/v1/memories", async (req, reply) =>
+    reply.code(201).send(service.saveMemory(req.body)),
+  );
+  app.patch("/v1/memories/:id", async (req) =>
+    service.saveMemory(req.body, sessionParams.parse(req.params).id),
+  );
+  app.delete("/v1/memories/:id", async (req, reply) => {
+    service.deleteMemory(sessionParams.parse(req.params).id);
+    return reply.code(204).send();
+  });
+  app.delete("/v1/memories", async (_req, reply) => {
+    service.deleteMemory();
+    return reply.code(204).send();
+  });
   app.post(
     "/v1/sessions/:id/stream",
     { config: { rateLimit: { max: 20, timeWindow: "1 minute" } } },
@@ -251,7 +310,18 @@ export async function buildApp(
             type: "error",
             message: controller.signal.aborted
               ? "request cancelled"
-              : "couldn’t complete the reply; please try again",
+              : error instanceof AppError && error.code === "search_unavailable"
+                ? "couldn’t verify that online; please try again"
+                : error instanceof AppError &&
+                    [
+                      "connection_required",
+                      "notion_destination_required",
+                      "connection_changed",
+                      "workflow_unavailable",
+                      "mock_mode",
+                    ].includes(error.code)
+                  ? error.message
+                  : "couldn’t complete the reply; please try again",
             code: error instanceof AppError ? error.code : "stream_failed",
           }),
         )
@@ -355,6 +425,144 @@ export async function buildApp(
       .type("text/plain")
       .send("Calendar connected. You may close this tab.");
   });
-  app.addHook("onClose", async () => store.close());
-  return { app, service, store };
+  for (const provider of ["gmail", "notion"] as const) {
+    const connection = workflows[provider];
+    app.post(`/v1/integrations/${provider}/connect`, async () => {
+      if (config.APP_MODE !== "live")
+        throw new AppError(
+          409,
+          "mock_mode",
+          "use live mode to connect a real account",
+        );
+      return { url: connection.authorize() };
+    });
+    app.delete(`/v1/integrations/${provider}`, async () => {
+      connection.disconnect();
+      return {
+        disconnected: true,
+        note: "Local credentials removed. You can also revoke the grant in the provider’s settings.",
+      };
+    });
+    app.get(`/oauth/${provider}/callback`, async (req, reply) => {
+      if (config.APP_MODE !== "live")
+        throw new AppError(409, "mock_mode", "not available in mock mode");
+      const q = z
+        .object({
+          state: z.string().min(1).max(100),
+          code: z.string().min(1).max(4096).optional(),
+          error: z.string().max(200).optional(),
+        })
+        .parse(req.query);
+      if (!q.code && !q.error)
+        throw new AppError(
+          400,
+          "missing_oauth_code",
+          "No sign-in code received. Please connect again.",
+        );
+      await connection.callback(q.state, q.error ? undefined : q.code);
+      return reply
+        .type("text/plain")
+        .send(
+          q.error
+            ? "Connection cancelled. You may return to Muse."
+            : "Connected. Return to Muse to finish setup.",
+        );
+    });
+  }
+  app.get("/v1/integrations/notion/pages", async (req) => {
+    const { query } = z
+      .object({ query: z.string().max(100).default("") })
+      .parse(req.query);
+    return workflows.pages(query);
+  });
+  app.post("/v1/integrations/notion/pages/search", async (req) => {
+    const { query } = z
+      .object({ query: z.string().max(100).default("") })
+      .strict()
+      .parse(req.body);
+    return workflows.pages(query);
+  });
+  app.put("/v1/integrations/notion/destination", async (req) => {
+    const { id } = z.object({ id: z.uuid() }).strict().parse(req.body);
+    return workflows.setParent(id);
+  });
+  app.get("/v1/sessions/:id/documents/:actionId", async (req) => {
+    const { id, actionId } = actionParams.parse(req.params);
+    service.session(id);
+    return { action: workflows.action(id, actionId) };
+  });
+  app.post("/v1/sessions/:id/documents/:actionId/decision", async (req) => {
+    const { id, actionId } = actionParams.parse(req.params);
+    const { decision } = z
+      .object({ decision: z.enum(["confirm", "cancel"]) })
+      .strict()
+      .parse(req.body);
+    return service.decideDocument(id, actionId, decision);
+  });
+  app.get("/v1/sessions/:id/calls/:actionId", async (req) => {
+    const { id, actionId } = actionParams.parse(req.params);
+    service.session(id);
+    return { callAction: calls.get(id, actionId) };
+  });
+  app.post("/v1/sessions/:id/calls/:actionId/decision", async (req) => {
+    const { id, actionId } = actionParams.parse(req.params);
+    service.session(id);
+    const { decision } = z
+      .object({ decision: z.enum(["confirm", "cancel"]) })
+      .strict()
+      .parse(req.body);
+    return calls.decide(id, actionId, decision);
+  });
+  app.post("/v1/sessions/:id/calls/:actionId/stop", async (req) => {
+    const { id, actionId } = actionParams.parse(req.params);
+    service.session(id);
+    return calls.stop(id, actionId);
+  });
+  app.post("/v1/sessions/:id/calls/:actionId/calendar", async (req) => {
+    const { id, actionId } = actionParams.parse(req.params);
+    service.session(id);
+    return calls.proposeCalendar(id, actionId);
+  });
+  for (const route of ["voice/:turn", "gather/:turn", "status"]) {
+    app.post(
+      `/webhooks/calls/:actionId/${route}`,
+      { bodyLimit: 16384 },
+      async (req, reply) => {
+        const { actionId, turn } = z
+          .object({
+            actionId: z.uuid(),
+            turn: z.coerce.number().int().min(0).max(12).optional(),
+          })
+          .parse(req.params);
+        const body = z.record(z.string(), z.string()).parse(req.body);
+        calls.verify(
+          req.url,
+          body,
+          String(req.headers["x-twilio-signature"] || ""),
+        );
+        if (route === "status") {
+          calls.status(actionId, body);
+          return reply.code(204).send();
+        }
+        return reply
+          .type("text/xml")
+          .send(
+            route.startsWith("voice")
+              ? calls.voice(actionId, turn!, body)
+              : calls.gather(actionId, turn!, body),
+          );
+      },
+    );
+  }
+  app.get("/call-audio/:token", async (req, reply) => {
+    const { token } = z
+      .object({ token: z.string().regex(/^[a-f0-9]{64}$/) })
+      .parse(req.params);
+    return reply.type("audio/mpeg").send(calls.audio(token));
+  });
+  app.addHook("onClose", async () => {
+    await calls.close();
+    store.close();
+  });
+  return { app, service, store, calls };
 }

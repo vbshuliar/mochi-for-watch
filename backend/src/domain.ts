@@ -45,9 +45,100 @@ export const windowSchema = z
     "Window must be at most 31 days",
   );
 export type Window = z.infer<typeof windowSchema>;
+export const sourceSchema = z
+  .object({
+    title: z.string().min(1).max(300),
+    url: z
+      .string()
+      .url()
+      .max(2048)
+      .refine((value) => {
+        const url = new URL(value);
+        return (
+          ["http:", "https:"].includes(url.protocol) &&
+          !url.username &&
+          !url.password
+        );
+      }),
+  })
+  .strict();
+export type SearchSource = z.infer<typeof sourceSchema>;
+export const memoryInputSchema = z
+  .object({
+    title: z.string().trim().min(1).max(80),
+    text: z.string().trim().min(1).max(500),
+  })
+  .strict();
+export type Memory = z.infer<typeof memoryInputSchema> & {
+  id: string;
+  updatedAt: number;
+};
+export type PlanOptions = {
+  signal?: AbortSignal;
+  onText?: (text: string) => void;
+  memories?: Memory[];
+};
+export const workflowPlan = z
+  .object({
+    kind: z.literal("workspace_task"),
+    instruction: z.string().trim().min(1).max(1500),
+    gmailQuery: z.string().trim().min(1).max(500).optional(),
+    destination: z.enum(["reply", "notion"]),
+  })
+  .strict();
+export type WorkspacePlan = z.infer<typeof workflowPlan>;
+export const bookingSchema = z
+  .object({
+    destinationName: z.string().trim().min(1).max(120),
+    phoneNumber: z.string().regex(/^\+[1-9]\d{7,14}$/),
+    purpose: z.string().trim().min(1).max(300),
+    customerName: z.string().trim().min(1).max(120),
+    timeZone: timezone,
+    window: windowSchema,
+    windows: z.array(windowSchema).min(1).max(14).optional(),
+    durationMinutes: z.number().int().min(5).max(240),
+  })
+  .strict()
+  .superRefine((booking, ctx) => {
+    const windows = [...(booking.windows ?? [])].sort(
+      (a, b) => Date.parse(a.start) - Date.parse(b.start),
+    );
+    for (let i = 0; i < windows.length; i++) {
+      const window = windows[i]!;
+      if (
+        Date.parse(window.start) < Date.parse(booking.window.start) ||
+        Date.parse(window.end) > Date.parse(booking.window.end) ||
+        (i > 0 && Date.parse(window.start) < Date.parse(windows[i - 1]!.end))
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["windows"],
+          message:
+            "Allowed windows must be within the envelope and must not overlap",
+        });
+      }
+    }
+  });
+export type BookingInput = z.infer<typeof bookingSchema>;
 export const planSchema = z.discriminatedUnion("kind", [
+  workflowPlan,
   z
-    .object({ kind: z.literal("reply"), text: z.string().min(1).max(500) })
+    .object({ kind: z.literal("call_booking"), booking: bookingSchema })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("remember"),
+      id: z.uuid().optional(),
+      memory: memoryInputSchema,
+    })
+    .strict(),
+  z.object({ kind: z.literal("forget"), id: z.uuid() }).strict(),
+  z
+    .object({
+      kind: z.literal("reply"),
+      text: z.string().min(1).max(500),
+      sources: z.array(sourceSchema).max(8).optional(),
+    })
     .strict(),
   z
     .object({ kind: z.literal("clarify"), text: z.string().min(1).max(300) })
@@ -95,13 +186,16 @@ export type TurnResult = {
   simulated: boolean;
   returnTo?: { state: "idle"; afterMs: number };
   action?: Action;
+  callAction?: import("./calls.ts").CallAction;
+  documentAction?: import("./workflows.ts").DocumentAction;
   data?: unknown;
+  sources?: SearchSource[];
 };
 export interface Planner {
   plan(
     messages: Message[],
     timeZone: string,
-    options?: { signal?: AbortSignal; onText?: (text: string) => void },
+    options?: PlanOptions,
   ): Promise<Plan>;
   transcribe(audio: Buffer, signal?: AbortSignal): Promise<string>;
 }

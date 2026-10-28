@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { partialReply, readCompletionStream } from "../src/streaming.ts";
 import { buildApp } from "../src/app.ts";
 import { readConfig } from "../src/config.ts";
-import type { Planner } from "../src/domain.ts";
+import { AppError, type Planner } from "../src/domain.ts";
 
 test("partial reply decodes escapes but never exposes task payloads", () => {
   assert.equal(
@@ -161,4 +161,23 @@ test("stream route emits text then validated result with authenticated cancellat
     ).statusCode,
     401,
   );
+});
+
+test("search verification failure has a useful message without leaking provider details", async (t) => {
+  const f = await setup(t, {
+    transcribe: async () => "",
+    plan: async () => {
+      throw new AppError(502, "search_unavailable", "private provider details");
+    },
+  });
+  const response = await f.app.inject({
+    method: "POST",
+    url: `/v1/sessions/${f.id}/stream`,
+    headers: f.headers,
+    payload: { requestId: randomUUID(), text: "latest news" },
+  });
+  const event = JSON.parse(response.body.trim());
+  assert.equal(event.code, "search_unavailable");
+  assert.equal(event.message, "couldn’t verify that online; please try again");
+  assert.equal(event.type, "error");
 });

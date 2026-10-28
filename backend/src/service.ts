@@ -1,6 +1,8 @@
 import { randomUUID, createHash } from "node:crypto";
 import {
   AppError,
+  memoryInputSchema,
+  type Memory,
   eventSchema,
   planSchema,
   type Action,
@@ -10,6 +12,8 @@ import {
   type Timeline,
   type TurnResult,
 } from "./domain.ts";
+import type { Calls } from "./calls.ts";
+import type { Workflows } from "./workflows.ts";
 import { Store } from "./store.ts";
 type CachedTurn = {
   hash: string;
@@ -44,6 +48,8 @@ export class Service {
     private planner: Planner,
     private calendar: Calendar,
     readonly simulated: boolean,
+    private workflows?: Workflows,
+    private calls?: Calls,
   ) {
     for (const { id, value } of store.list<Action>("action"))
       if (value.status === "executing")
@@ -51,6 +57,75 @@ export class Service {
     for (const { id, value } of store.list<CachedTurn>("turn"))
       if (value.status === "processing")
         store.put("turn", id, { ...value, status: "failed" });
+  }
+  memories(): Memory[] {
+    return this.store
+      .list<Memory>("memory")
+      .map((item) => item.value)
+      .sort((a, b) => b.updatedAt - a.updatedAt || a.id.localeCompare(b.id));
+  }
+  private resetMemoryContext(exceptTurn?: string) {
+    // Editing/forgetting must not leave stale facts in another device's context.
+    for (const [key, turn] of this.activeTurns)
+      if (key !== exceptTurn) turn.controller.abort();
+    for (const { id, value } of this.store.list<Session>("session"))
+      this.store.put("session", id, { ...value, messages: [] });
+  }
+  saveMemory(input: unknown, id?: string, exceptTurn?: string): Memory {
+    const fields = memoryInputSchema.parse(input);
+    if (id && !this.store.get("memory", id))
+      throw new AppError(
+        404,
+        "memory_not_found",
+        "that memory no longer exists",
+      );
+    const duplicate =
+      !id &&
+      this.memories().find(
+        (m) => m.title.toLowerCase() === fields.title.toLowerCase(),
+      );
+    if (
+      id &&
+      this.memories().some(
+        (m) =>
+          m.id !== id && m.title.toLowerCase() === fields.title.toLowerCase(),
+      )
+    )
+      throw new AppError(
+        409,
+        "memory_title_conflict",
+        "another memory already uses that title",
+      );
+    const target = id || (duplicate ? duplicate.id : undefined);
+    if (!target && this.memories().length >= 50)
+      throw new AppError(
+        409,
+        "memory_full",
+        "memory is full; remove a memory in the iPhone app first",
+      );
+    const memory = {
+      ...fields,
+      id: target || randomUUID(),
+      updatedAt: Date.now(),
+    };
+    this.store.transaction(() => {
+      this.store.put("memory", memory.id, memory);
+      this.resetMemoryContext(exceptTurn);
+    });
+    return memory;
+  }
+  deleteMemory(id?: string, exceptTurn?: string) {
+    if (id && !this.store.get("memory", id))
+      throw new AppError(
+        404,
+        "memory_not_found",
+        "that memory no longer exists",
+      );
+    this.store.transaction(() => {
+      for (const memory of this.memories())
+        if (!id || memory.id === id) this.store.delete("memory", memory.id);
+      this.resetMemoryContext(exceptTurn);
+    });
   }
   private requireCalendarEnabled() {
     if (this.store.get<boolean>("integration", "calendar-enabled") === false)
@@ -164,10 +239,12 @@ export class Service {
           ...session.messages,
           { role: "user" as const, content: text },
         ].slice(-16);
+        const memories = this.memories();
         const plan = planSchema.parse(
           await this.planner.plan(messages, session.timeZone, {
             signal,
             onText: options.onText,
+            memories,
           }),
         );
         check();
@@ -176,6 +253,8 @@ export class Service {
         let result: TurnResult;
         // A new request supersedes earlier unapproved proposals in this session.
         const supersede = () => {
+          this.workflows?.supersede(id);
+          this.calls?.supersede(id);
           for (const { id: actionId, value } of this.store.list<Action>(
             "action",
           ))
@@ -185,7 +264,54 @@ export class Service {
                 status: "cancelled",
               });
         };
-        if (plan.kind === "create_event") {
+        if (plan.kind === "call_booking") {
+          if (!this.calls)
+            throw new AppError(
+              409,
+              "calls_unavailable",
+              "Booking calls are not configured yet.",
+            );
+          const phoneSources = [
+            ...messages.filter((m) => m.role === "user").map((m) => m.content),
+            ...memories.map((memory) => `${memory.title} ${memory.text}`),
+          ];
+          const supplied = phoneSources.some((content) =>
+            (
+              content
+                .replace(/[\s().-]/g, "")
+                .match(/\+[1-9]\d{7,14}(?!\d)/g) || []
+            ).some((number) => number === plan.booking.phoneNumber),
+          );
+          if (!supplied)
+            throw new AppError(
+              422,
+              "phone_required",
+              "Please provide the destination phone number, including country code.",
+            );
+          supersede();
+          result = await this.calls.prepare(id, plan.booking, signal);
+          check();
+        } else if (plan.kind === "workspace_task") {
+          if (!this.workflows)
+            throw new AppError(
+              503,
+              "workflow_unavailable",
+              "this connection isn’t available yet",
+            );
+          supersede();
+          result = await this.workflows.prepare(id, plan, signal);
+          check();
+        } else if (plan.kind === "remember") {
+          supersede();
+          const memory = this.saveMemory(plan.memory, plan.id, key);
+          result = this.result(id, "speak", `I’ll remember: ${memory.text}`, {
+            data: { memory },
+          });
+        } else if (plan.kind === "forget") {
+          supersede();
+          this.deleteMemory(plan.id, key);
+          result = this.result(id, "speak", "that memory is forgotten");
+        } else if (plan.kind === "create_event") {
           const event = eventSchema.parse(plan.event);
           if (Date.parse(event.start) < Date.now() - 60000)
             throw new AppError(
@@ -243,15 +369,21 @@ export class Service {
             id,
             plan.kind === "clarify" ? "clarify" : "speak",
             plan.text,
+            plan.kind === "reply" && plan.sources
+              ? { sources: plan.sources }
+              : {},
           );
         }
-        session.messages = [
-          ...messages,
-          {
-            role: "assistant" as const,
-            content: JSON.stringify({ plan, result }).slice(0, 8000),
-          },
-        ].slice(-16);
+        session.messages =
+          plan.kind === "remember" || plan.kind === "forget"
+            ? []
+            : [
+                ...messages,
+                {
+                  role: "assistant" as const,
+                  content: JSON.stringify({ plan, result }).slice(0, 8000),
+                },
+              ].slice(-16);
         this.store.transaction(() => {
           this.store.put("session", id, session);
           this.store.put("turn", key, { hash, status: "done", result });
@@ -381,6 +513,36 @@ export class Service {
       }
     });
   }
+  async decideDocument(
+    sessionId: string,
+    actionId: string,
+    decision: "confirm" | "cancel",
+  ) {
+    return this.locked(sessionId, async () => {
+      this.session(sessionId);
+      if (!this.workflows)
+        throw new AppError(
+          503,
+          "workflow_unavailable",
+          "this connection isn’t available yet",
+        );
+      const result = await this.workflows.decide(sessionId, actionId, decision);
+      const session = this.session(sessionId);
+      session.messages = [
+        ...session.messages,
+        {
+          role: "assistant" as const,
+          content: JSON.stringify({
+            status: result.state,
+            text: result.speechText,
+            sources: result.sources,
+          }),
+        },
+      ].slice(-16);
+      this.store.put("session", sessionId, session);
+      return result;
+    });
+  }
   async deleteSession(id: string) {
     return this.locked(id, async () => {
       this.session(id);
@@ -398,7 +560,11 @@ export class Service {
           "unresolved_action",
           "resolve the unverified save before deleting its receipt",
         );
+      this.workflows?.assertDeletable(id);
+      this.calls?.assertDeletable(id);
       this.store.transaction(() => {
+        this.workflows?.deleteSession(id);
+        this.calls?.deleteSession(id);
         for (const { id: key, value } of this.store.list<Action>("action"))
           if (value.sessionId === id) this.store.delete("action", key);
         for (const { id: key } of this.store.list("turn"))
