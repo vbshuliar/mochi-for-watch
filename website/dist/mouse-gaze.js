@@ -29,8 +29,8 @@
   const caption = document.querySelector('#watch-caption');
   const expression = face.querySelector('.confused-expression');
   const smile = face.querySelector('.idle-smile');
-  if (expression) expression.style.transition = 'none';
-  if (smile) smile.style.transition = 'none';
+  if (expression) { expression.style.transition = 'none'; expression.style.opacity = '1'; }
+  if (smile) { smile.style.transition = 'none'; smile.style.opacity = '1'; }
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   let reactionTimer, target = null, x = 0, y = 0, tilt = 0, lift = 0;
   let frame = 0, last = 0, time = 0, confusion = 0, nextBlink = 2.4, blinkStart = -Infinity;
@@ -55,8 +55,17 @@
     const active = !reduced.matches;
     const confused = face.getAttribute('aria-pressed') === 'true';
     confusion += ((confused ? 1 : 0) - confusion) * (1 - Math.exp(-dt * 6));
-    if (expression) expression.style.opacity = String(confusion);
-    if (smile) smile.style.opacity = String(1 - confusion);
+    // Morph a single persistent mouth; no overlapping or fading expressions.
+    const mix = (from, to) => from + (to - from) * confusion;
+    if (smile) smile.setAttribute('d', `M${mix(451,465)} ${mix(592,608)} C${mix(470.6,488.3)} ${mix(616,596)}, ${mix(529.4,513.3)} ${mix(616,593.7)}, ${mix(549,540)} ${mix(592,601)}`);
+    // Brows grow from a point and bend, rather than appearing through opacity.
+    for (const [index, brow] of brows.entries()) {
+      const center = index === 0 ? 332 : 666;
+      const spread = 32 * confusion;
+      const base = index === 0 ? 432 : 435;
+      brow.setAttribute('d', `M${center-spread} ${base} Q${center} ${base+(index===0?-24:10)*confusion} ${center+spread} ${base+(index===0?-11:-3)*confusion}`);
+      brow.setAttribute('stroke-width', String(6 * confusion));
+    }
     const idleX = Math.sin(time * .8) * 13 + Math.sin(time * 1.7) * 4;
     const idleY = Math.sin(time * 1.1) * 5;
     const rest = {
@@ -82,7 +91,7 @@
     }
     const age = time - blinkStart;
     const openness = active && age >= 0 && age < .2 ? 1 - .94 * Math.sin(age / .2 * Math.PI) : 1;
-    lids.setAttribute('transform', `translate(0 520) scale(1 ${openness}) translate(0 -520)`);
+    lids.setAttribute('transform', `translate(0 520) scale(1 ${openness * (1 - confusion * .12)}) translate(0 -520)`);
     if (active || Math.abs(x) + Math.abs(y) + Math.abs(tilt) + Math.abs(lift) + Math.abs(confusion - (confused ? 1 : 0)) > .01) {
       frame = requestAnimationFrame(render);
     }

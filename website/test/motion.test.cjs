@@ -4,7 +4,7 @@ const vm=require('node:vm');
 const fs=require('node:fs');
 test('idle and confused stay alive, settle after 1.5s, and respect reduced motion',()=>{
  const events={},attrs={},eyes={style:{},appendChild(){}},brows=[{setAttribute(){}},{setAttribute(){}}];
- const expression={style:{}},smile={style:{}};
+ const expression={style:{}},smile={style:{},setAttribute(k,v){this[k]=v;}};
  const caption={},lids={setAttribute(k,v){this[k]=v;}},media={matches:false,addEventListener(k,f){this.change=f;}};
  const face={style:{},querySelector:q=>q==='.idle-eyes'?eyes:q==='.confused-expression'?expression:smile,querySelectorAll:()=>brows,setAttribute(k,v){attrs[k]=v;},getAttribute:k=>attrs[k],addEventListener(k,f){events[k]=f;}};
  let now=0,id=0;const frames=new Map(),timers=new Map();
@@ -16,10 +16,10 @@ test('idle and confused stay alive, settle after 1.5s, and respect reduced motio
  });
  function step(ms){for(let t=0;t<ms;t+=16){now+=16;for(const [i,v]of timers)if(now>=v.at){timers.delete(i);v.f();}const pending=[...frames];frames.clear();for(const [,f]of pending)f(now);}}
  step(500);const idle=face.style.transform;step(500);assert.notEqual(face.style.transform,idle);
- events.click();step(16);assert(Number(expression.style.opacity)>0&&Number(expression.style.opacity)<.2,'reaction eases in');step(144);const confused=eyes.style.transform;step(176);assert.notEqual(eyes.style.transform,confused);
+ events.click();step(16);assert.equal(smile.style.opacity,'1');assert.notEqual(smile.d,'M451 592 C470.6 616, 529.4 616, 549 592','mouth starts morphing');const enteringMouth=smile.d;step(144);const confused=eyes.style.transform;step(176);assert.notEqual(eyes.style.transform,confused);
  assert.notEqual(lids.transform,'translate(0 520) scale(1 1) translate(0 -520)','confused blinks');
  assert.equal(attrs['aria-pressed'],'true');step(1200);assert.equal(attrs['aria-pressed'],'false');
- assert.equal(caption.textContent,'tap to talk');assert(Number(expression.style.opacity)>0,'reaction fades out instead of snapping');
+ assert.equal(caption.textContent,'tap to talk');assert.equal(expression.style.opacity,'1');assert.equal(smile.style.opacity,'1');assert.notEqual(smile.d,enteringMouth,'mouth geometry changes without fading');
  const returned=face.style.transform;step(600);assert.notEqual(face.style.transform,returned,'idle keeps moving');
  events.click();step(900);events.click();step(900);assert.equal(attrs['aria-pressed'],'true','latest tap owns timer');step(700);assert.equal(attrs['aria-pressed'],'false');
  media.matches=true;media.change();step(3000);assert.equal(frames.size,0,'reduced motion settles');
