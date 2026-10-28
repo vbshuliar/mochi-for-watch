@@ -26,9 +26,9 @@ struct Connector: Identifiable {
       id: "google-calendar", title: "Calendar",
       detail: "Let Jolly view your schedule and create meetings—with your approval."),
     Connector(
-      id: "instagram", title: "Instagram", detail: "Let Jolly help with your Instagram posts."),
+      id: "instagram", title: "Instagram", detail: "Read posts and comments, and draft replies for you to review."),
     Connector(
-      id: "facebook", title: "Facebook Pages", detail: "Let Jolly help manage your Facebook Pages."),
+      id: "facebook", title: "Facebook Pages", detail: "Read Page posts and comments, and draft replies for you to review."),
     Connector(
       id: "notion", title: "Notion Workspace", detail: "Let Jolly find and organize your notes."),
     Connector(id: "gmail", title: "Gmail Inbox", detail: "Let Jolly help you catch up on email."),
@@ -71,7 +71,9 @@ struct PhoneHome: View {
           ForEach(Connector.all) { connector in
             HStack(spacing: 10) {
               NavigationLink {
-                if ["gmail", "notion"].contains(connector.id) {
+                if ["instagram", "facebook"].contains(connector.id) {
+                  SocialConnectionView(provider: connector.id, model: model)
+                } else if ["gmail", "notion"].contains(connector.id) {
                   WorkspaceConnectionView(provider: connector.id, model: model)
                 } else {
                   ConnectionDetail(connector: connector, model: model)
@@ -82,7 +84,7 @@ struct PhoneHome: View {
                     .accessibilityHidden(true)
                   Text(connector.title).font(.body)
                   Spacer(minLength: 0)
-                  if (connector.id == "google-calendar" && model.status?.calendar == "connected") || (connector.id == "gmail" && model.status?.gmail == "connected") || (connector.id == "notion" && model.status?.notion == "connected") {
+                  if (connector.id == "google-calendar" && model.status?.calendar == "connected") || (connector.id == "gmail" && model.status?.gmail == "connected") || (connector.id == "notion" && model.status?.notion == "connected") || (["instagram", "facebook"].contains(connector.id) && model.socialConnected(connector.id)) {
                     Circle().fill(.green).frame(width: 6, height: 6).accessibilityLabel("Connected")
                   }
                 }.frame(minHeight: 32)
@@ -168,7 +170,7 @@ struct ConnectionDetail: View {
           Label("Available through Meta", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
           Text("Ask Jolly about current information. Sources appear with the reply; no extra sign-in needed.").font(.footnote)
         } else {
-          Text("This connection isn’t available in this version yet.").foregroundStyle(.secondary)
+          Text(connector.id == "safari" ? "Web search is unavailable right now. Try again later." : "This connection is unavailable right now. Try again later.").foregroundStyle(.secondary)
         }
         if model.busy { ProgressView() }
       }
@@ -308,6 +310,68 @@ struct WorkspaceConnectionView: View {
     .onChange(of: phase) { _, new in if new == .active { Task { await model.refresh(); if provider == "notion", connected { await model.loadNotionPages(query) } } } }
     .confirmationDialog("Disconnect this service?", isPresented: $disconnecting, titleVisibility: .visible) {
       Button("Disconnect", role: .destructive) { Task { await model.disconnectWorkspace(provider) } }
+    }
+  }
+}
+
+struct SocialConnectionView: View {
+  let provider: String
+  let model: PhoneModel
+  @Environment(\.openURL) private var openURL
+  @Environment(\.scenePhase) private var phase
+  @State private var disconnecting = false
+  @State private var awaitingConsent = false
+  private var connected: Bool { model.socialConnected(provider) }
+  private var accounts: [SocialAccount] { model.socialAccounts[provider] ?? [] }
+  var body: some View {
+    Form {
+      Section {
+        Text("Let Jolly read posts and comments, and draft replies for you to review. Jolly can’t publish posts or send replies.")
+        if connected, let selected = model.selectedSocialAccount(provider) {
+          Label("Connected to \(selected.name)", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+        } else {
+          Text("Sign in with Facebook, then choose an account to finish connecting.")
+        }
+        Button(connected ? "Reconnect with Facebook" : "Connect with Facebook") {
+          Task {
+            if let url = await model.connectWorkspace(provider) {
+              awaitingConsent = true
+              openURL(url)
+            }
+          }
+        }.disabled(model.busy)
+        if awaitingConsent {
+          Text("Finish signing in, then return here and choose an account.").font(.footnote)
+        }
+        Button("Disconnect", role: .destructive) { disconnecting = true }.disabled(model.busy)
+      }
+      Section {
+        Button("Refresh accounts") { Task { await model.loadSocialAccounts(provider) } }.disabled(model.busy)
+        ForEach(accounts) { account in
+          Button { Task { await model.chooseSocialAccount(provider, id: account.id); if connected { awaitingConsent = false } } } label: {
+            HStack {
+              Text(account.name)
+              Spacer()
+              if connected, model.selectedSocialAccount(provider)?.id == account.id { Image(systemName: "checkmark") }
+            }
+          }.disabled(model.busy)
+        }
+        if accounts.isEmpty {
+          Text("No accounts listed. Sign in and refresh to see accounts you can choose.").font(.footnote).foregroundStyle(.secondary)
+        }
+      } header: { Text(provider == "instagram" ? "Choose an Instagram account" : "Choose a Facebook Page") }
+      if model.busy { ProgressView() }
+      if let error = model.error { Section { Text(error).font(.footnote).foregroundStyle(.red) } }
+    }
+    .navigationTitle(provider == "instagram" ? "Instagram" : "Facebook Pages")
+    .task { await model.refresh(); await model.loadSocialAccounts(provider, quietly: true) }
+    .onChange(of: phase) { _, new in
+      if new == .active { Task { await model.refresh(); await model.loadSocialAccounts(provider, quietly: !awaitingConsent) } }
+    }
+    .confirmationDialog("Disconnect this service?", isPresented: $disconnecting, titleVisibility: .visible) {
+      Button("Disconnect", role: .destructive) {
+        Task { await model.disconnectWorkspace(provider); awaitingConsent = false }
+      }
     }
   }
 }

@@ -18,23 +18,31 @@ struct ActionReview: View {
   }
   var body: some View {
     ScrollView {
-      VStack(alignment: .leading, spacing: 12) {
-        Text("Review event").font(.headline)
-        Text(action.event.title).font(.title3.bold())
-        Text(date(action.event.start))
-        Text("until \(date(action.event.end))")
-        Text(action.event.timeZone).font(.caption).foregroundStyle(.secondary)
+      VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 5) {
+          Text("Review event").font(.caption).foregroundStyle(.secondary)
+          Text(action.event.title).font(.headline)
+        }
+        VStack(alignment: .leading, spacing: 12) {
+          ReviewDetail("Starts", value: date(action.event.start))
+          ReviewDetail("Ends", value: date(action.event.end))
+          ReviewDetail("Time zone", value: action.event.timeZone)
+        }
+        Divider()
         Text(
           action.status == "uncertain"
             ? "The last save wasn’t verified. Check it before trying again."
             : "Nothing is saved until you confirm."
-        ).font(.caption)
-        Button(action.status == "uncertain" ? "Verify save" : "Add to Calendar") { decide(true) }
-          .buttonStyle(.borderedProminent).disabled(busy)
-        Button("Cancel", role: .cancel) { decide(false) }.disabled(
-          busy || action.status == "uncertain")
-        if busy { ProgressView("saving…") }
-      }.padding()
+        ).font(.footnote).foregroundStyle(.secondary)
+        VStack(spacing: 8) {
+          ReviewButton(action.status == "uncertain" ? "Verify save" : "Add to Calendar", prominent: true) { decide(true) }
+            .disabled(busy)
+          ReviewButton("Cancel", role: .cancel) { decide(false) }
+            .disabled(busy || action.status == "uncertain")
+        }
+        if busy { ProgressView("saving…").frame(maxWidth: .infinity) }
+      }.padding().frame(maxWidth: .infinity, alignment: .leading)
+        .fixedSize(horizontal: false, vertical: true)
     }
   }
 }
@@ -81,42 +89,60 @@ struct CallReview: View {
   }
   var body: some View {
     ScrollView {
-      VStack(alignment: .leading, spacing: 12) {
-        Text(call.status == "pending" ? "Review phone call" : "Phone call update").font(.headline)
-        Text(call.booking.destinationName).font(.title3.bold())
-        Text(call.booking.phoneNumber)
-        Text(call.booking.purpose)
-        Text("Booking for: \(call.booking.customerName)")
-        ForEach(Array(call.booking.allowedWindows.enumerated()), id: \.offset) { _, window in
-          Text("Between \(date(window.start)) and \(date(window.end))")
+      VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 5) {
+          Text(call.status == "pending" ? "Review phone call" : "Phone call update")
+            .font(.caption).foregroundStyle(.secondary)
+          Text(call.booking.purpose).font(.headline)
+          Text(call.booking.destinationName).font(.subheadline).foregroundStyle(.secondary)
         }
-        Text("\(call.booking.durationMinutes) minutes · \(call.booking.timeZone)").font(.caption)
-        Text(call.calendarChecked ? "Calendar checked for availability." : "Calendar has not been checked. Availability is unverified.").font(.caption)
-        if let summary = call.summary { Text(summary) }
-        if let slot = call.bookedSlot { Text("Booked: \(date(slot.start)) until \(date(slot.end))") }
-        if let failure = model.failure { Text(failure).font(.caption) }
-        if call.status == "pending", !model.callConfirmationUnknown {
-          Text("Jolly will call this number as your AI assistant and share these booking details only after you approve.").font(.caption)
-          Button("Approve and call") { model.callCommand("confirm") }.buttonStyle(.borderedProminent)
-          Button("Cancel", role: .cancel) { model.callCommand("cancel") }
+        VStack(alignment: .leading, spacing: 12) {
+          ReviewDetail("Phone", value: call.booking.phoneNumber)
+          ReviewDetail("Booking for", value: call.booking.customerName)
+          ForEach(Array(call.booking.allowedWindows.enumerated()), id: \.offset) { _, window in
+            ReviewDetail("Allowed time", value: "Between \(date(window.start)) and \(date(window.end))")
+          }
+          ReviewDetail("Duration", value: "\(call.booking.durationMinutes) minutes")
+          ReviewDetail("Time zone", value: call.booking.timeZone)
+        }
+        Divider()
+        Text(call.calendarChecked ? "Calendar checked for availability." : "Calendar has not been checked. Availability is unverified.")
+          .font(.footnote).foregroundStyle(.secondary)
+        if let summary = call.summary { Text(summary).font(.body) }
+        if let slot = call.bookedSlot {
+          ReviewDetail("Booked", value: "\(date(slot.start)) until \(date(slot.end))")
+        }
+        if let failure = model.failure { Text(failure).font(.footnote) }
+        if call.status == "pending", !model.confirmationUnknown(for: call) {
+          Text("Jolly will call this number as your AI assistant and share these booking details only after you approve.")
+            .font(.footnote).foregroundStyle(.secondary)
+          VStack(spacing: 8) {
+            ReviewButton("Approve and call", prominent: true) { model.callCommand("confirm", callID: call.id) }
+            ReviewButton("Cancel", role: .cancel) { model.callCommand("cancel", callID: call.id) }
+          }
         } else {
           Text(call.status.replacingOccurrences(of: "_", with: " ")).font(.headline)
-          if call.status == "uncertain" || model.callConfirmationUnknown && call.status == "pending" {
-            Text("The result could not be verified. Check with the business before making another booking. Jolly will not redial automatically.").font(.caption)
+          if call.status == "uncertain" || model.confirmationUnknown(for: call) && call.status == "pending" {
+            Text("The result could not be verified. Check with the business before making another booking. Jolly will not redial automatically.").font(.footnote)
           }
-          if call.active || call.status == "uncertain" || model.callConfirmationUnknown && call.status == "pending" { Button(call.status == "uncertain" ? "Try stopping call" : "Stop call", role: .destructive) { model.callCommand("stop") } }
-          if call.booked {
-            Button("Review Calendar event") { model.callCommand("calendar") }
-              .buttonStyle(.borderedProminent).disabled(model.hasProposal)
-            if model.hasProposal {
-              Text("Finish your current proposal review before preparing this Calendar event.").font(.caption)
+          VStack(spacing: 8) {
+            if call.active || call.status == "uncertain" || model.confirmationUnknown(for: call) && call.status == "pending" {
+              ReviewButton(call.status == "uncertain" ? "Try stopping call" : "Stop call", role: .destructive) { model.callCommand("stop", callID: call.id) }
             }
+            if call.booked {
+              ReviewButton("Review Calendar event", prominent: true) { model.callCommand("calendar", callID: call.id) }
+                .disabled(model.hasProposal)
+              if model.hasProposal {
+                Text("Finish your current proposal review before preparing this Calendar event.").font(.footnote)
+              }
+            }
+            ReviewButton("Refresh status") { model.callCommand("refresh", callID: call.id) }
+            ReviewButton("Back to Jolly") { model.dismissCallCompletion(); close() }
           }
-          Button("Refresh status") { model.callCommand("refresh") }
-          Button("Back to Jolly") { model.dismissCallCompletion(); close() }
         }
-        if model.callUpdating { ProgressView("Updating…") }
-      }.padding().disabled(model.callUpdating)
+        if model.callUpdating { ProgressView("Updating…").frame(maxWidth: .infinity) }
+      }.padding().frame(maxWidth: .infinity, alignment: .leading)
+        .fixedSize(horizontal: false, vertical: true).disabled(model.callUpdating)
     }.onAppear { model.resumeCalls() }
   }
 }
@@ -128,22 +154,82 @@ struct BookingCompletionCard: View {
   let review: () -> Void
   let dismiss: () -> Void
   var body: some View {
-    VStack(alignment: .leading, spacing: 6) {
-      Label(call.booked ? "booking confirmed" : "booking update",
-        systemImage: call.booked ? "checkmark.circle.fill" : "phone.badge.waveform")
-        .font(.headline).foregroundStyle(call.booked ? Color.green : Color.primary)
-      Text(call.booking.destinationName).font(.subheadline.bold())
-      Text(call.booking.purpose).font(.caption)
-      if let slotText = call.completionDateText(), call.booked { Text(slotText).font(.subheadline.weight(.semibold)) }
-      if !call.booked { Text(call.summary ?? call.status.replacingOccurrences(of: "_", with: " ")).font(.caption) }
-      HStack {
-        Button("Review", action: review)
-        Spacer()
-        Button("Dismiss", action: dismiss).foregroundStyle(.secondary)
-      }.font(.caption)
+    #if os(watchOS)
+      content.padding(.horizontal, 6).padding(.vertical, 8)
+    #else
+      content.padding(18)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 22))
+    #endif
+  }
+  private var content: some View {
+    VStack(spacing: 16) {
+      VStack(spacing: 6) {
+        Image(systemName: call.booked ? "checkmark.circle.fill" : "phone.badge.waveform")
+          .font(.system(size: 28, weight: .medium))
+          .foregroundStyle(call.booked ? Color.green : Color.secondary)
+          .accessibilityHidden(true)
+        Text(call.booked ? "booking confirmed" : "booking update")
+          .font(.caption).foregroundStyle(.secondary)
+      }
+      VStack(spacing: 5) {
+        Text(call.booking.purpose).font(.headline)
+        Text(call.booking.destinationName).font(.subheadline).foregroundStyle(.secondary)
+        if let slotText = call.completionDateText(), call.booked {
+          Text(slotText).font(.subheadline.weight(.medium)).padding(.top, 3)
+        }
+        if !call.booked {
+          Text(call.summary ?? call.status.replacingOccurrences(of: "_", with: " ")).font(.footnote)
+        }
+      }.multilineTextAlignment(.center)
+      VStack(spacing: 8) {
+        ReviewButton("review booking", prominent: true, action: review)
+        ReviewButton("done", action: dismiss)
+      }
     }
-    .padding(12).frame(maxWidth: .infinity, alignment: .leading)
-    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 18))
+    .frame(maxWidth: .infinity)
+    .fixedSize(horizontal: false, vertical: true)
     .accessibilityElement(children: .contain)
+  }
+}
+
+private struct ReviewDetail: View {
+  let title: String
+  let value: String
+  init(_ title: String, value: String) { self.title = title; self.value = value }
+  var body: some View {
+    VStack(alignment: .leading, spacing: 3) {
+      Text(title).font(.caption).foregroundStyle(.secondary)
+      Text(value).font(.body)
+    }.frame(maxWidth: .infinity, alignment: .leading)
+      .fixedSize(horizontal: false, vertical: true)
+  }
+}
+
+/// Native capsule controls keep approval and dismissal targets comfortably tappable.
+private struct ReviewButton: View {
+  let title: String
+  let role: ButtonRole?
+  let prominent: Bool
+  let action: () -> Void
+  init(_ title: String, role: ButtonRole? = nil, prominent: Bool = false, action: @escaping () -> Void) {
+    self.title = title
+    self.role = role
+    self.prominent = prominent
+    self.action = action
+  }
+  var body: some View {
+    if prominent {
+      button.buttonStyle(.borderedProminent).tint(.green).buttonBorderShape(.capsule)
+    } else {
+      button.buttonStyle(.bordered).buttonBorderShape(.capsule)
+    }
+  }
+  private var button: some View {
+    Button(role: role, action: action) {
+      Text(title).font(.body.weight(.medium))
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: .infinity, minHeight: 44)
+        .fixedSize(horizontal: false, vertical: true)
+    }
   }
 }

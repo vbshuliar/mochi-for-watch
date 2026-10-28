@@ -6,6 +6,7 @@ import Observation
   var status: ServerStatus?
   var notionPages: [NotionPage] = []
   var notionHasMore = false
+  var socialAccounts: [String: [SocialAccount]] = [:]
   var memories: [SavedMemory] = []
   var memoryError: String?
   var memoryBusy = false
@@ -25,7 +26,7 @@ import Observation
     do {
       status = try await client().get("v1/status", as: ServerStatus.self)
       error = nil
-    } catch { self.error = error.localizedDescription }
+    } catch { self.error = "Couldn’t update this connection. Please try again." }
   }
   func loadMemories() async {
     memoryGeneration += 1
@@ -65,24 +66,25 @@ import Observation
     } catch { memoryError = error.localizedDescription; return false }
   }
   func connectWorkspace(_ provider: String) async -> URL? {
-    guard !busy, ["gmail", "notion"].contains(provider) else { return nil }
+    guard !busy, ["gmail", "notion", "instagram", "facebook"].contains(provider) else { return nil }
     busy = true; defer { busy = false }
     do {
       struct Link: Decodable { let url: URL }
       let bytes = try await client().json("v1/integrations/\(provider)/connect", values: [:])
       let url = try JSONDecoder().decode(Link.self, from: bytes).url
-      guard url.scheme == "https", url.host == (provider == "gmail" ? "accounts.google.com" : "api.notion.com") else { throw MuseError.message("Invalid sign-in link.") }
+      guard IntegrationSignIn.isAllowed(url, provider: provider) else { throw MuseError.message("Invalid sign-in link.") }
       error = nil; return url
     } catch { self.error = "Connection isn’t available right now. Please try again later."; return nil }
   }
   func disconnectWorkspace(_ provider: String) async {
-    guard !busy, ["gmail", "notion"].contains(provider) else { return }
+    guard !busy, ["gmail", "notion", "instagram", "facebook"].contains(provider) else { return }
     busy = true; defer { busy = false }
     do {
       _ = try await client().data("v1/integrations/\(provider)", method: "DELETE")
       if provider == "notion" { notionPages = []; notionHasMore = false }
+      socialAccounts[provider] = nil
       await refresh()
-    } catch { self.error = error.localizedDescription }
+    } catch { self.error = "Couldn’t update this connection. Please try again." }
   }
   func loadNotionPages(_ query: String) async {
     guard !busy else { return }
@@ -92,7 +94,7 @@ import Observation
       let bytes = try await client().json("v1/integrations/notion/pages/search", values: ["query": query])
       let result = try JSONDecoder().decode(NotionPages.self, from: bytes)
       notionPages = result.pages; notionHasMore = result.hasMore; error = nil
-    } catch { self.error = error.localizedDescription }
+    } catch { self.error = "Couldn’t update this connection. Please try again." }
   }
   func chooseNotionPage(_ id: String) async {
     guard !busy else { return }
@@ -100,7 +102,34 @@ import Observation
     do {
       _ = try await client().json("v1/integrations/notion/destination", method: "PUT", values: ["id": id])
       await refresh()
-    } catch { self.error = error.localizedDescription }
+    } catch { self.error = "Couldn’t update this connection. Please try again." }
+  }
+  func selectedSocialAccount(_ provider: String) -> SocialAccount? {
+    provider == "instagram" ? status?.socialAccounts?.instagram : status?.socialAccounts?.facebook
+  }
+  func socialConnected(_ provider: String) -> Bool {
+    (provider == "instagram" ? status?.instagram : status?.facebook) == "connected"
+      && selectedSocialAccount(provider) != nil
+  }
+  func loadSocialAccounts(_ provider: String, quietly: Bool = false) async {
+    guard !busy, ["instagram", "facebook"].contains(provider) else { return }
+    busy = true; defer { busy = false }
+    do {
+      let result = try await client().get("v1/integrations/\(provider)/accounts", as: AvailableSocialAccounts.self)
+      socialAccounts[provider] = result.accounts
+      error = nil
+    } catch {
+      socialAccounts[provider] = nil
+      if !quietly { self.error = "Couldn’t load accounts. Finish signing in, then try refreshing accounts." }
+    }
+  }
+  func chooseSocialAccount(_ provider: String, id: String) async {
+    guard !busy, ["instagram", "facebook"].contains(provider) else { return }
+    busy = true; defer { busy = false }
+    do {
+      _ = try await client().json("v1/integrations/\(provider)/account", method: "PUT", values: ["id": id])
+      await refresh()
+    } catch { self.error = "Couldn’t select that account. Refresh accounts and try again." }
   }
   func connect() async -> URL? {
     guard !busy else { return nil }
@@ -110,7 +139,7 @@ import Observation
       struct Link: Decodable { let url: URL }
       let bytes = try await client().json("v1/integrations/google/connect", values: [:])
       let url = try JSONDecoder().decode(Link.self, from: bytes).url
-      guard url.scheme == "https", url.host == "accounts.google.com" else {
+      guard IntegrationSignIn.isAllowed(url, provider: "google") else {
         throw MuseError.message("The sign-in link was not valid.")
       }
       error = nil
@@ -128,7 +157,7 @@ import Observation
       _ = try await client().data(
         "v1/integrations/google", method: "PATCH", body: JSONEncoder().encode(["enabled": enabled]))
       await refresh()
-    } catch { self.error = error.localizedDescription }
+    } catch { self.error = "Couldn’t update this connection. Please try again." }
   }
   func disconnect() async {
     guard !busy else { return }
@@ -137,6 +166,6 @@ import Observation
     do {
       _ = try await client().data("v1/integrations/google", method: "DELETE")
       await refresh()
-    } catch { self.error = error.localizedDescription }
+    } catch { self.error = "Couldn’t update this connection. Please try again." }
   }
 }

@@ -39,6 +39,9 @@ public struct ServerStatus: Decodable, Sendable {
   public let gmail: String?
   public let notion: String?
   public let notionParent: NotionPage?
+  public let instagram: String?
+  public let facebook: String?
+  public let socialAccounts: SocialAccounts?
   public let callsConfigured: Bool?
   public let speechOutput: String
 }
@@ -138,6 +141,24 @@ public struct CallAction: Codable, Identifiable, Sendable {
   public let booking: CallBooking
   public let status: String
   public let expiresAt: Double
+  public let finishedAt: Double?
+  public let updatedAt: Double?
+  public var needsAttention: Bool { status == "pending" || status == "uncertain" }
+  public func recentlyCompleted(now: Date = Date()) -> Bool {
+    guard !active, !needsAttention, let finishedAt else { return false }
+    let age = now.timeIntervalSince1970 - finishedAt / 1000
+    return age >= 0 && age <= 24 * 60 * 60
+  }
+  public func taskTimeText(timeZone: TimeZone = .autoupdatingCurrent) -> String? {
+    guard let timestamp = finishedAt ?? updatedAt else { return nil }
+    let formatter = DateFormatter()
+    formatter.locale = Locale(identifier: "en_GB")
+    formatter.timeZone = timeZone
+    formatter.dateFormat = "h:mm a"
+    formatter.amSymbol = "am"
+    formatter.pmSymbol = "pm"
+    return formatter.string(from: Date(timeIntervalSince1970: timestamp / 1000))
+  }
   public let calendarChecked: Bool
   public let outcome: String?
   public let progress: CallProgress?
@@ -158,5 +179,26 @@ public struct CallAction: Codable, Identifiable, Sendable {
     formatter.amSymbol = "am"
     formatter.pmSymbol = "pm"
     return formatter.string(from: date)
+  }
+}
+
+public struct SocialAccount: Codable, Identifiable, Sendable {
+  public let id: String
+  public let name: String
+}
+public struct SocialAccounts: Decodable, Sendable {
+  public let instagram: SocialAccount?
+  public let facebook: SocialAccount?
+}
+public struct AvailableSocialAccounts: Decodable, Sendable {
+  public let accounts: [SocialAccount]
+}
+public enum IntegrationSignIn {
+  public static func isAllowed(_ url: URL, provider: String) -> Bool {
+    let hosts = ["google": "accounts.google.com", "gmail": "accounts.google.com",
+                 "notion": "api.notion.com", "instagram": "www.facebook.com", "facebook": "www.facebook.com"]
+    guard let host = hosts[provider] else { return false }
+    return url.scheme == "https" && url.host == host && url.user == nil && url.password == nil
+      && (url.port == nil || url.port == 443)
   }
 }

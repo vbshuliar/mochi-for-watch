@@ -21,6 +21,8 @@ struct Activity: Identifiable {
   var action: Action?
   var documentAction: DocumentAction?
   private var callProposal: CallAction?
+  private(set) var taskCalls: [CallAction] = []
+  var tasksLoadFailed = false
   var backgroundCall: CallAction?
   var callAction: CallAction? {
     get { callProposal ?? backgroundCall }
@@ -55,16 +57,26 @@ struct Activity: Identifiable {
     defaults.set(call.id, forKey: key + ".call")
     defaults.set(callConfirmationUnknown, forKey: key + ".confirmationUnknown")
     defaults.set(Array(dismissedCalls), forKey: key + ".dismissed")
+    defaults.set(Array(unknownConfirmations), forKey: key + ".unknownCalls")
   }
-  func receiveCall(_ call: CallAction) {
-    if call.status == "pending", !callConfirmationUnknown {
+  func receiveCall(_ call: CallAction, track: Bool = true) {
+    if let index = taskCalls.firstIndex(where: { $0.id == call.id }) { taskCalls[index] = call }
+    else { taskCalls.append(call) }
+
+    guard track else { return }
+    if callAction?.id != call.id { callConfirmationUnknown = unknownConfirmations.contains(call.id) }
+    if call.status == "pending", !confirmationUnknown(for: call) {
       callProposal = call
     } else {
-      callProposal = nil
+      if callProposal?.id == call.id { callProposal = nil }
       backgroundCall = call
     }
     sessionID = call.sessionId
     persistCall(call)
+  }
+  private var unknownConfirmations: Set<String> = []
+  func confirmationUnknown(for call: CallAction) -> Bool {
+    unknownConfirmations.contains(call.id) || (callAction?.id == call.id && callConfirmationUnknown)
   }
   var callConfirmationUnknown = false
   private var callPoll: Task<Void, Never>?
@@ -450,6 +462,8 @@ struct Activity: Identifiable {
     if let key = persistenceKey {
       dismissedCalls = Set(defaults.stringArray(forKey: key + ".dismissed") ?? [])
       if sessionID == nil { sessionID = defaults.string(forKey: key + ".session") }
+      unknownConfirmations = Set(defaults.stringArray(forKey: key + ".unknownCalls") ?? [])
+      if defaults.bool(forKey: key + ".confirmationUnknown"), let id = defaults.string(forKey: key + ".call") { unknownConfirmations.insert(id) }
       callConfirmationUnknown = defaults.bool(forKey: key + ".confirmationUnknown")
     }
     guard let session = sessionID else { return }
@@ -460,41 +474,47 @@ struct Activity: Identifiable {
         let current = try await makeClient(connection).get("v1/sessions/\(session)/calls", as: CallsEnvelope.self)
         guard !Task.isCancelled, scope == callGeneration, store.connection == connection else { return }
         let trackedID = persistenceKey.flatMap { self.defaults.string(forKey: $0 + ".call") }
-        if let call = current.calls.first(where: { $0.id == trackedID }) { receiveCall(call) }
-      } catch { /* Keep the saved task available for a later foreground refresh. */ }
+        taskCalls = current.calls.filter { $0.sessionId == session }
+        if let call = taskCalls.first(where: { $0.id == trackedID }) { receiveCall(call) }
+        tasksLoadFailed = false
+      } catch { if scope == callGeneration { tasksLoadFailed = true } }
       guard !Task.isCancelled, scope == callGeneration else { return }
       monitorCall()
     }
   }
   private func monitorCall() {
     callPoll?.cancel()
-    guard foreground, let call = callAction, call.active, let connection = store.connection else { return }
+    guard foreground, taskCalls.contains(where: { $0.active }),
+      let session = sessionID, let connection = store.connection else { return }
     let scope = callGeneration
     callPoll = Task { [weak self] in
       while !Task.isCancelled {
         do { try await Task.sleep(for: .seconds(3)) } catch { return }
         guard let self, self.foreground, scope == self.callGeneration,
-          self.store.connection == connection, self.callAction?.id == call.id else { return }
+          self.store.connection == connection else { return }
         do {
-          let current = try await self.makeClient(connection).get("v1/sessions/\(call.sessionId)/calls/\(call.id)", as: CallEnvelope.self)
-          guard !Task.isCancelled, scope == self.callGeneration, self.store.connection == connection, self.callAction?.id == call.id else { return }
-          self.receiveCall(current.callAction)
-          if !current.callAction.active {
-            self.log("call", current.callAction.summary ?? current.callAction.status)
-            return
+          let current = try await self.makeClient(connection).get("v1/sessions/\(session)/calls", as: CallsEnvelope.self)
+          guard !Task.isCancelled, scope == self.callGeneration, self.store.connection == connection else { return }
+          self.taskCalls = current.calls.filter { $0.sessionId == session }
+          if let tracked = self.callAction, let update = self.taskCalls.first(where: { $0.id == tracked.id }) {
+            self.receiveCall(update)
           }
+          self.tasksLoadFailed = false
+          if !self.taskCalls.contains(where: { $0.active }) { return }
         } catch {
           guard !Task.isCancelled else { return }
-          // A temporary polling failure must not interrupt the current conversation.
+          self.tasksLoadFailed = true
         }
       }
     }
   }
-  func callCommand(_ command: String) {
-    guard let call = callAction, !callUpdating, let connection = store.connection else { return }
-    if command == "confirm" && (call.status != "pending" || callConfirmationUnknown) { return }
+  func callCommand(_ command: String, callID: String? = nil) {
+    let target = callID == nil ? callAction : taskCalls.first { $0.id == callID }
+    guard let call = target, !callUpdating, let connection = store.connection else { return }
+    if command == "confirm" && (call.status != "pending" || confirmationUnknown(for: call)) { return }
     if command == "calendar" && hasProposal { return }
     guard ["confirm", "cancel", "stop", "calendar", "refresh"].contains(command) else { return }
+    let tracksCall = callAction?.id == call.id
     callUpdating = true
     let blocksApproval = callProposal != nil || command == "calendar"
     if blocksApproval { deciding = true }
@@ -513,15 +533,19 @@ struct Activity: Identifiable {
       do {
         if command == "refresh" {
           let current = try await client.get(path, as: CallEnvelope.self)
-          guard scope == callGeneration, store.connection == connection, callAction?.id == call.id else { return }
-          receiveCall(current.callAction)
+          guard scope == callGeneration, store.connection == connection, taskCalls.contains(where: { $0.id == call.id && $0.sessionId == call.sessionId }) else { return }
+          receiveCall(current.callAction, track: tracksCall)
         } else {
-          if command == "confirm" { callConfirmationUnknown = true; persistCall(call) }
+          if command == "confirm" {
+            unknownConfirmations.insert(call.id)
+            if tracksCall { callConfirmationUnknown = true; persistCall(call) }
+            else if let key = persistenceKey { defaults.set(Array(unknownConfirmations), forKey: key + ".unknownCalls") }
+          }
           let suffix = ["confirm", "cancel"].contains(command) ? "decision" : command
           let bytes = try await client.json(path + "/" + suffix, values: suffix == "decision" ? ["decision": command] : [:])
           let result = try JSONDecoder().decode(TurnResult.self, from: bytes)
-          guard scope == callGeneration, store.connection == connection, callAction?.id == call.id else { return }
-          if let call = result.callAction { receiveCall(call) }
+          guard scope == callGeneration, store.connection == connection, taskCalls.contains(where: { $0.id == call.id && $0.sessionId == call.sessionId }) else { return }
+          if let call = result.callAction { receiveCall(call, track: tracksCall) }
           if let proposal = result.action { action = proposal; dismissCallCompletion() }
           log("call", result.speechText)
           if blocksApproval { show(hasProposal ? .approval : .idle, hasProposal ? "tap to review" : "tap to talk") }
@@ -529,11 +553,11 @@ struct Activity: Identifiable {
         failure = nil
       } catch {
         if let current = try? await client.get(path, as: CallEnvelope.self) {
-          guard scope == callGeneration, store.connection == connection, callAction?.id == call.id else { return }
-          receiveCall(current.callAction)
+          guard scope == callGeneration, store.connection == connection, taskCalls.contains(where: { $0.id == call.id && $0.sessionId == call.sessionId }) else { return }
+          receiveCall(current.callAction, track: tracksCall)
         }
-        guard scope == callGeneration, store.connection == connection, callAction?.id == call.id else { return }
-        if callConfirmationUnknown, let call = callProposal { receiveCall(call) }
+        guard scope == callGeneration, store.connection == connection, taskCalls.contains(where: { $0.id == call.id && $0.sessionId == call.sessionId }) else { return }
+        if callConfirmationUnknown, let call = callProposal { receiveCall(call, track: tracksCall) }
         failure = "Couldn’t verify the call update. Refresh its status; no automatic redial will occur."
         if blocksApproval { show(.idle, "tap to talk") }
       }
@@ -545,7 +569,7 @@ struct Activity: Identifiable {
     persistCall(call)
   }
   func dismissCall() {
-    guard !callUpdating, let call = callAction, !call.active, call.status != "pending" || callConfirmationUnknown else { return }
+    guard !callUpdating, let call = callAction, !call.active, call.status != "pending" || confirmationUnknown(for: call) else { return }
     dismissCallCompletion()
     callProposal = nil
     backgroundCall = nil
@@ -561,6 +585,9 @@ struct Activity: Identifiable {
     callUpdating = false
     deciding = false
     dismissedCalls = []
+    taskCalls = []
+    unknownConfirmations = []
+    tasksLoadFailed = false
     suspend()
     sessionID = nil
     action = nil

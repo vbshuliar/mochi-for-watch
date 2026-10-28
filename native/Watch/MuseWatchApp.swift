@@ -21,7 +21,48 @@ struct WatchHome: View {
   @State private var reviewing = false
   @State private var callReview = false
   @State private var showingSources = false
+  @State private var selectedTaskID: String?
+  @State private var page = 0
   var body: some View {
+    TabView(selection: $page) {
+      jollyPage.tag(0)
+      tasksPage.tag(1)
+    }
+    .tabViewStyle(.page(indexDisplayMode: .always))
+    .background(.black)
+    .sheet(isPresented: $showingSources) {
+      NavigationStack {
+        List(model.sources) { source in
+          if let url = source.safeURL {
+            VStack(alignment: .leading) {
+              Text(source.title)
+              Text(url.absoluteString).font(.caption2).foregroundStyle(.secondary)
+            }
+          }
+        }.navigationTitle("Sources")
+      }
+    }
+    .sheet(isPresented: $reviewing) {
+      if model.action == nil, model.documentAction == nil, let call = model.callAction { CallReview(model: model, call: call) }
+        if let document = model.documentAction {
+          DocumentReview(dismiss: { model.dismissDocument() }, action: document, busy: model.deciding) { model.decide($0) }
+        }
+        if let action = model.action {
+        ActionReview(action: action, busy: model.deciding) { model.decide($0) }
+      }
+    }
+    .onAppear { model.resumeCalls() }
+    .sheet(isPresented: $callReview, onDismiss: { if model.hasProposal { reviewing = true } }) {
+      if let call = selectedTaskID.flatMap({ id in model.taskCalls.first { $0.id == id } }) ?? model.backgroundCall { CallReview(model: model, call: call) }
+    }
+    .onChange(of: model.proposalID) { _, new in
+      if new == nil { reviewing = false }
+      else if callReview { callReview = false }
+    }
+    .onChange(of: store.connection) { _, _ in model.connectionChanged() }
+    .onChange(of: phase) { _, new in if new != .active { model.suspend() } else { model.resumeCalls() } }
+  }
+  private var jollyPage: some View {
     GeometryReader { geometry in
       VStack(spacing: 0) {
         Spacer(minLength: 0)
@@ -49,10 +90,10 @@ struct WatchHome: View {
         }
         if let call = model.completionCall {
           ScrollView {
-            BookingCompletionCard(call: call, review: { callReview = true }, dismiss: { model.dismissCallCompletion() })
+            BookingCompletionCard(call: call, review: { selectedTaskID = nil; callReview = true }, dismiss: { model.dismissCallCompletion() })
           }.padding(.horizontal, 4)
         } else if let status = model.callStatusText {
-          Button { callReview = true } label: {
+          Button { selectedTaskID = nil; callReview = true } label: {
             Label(status, systemImage: "phone").font(.system(size: 10)).lineLimit(1)
           }.buttonStyle(.plain).padding(.top, 4)
         }
@@ -62,36 +103,70 @@ struct WatchHome: View {
     }
     .ignoresSafeArea(.container)
     .containerBackground(.black, for: .navigation)
-    .sheet(isPresented: $showingSources) {
-      NavigationStack {
-        List(model.sources) { source in
-          if let url = source.safeURL {
-            VStack(alignment: .leading) {
-              Text(source.title)
-              Text(url.absoluteString).font(.caption2).foregroundStyle(.secondary)
+  }
+  private var tasksPage: some View {
+    TimelineView(.periodic(from: .now, by: 60)) { context in
+      let active = model.taskCalls.filter { $0.active }
+      let attention = model.taskCalls.filter { $0.needsAttention }
+      let recent = model.taskCalls.filter { $0.recentlyCompleted(now: context.date) }
+        .sorted { ($0.finishedAt ?? 0) > ($1.finishedAt ?? 0) }
+      ScrollView {
+        VStack(alignment: .leading, spacing: 12) {
+          Text("Tasks").font(.title3.bold())
+          taskSection("In progress", calls: active)
+          if !attention.isEmpty || model.action != nil || model.documentAction != nil {
+            Text("Needs you").font(.caption2).foregroundStyle(.secondary)
+            ForEach(attention) { call in taskRow(call) }
+            if let action = model.action {
+              Button { reviewing = true } label: {
+                taskLabel(action.event.title, detail: "Review Calendar event", icon: "calendar")
+              }.buttonStyle(.plain)
+            }
+            if let document = model.documentAction {
+              Button { reviewing = true } label: {
+                taskLabel(document.title, detail: "Review Notion page", icon: "doc.text")
+              }.buttonStyle(.plain)
             }
           }
-        }.navigationTitle("Sources")
+          taskSection("Recently completed", calls: recent)
+          if active.isEmpty && attention.isEmpty && recent.isEmpty && !model.hasProposal && !model.tasksLoadFailed {
+            Text("No current tasks").font(.headline)
+            Text("Ask Jolly to help with a booking. Recent results appear here for 24 hours.")
+              .font(.caption2).foregroundStyle(.secondary)
+          }
+          if model.tasksLoadFailed {
+            Text("Couldn’t refresh tasks. Showing the last known status.")
+              .font(.caption2).foregroundStyle(.secondary)
+          }
+        }.padding(.horizontal, 10).padding(.top, 8).padding(.bottom, 24)
       }
     }
-    .sheet(isPresented: $reviewing) {
-      if model.action == nil, model.documentAction == nil, let call = model.callAction { CallReview(model: model, call: call) }
-        if let document = model.documentAction {
-          DocumentReview(dismiss: { model.dismissDocument() }, action: document, busy: model.deciding) { model.decide($0) }
-        }
-        if let action = model.action {
-        ActionReview(action: action, busy: model.deciding) { model.decide($0) }
+  }
+  @ViewBuilder private func taskSection(_ title: String, calls: [CallAction]) -> some View {
+    if !calls.isEmpty {
+      Text(title).font(.caption2).foregroundStyle(.secondary)
+      ForEach(calls) { call in taskRow(call) }
+    }
+  }
+  private func taskRow(_ call: CallAction) -> some View {
+    Button { selectedTaskID = call.id; callReview = true } label: {
+      taskLabel(call.booking.purpose,
+        detail: call.booking.destinationName + " · " + (call.progress?.text ?? call.status.replacingOccurrences(of: "_", with: " ")),
+        icon: call.active ? "phone" : call.needsAttention ? "exclamationmark.circle" : "checkmark.circle",
+        time: call.taskTimeText())
+    }.buttonStyle(.plain)
+  }
+  private func taskLabel(_ title: String, detail: String, icon: String, time: String? = nil) -> some View {
+    HStack(alignment: .top, spacing: 8) {
+      Image(systemName: icon).font(.caption).foregroundStyle(.secondary).frame(width: 16)
+      VStack(alignment: .leading, spacing: 3) {
+        Text(title).font(.subheadline.weight(.medium)).fixedSize(horizontal: false, vertical: true)
+        Text(detail).font(.caption2).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        if let time { Text(time).font(.caption2).foregroundStyle(.secondary) }
       }
-    }
-    .onAppear { model.resumeCalls() }
-    .sheet(isPresented: $callReview, onDismiss: { if model.hasProposal { reviewing = true } }) {
-      if let call = model.backgroundCall { CallReview(model: model, call: call) }
-    }
-    .onChange(of: model.proposalID) { _, new in
-      if new == nil { reviewing = false }
-      else if callReview { callReview = false }
-    }
-    .onChange(of: store.connection) { _, _ in model.connectionChanged() }
-    .onChange(of: phase) { _, new in if new != .active { model.suspend() } else { model.resumeCalls() } }
+      Spacer(minLength: 0)
+    }.frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+      .padding(8).background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 12))
+      .contentShape(Rectangle())
   }
 }

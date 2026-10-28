@@ -65,7 +65,7 @@ private final class NativeFixture: URLProtocol, @unchecked Sendable {
         body = "{\"action\":" + calendarFixture(id: status, status: status) + "}"
       }
     } else if path.hasSuffix("/calls") {
-      body = "{\"calls\":[" + callFixture + "]}"
+      body = "{\"calls\":[" + callFixture + "," + callFixture.replacingOccurrences(of: "call-1", with: "call-2") + "]}"
     } else if path.hasSuffix("/stop") {
       body = #"{"sessionId":"test-session","state":"idle","statusText":"Stopped","speechText":"Call stopped.","simulated":true,"callAction":\#(callFixture.replacingOccurrences(of: "uncertain", with: "cancelled"))}"#
     } else if path.contains("/calls/") {
@@ -259,9 +259,11 @@ extension NativeConversationTests {
 
 
 extension NativeConversationTests {
-  private func call(_ status: String, booked: Bool = false) throws -> CallAction {
+  private func call(_ status: String, booked: Bool = false, id: String = "call-1", finishedAt: Double? = nil) throws -> CallAction {
     var data = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(callFixture.utf8)) as? [String: Any])
     data["status"] = status
+    data["id"] = id
+    data["finishedAt"] = finishedAt
     if booked {
       data["outcome"] = "booked"
       data["bookedSlot"] = ["start": "2026-11-01T10:00:00Z", "end": "2026-11-01T10:30:00Z"]
@@ -403,5 +405,66 @@ extension NativeConversationTests {
     XCTAssertEqual(booking.completionDateText(timeZone: try XCTUnwrap(TimeZone(identifier: "Asia/Tokyo"))), "Sat, 7 Nov · 8:30 am")
     XCTAssertEqual(booking.completionDateText(timeZone: try XCTUnwrap(TimeZone(secondsFromGMT: 3600))), "Sat, 7 Nov · 12:30 am")
     XCTAssertEqual(booking.completionDateText(), booking.completionDateText(timeZone: .autoupdatingCurrent))
+  }
+}
+
+
+extension NativeConversationTests {
+  func testTaskUpdatesRetainMultipleCallsAndForegroundApproval() throws {
+    let (model, _) = try makeModel()
+    model.receiveCall(try call("pending", id: "approval"))
+    model.receiveCall(try call("in_progress", id: "active"))
+    model.receiveCall(try call("completed", id: "older", finishedAt: Date().timeIntervalSince1970 * 1000))
+    XCTAssertEqual(Set(model.taskCalls.map(\.id)), ["approval", "active", "older"])
+    XCTAssertEqual(model.proposalID, "approval")
+    XCTAssertEqual(model.taskCalls.filter { $0.active }.map(\.id), ["active"])
+  }
+
+  func testRecentTasksUseCompletionTimeNotFutureBookingTime() throws {
+    let now = Date(timeIntervalSince1970: 1_800_000_000)
+    XCTAssertTrue(try call("completed", booked: true, finishedAt: now.timeIntervalSince1970 * 1000).recentlyCompleted(now: now))
+    XCTAssertFalse(try call("completed", booked: true, finishedAt: (now.timeIntervalSince1970 - 86401) * 1000).recentlyCompleted(now: now))
+    XCTAssertFalse(try call("completed", booked: true).recentlyCompleted(now: now))
+    XCTAssertFalse(try call("uncertain", finishedAt: now.timeIntervalSince1970 * 1000).recentlyCompleted(now: now))
+    XCTAssertTrue(try call("uncertain").needsAttention)
+    XCTAssertTrue(try call("pending").needsAttention)
+    XCTAssertEqual(try call("completed", finishedAt: 0).taskTimeText(timeZone: TimeZone(secondsFromGMT: 3600)!), "1:00 am")
+  }
+
+  func testOlderTaskCommandDoesNotReplaceLatestOrInterruptRecording() async throws {
+    let (model, audio) = try makeModel()
+    defer { model.suspend() }
+    model.receiveCall(try call("in_progress"))
+    model.receiveCall(try call("in_progress", id: "newer"))
+    model.tap()
+    await eventually { model.recording }
+    model.callCommand("stop", callID: "call-1")
+    await eventually { !model.callUpdating }
+    XCTAssertEqual(model.taskCalls.first { $0.id == "call-1" }?.status, "cancelled")
+    XCTAssertEqual(model.backgroundCall?.id, "newer")
+    XCTAssertTrue(audio.recording)
+    model.callCommand("stop", callID: "missing")
+    XCTAssertFalse(model.callUpdating)
+    model.connectionChanged()
+    XCTAssertTrue(model.taskCalls.isEmpty)
+  }
+}
+
+extension NativeConversationTests {
+  func testSessionListRestoresMultipleTasksWithoutSpeaking() async throws {
+    let defaults = UserDefaults(suiteName: "task-list-" + UUID().uuidString)!
+    let (original, _) = try makeModel(defaults: defaults)
+    original.receiveCall(try call("uncertain"))
+    original.suspend()
+    let (restored, audio) = try makeModel(defaults: defaults)
+    defer { restored.suspend() }
+    restored.resumeCalls()
+    await eventually { restored.taskCalls.count == 2 }
+    XCTAssertEqual(Set(restored.taskCalls.map(\.id)), ["call-1", "call-2"])
+    XCTAssertEqual(audio.played, 0)
+    let (other, _) = try makeModel(defaults: defaults, token: String(repeating: "x", count: 32))
+    other.resumeCalls()
+    XCTAssertTrue(other.taskCalls.isEmpty)
+    other.suspend()
   }
 }
