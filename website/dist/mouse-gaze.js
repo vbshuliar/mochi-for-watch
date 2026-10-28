@@ -7,6 +7,18 @@
   // Leave room above the glossy eyes even at their highest gaze position.
   brows[0]?.setAttribute('d', 'M300 432 Q332 408 365 421');
   brows[1]?.setAttribute('d', 'M638 435 Q666 445 692 432');
+  const caption = document.querySelector('#watch-caption');
+  let reactionTimer;
+  face.addEventListener('click', () => {
+    clearTimeout(reactionTimer);
+    face.setAttribute('aria-pressed', 'true');
+    if (caption) caption.textContent = 'Download to use';
+    reactionTimer = setTimeout(() => {
+      face.setAttribute('aria-pressed', 'false');
+      if (caption) caption.textContent = 'tap to talk';
+      start();
+    }, 1500);
+  });
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   let target = null, x = 0, y = 0, frame = 0, last = 0;
   function render(now) {
