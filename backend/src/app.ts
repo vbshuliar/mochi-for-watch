@@ -1,3 +1,4 @@
+import { isWebsiteRequest, registerWebsite } from "./website.ts";
 import { PassThrough } from "node:stream";
 import Fastify from "fastify";
 import rateLimit from "@fastify/rate-limit";
@@ -92,6 +93,7 @@ export async function buildApp(
       .header("X-Content-Type-Options", "nosniff")
       .header("Referrer-Policy", "no-referrer");
     const path = req.url.split("?")[0];
+    if (isWebsiteRequest(req.method, path)) return;
     if (path.startsWith("/webhooks/calls/") || path.startsWith("/call-audio/"))
       return;
     if (
@@ -169,6 +171,7 @@ export async function buildApp(
       simulated: config.APP_MODE === "mock",
     });
   });
+  registerWebsite(app);
   app.get("/health", async () => ({ ok: true }));
   app.get("/v1/status", async () => ({
     mode: config.APP_MODE,

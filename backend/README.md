@@ -136,7 +136,7 @@ npm run build
 npm start
 ```
 
-The included Dockerfile builds the same server. Supply secrets at runtime, mount a writable persistent volume at `/app/data`, and use TLS termination before reaching it from a watch. `HOST=0.0.0.0` is for that deliberate deployment; local development binds to loopback. No deployment, OAuth grant or real Calendar modification was performed by implementation tests. Docker runtime operation has not been verified here.
+The included Dockerfile builds the same server and public landing page. Run `npm run website:stage` first to copy `../website/dist/` into the ignored `public/` build input. Supply secrets at runtime, mount a writable persistent volume at `/app/data`, and use TLS termination before reaching it from a watch. `HOST=0.0.0.0` is for that deliberate deployment; local development binds to loopback. No deployment, OAuth grant or real Calendar modification was performed by implementation tests. Docker runtime operation has not been verified here.
 
 ## Verification
 

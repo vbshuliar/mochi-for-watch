@@ -19,3 +19,6 @@ native/.swiftpm/
 
 # Local implementation/review working notes
 .superpowers/sdd/
+
+# Website assets staged into the backend Docker build
+backend/public/

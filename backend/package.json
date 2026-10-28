@@ -20,7 +20,8 @@
     "chat": "node --env-file-if-exists=.env scripts/chat.mjs",
     "format": "prettier --write src test scripts",
     "format:check": "prettier --check src test scripts",
-    "emulator": "node --env-file-if-exists=.env scripts/emulator-server.mjs"
+    "emulator": "node --env-file-if-exists=.env scripts/emulator-server.mjs",
+    "website:stage": "node scripts/stage-website.mjs"
   },
   "dependencies": {
     "@fastify/rate-limit": "^10.3.0",

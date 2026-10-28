@@ -19,7 +19,7 @@ Updated 27 October 2026. **The owner confirmed Jolly works on Apple Watch after 
 
 The approved hosting estimate was $4–5/month base, with an approved ceiling of $7.25/month base; tax and usage are separate. This is an estimate, not a billing cap. The account was verified as Good Standing after billing setup. Check actual charges in Fly billing before changing resources.
 
-HTTPS is internet-reachable, with bearer-token protection for app API and realtime requests. `/health` and the state-validated Google OAuth callback are exceptions. There is no dedicated paid IPv4 or managed database.
+HTTPS is internet-reachable, with bearer-token protection for app API and realtime requests. The landing page (`/`, `/index.html`), its three assets (`/style.css`, `/assets/jolly.png`, `/assets/jolly-face.png`), `/health` and the state-validated OAuth callbacks are public exceptions. Website routes allow anonymous GET/HEAD only; API authentication is unchanged. There is no dedicated paid IPv4 or managed database.
 
 ## Secrets and storage
 
@@ -49,6 +49,7 @@ cd backend
 npm ci
 npm test
 npm run build
+npm run website:stage
 fly config validate
 fly deploy --remote-only --ha=false --strategy immediate
 fly status
@@ -120,3 +121,9 @@ Avoid deployments during an active call. After a restart, unresolved calls are t
 ### Calendar connection — 27 October 2026
 
 Created the Muse for Watch Google project, web OAuth client with hosted/local Calendar callbacks, private test audience and the two scopes already used by the backend. The owner approved policy/API activation and completed Google consent directly. Client credentials were stored in the ignored private env file and Fly secrets. Calendar API status is enabled and hosted Muse status reports connected; a real availability-only request passed. No Calendar event was created during this check.
+
+## Public website — 28 October 2026
+
+The first landing page was hosted on the existing machine at https://muse-for-watch-vlad.fly.dev/. The public URL is now https://muse-for-watch.fly.dev/, served by a separate 256 MB static machine that stops when idle. The original backend address and page remain available. The Watch API remains authenticated. Source lives in `website/dist/`; run `npm run website:stage` from `backend/` before Docker/Fly builds to copy the four public files into the ignored `backend/public/` build input. The Dockerfile only copies those files. Keep deployment to one machine with the command above.
+
+Verification: 105 backend tests and TypeScript build passed. Deployment updated the existing machine `18577940c1ee38`; Fly health check passed. Public HTML, CSS and image returned 200 and matched local SHA-256 hashes. Anonymous `/v1/status`, `/.env` and non-allowlisted assets returned 401. Desktop (1280px) and mobile (390px) layouts had no horizontal overflow, and the setup disclosure worked. Code review found no blocking issues.
