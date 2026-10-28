@@ -25,6 +25,30 @@ let pose={x:0,y:0,angle:0,scale:1,eye:1,gx:0,gy:0,smile:24,open:0,width:49,skew:
 const statuses={idle:'tap to talk',sleep:'tap on me to wake up',wake:'waking up…',listen:'listening…',think:'thinking…',search:'looking into it…',speak:'speaking…',confused:'hmm…',curious:'let me understand…',surprised:'oh! I see…',delighted:'hello!',loved:'aww, thank you!',happy:'all done!'};
 for(const [id,d] of Object.entries(workflowStates))statuses[id]=d.status;
 const headVelocity={x:0,y:0,angle:0,scale:0};
+// Browser-only eye attention; touch interaction and native Watch motion stay unchanged.
+const pointerGaze={x:0,y:0,active:false},eyeAttention={x:0,y:0};
+function trackMouse(event,offsetX=0,offsetY=0){
+ if(event.pointerType!=='mouse')return;
+ const rect=$('#stage').getBoundingClientRect();
+ if(!rect.width||!rect.height)return;
+ pointerGaze.x=Math.max(-1,Math.min(1,(event.clientX-offsetX-rect.left-rect.width*.5)/(rect.width*.7)))*24;
+ pointerGaze.y=Math.max(-1,Math.min(1,(event.clientY-offsetY-rect.top-rect.height*.45)/(rect.height*.7)))*16;
+ pointerGaze.active=true;
+}
+function releaseMouse(){pointerGaze.active=false;}
+window.addEventListener('pointermove',event=>trackMouse(event));
+window.addEventListener('blur',releaseMouse);
+document.addEventListener('pointerleave',releaseMouse);
+if(emulatorMode&&window.frameElement){
+ // Include the surrounding emulator, with coordinates translated into the Watch frame.
+ window.parent.addEventListener('pointermove',event=>{
+  const rect=window.frameElement.getBoundingClientRect();
+  trackMouse(event,rect.left,rect.top);
+ });
+ window.parent.addEventListener('blur',releaseMouse);
+ window.parent.document.addEventListener('pointerleave',releaseMouse);
+}
+
 let speechEntrancePose=null,speechExitPose=null;
 let visibleCaption='',captionShownAt=-Infinity;
 function captionAt(requested,now){
@@ -179,6 +203,9 @@ function thinkingAt(time){
  return Object.fromEntries(['gx','gy','angle','eye','smile','asym'].map(key=>[key,a[key]+(b[key]-a[key])*ease]));
 }
 function render(now){const dt=Math.min((now-last)/1000,.05);last=now;const t=(now-started)/1000;const active=motion&&!reduced.matches;const breath=active?Math.sin(now/1100):0;
+ const follow=active&&pointerGaze.active&&!['sleep','offline','wake'].includes(state);
+ const attentionEase=1-Math.exp(-dt*7);
+ for(const axis of ['x','y'])eyeAttention[axis]+=((follow?pointerGaze[axis]:0)-eyeAttention[axis])*attentionEase;
  if(state==='listen'&&!emulatorMode)microphone.sample();
  let target={x:0,y:breath*1.3,angle:0,scale:1+breath*.012,eye:1,gx:0,gy:0,smile:24,open:0,width:49,skew:0,brow:0,asym:0,joy:0,round:0};
  if(state==='idle'&&active)Object.assign(target,idleGestureAt(speechExitPose?Math.max(0,t-1.4):t));
@@ -265,7 +292,7 @@ function render(now){const dt=Math.min((now-last)/1000,.05);last=now;const t=(no
  // One continuous filled contour per eye. No separate lid overlay.
  for(const [side,x,sign]of [['left',335,-1],['right',665,1]]){
   const eye=Math.max(0,pose.eye*(1+sign*pose.asym*.008));
-  const ex=x+pose.gx*.75,ey=520+pose.gy*.82;
+  const ex=x+pose.gx*.75+eyeAttention.x,ey=520+pose.gy*.82+eyeAttention.y;
   const browY=450-pose.brow-sign*pose.asym;
   $('#'+side+'-brow').setAttribute('d',`M ${ex-29} ${browY+4+sign*pose.asym*.4} Q ${ex} ${browY-7} ${ex+29} ${browY+4-sign*pose.asym*.4}`);
   $('#'+side+'-brow').style.opacity=Math.min(.22,Math.abs(pose.brow)/70+Math.abs(pose.asym)/100)*Math.min(1,eye*2);
@@ -329,7 +356,7 @@ function drawWatch(t,active){
  c.scale(head/1000,head/1000);c.translate(pose.gx*.25,pose.gy*.18);
  for(const [side,ex,sign]of [['left',335,-1],['right',665,1]]){
   const openness=Math.max(0,pose.eye*(1+sign*pose.asym*.008));
-  c.save();c.translate(ex+pose.gx*.75,520+pose.gy*.82);
+  c.save();c.translate(ex+pose.gx*.75+eyeAttention.x,520+pose.gy*.82+eyeAttention.y);
   const eye=eyeContour(openness,pose.joy),gloss=c.createRadialGradient(10,-17,1,0,0,38);
   gloss.addColorStop(0,'#292b30');gloss.addColorStop(.45,'#101114');gloss.addColorStop(1,'#030405');
   c.fillStyle=openness<.25?'#211916':gloss;c.fill(eye);c.clip(eye);

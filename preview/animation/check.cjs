@@ -79,4 +79,20 @@ for(const at of [2.1,4.5,6.4,8.6]){
 for(let i=0;i<80;i++)vm.runInContext("setState('idle')",ctx);assert.equal(node('#event-log').children.length,60);node('#clear-log').onclick();assert.equal(node('#event-log').children.length,0);
 assert.equal(node('#watch-pixels').width,368);assert.equal(node('#watch-pixels').height,448);
 reduced.matches=true;vm.runInContext("setState('speak')",ctx);step(4000);const before=node('#mouth').attrs.d;step(4000);const pathNumbers=s=>s.match(/-?\d+(?:\.\d+)?/g).map(Number);const settledMouth=pathNumbers(before),laterMouth=pathNumbers(node('#mouth').attrs.d);assert(settledMouth.every((value,i)=>Math.abs(value-laterMouth[i])<1e-8),'reduced motion mouth stays settled');
+// Mouse attention is bounded, eased, and releases without disturbing expressions.
+node('#stage').getBoundingClientRect=()=>({left:0,top:0,width:368,height:448});
+reduced.matches=false;
+vm.runInContext("setState('idle'); trackMouse({pointerType:'mouse',clientX:2000,clientY:2000})",ctx);
+step(16);
+assert(vm.runInContext('eyeAttention.x>0&&eyeAttention.x<24',ctx),'mouse gaze eases in');
+step(1500);
+assert(vm.runInContext('eyeAttention.x<=24&&eyeAttention.y<=16',ctx),'mouse gaze stays bounded');
+vm.runInContext("trackMouse({pointerType:'touch',clientX:-2000,clientY:-2000})",ctx);
+assert.equal(vm.runInContext('pointerGaze.x',ctx),24,'touch does not redirect eyes');
+vm.runInContext('releaseMouse()',ctx);step(2000);
+assert(vm.runInContext('Math.abs(eyeAttention.x)<.001',ctx),'leaving releases gaze');
+vm.runInContext("trackMouse({pointerType:'mouse',clientX:2000,clientY:2000}); setState('sleep')",ctx);step(2000);
+assert(vm.runInContext('Math.abs(eyeAttention.x)<.001',ctx),'sleep ignores mouse');
+vm.runInContext("setState('idle')",ctx);reduced.matches=true;step(2000);
+assert(vm.runInContext('Math.abs(eyeAttention.x)<.001',ctx),'reduced motion ignores mouse');
 console.log(`PASS: ${ids.length} states, explicit approval, cancellation, recovery, clarification, bounded/clearable log, fixed pixel buffer and reduced motion.`);
