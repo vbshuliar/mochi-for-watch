@@ -215,3 +215,181 @@ test("restart marks executing actions uncertain for explicit recovery", (t) => {
   new Service(store, new MockPlanner(), new MockCalendar(store), true);
   assert.equal(store.get<any>("action", id).status, "uncertain");
 });
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+function authorization(calendar: GoogleCalendar) {
+  const url = new URL(calendar.authorizationUrl());
+  return {
+    state: url.searchParams.get("state")!,
+    response: (access = "new", expires_in = 3600) =>
+      json({
+        access_token: access,
+        refresh_token: `${access}-refresh`,
+        expires_in,
+        scope: url.searchParams.get("scope"),
+      }),
+  };
+}
+for (const replace of [false, true]) {
+  test(`delayed Calendar callback cannot restore ${replace ? "superseded" : "disconnected"} authorization`, async (t) => {
+    const { calendar, store } = setup(t);
+    const first = authorization(calendar);
+    const response = deferred<Response>();
+    mockFetch(t, async () => response.promise);
+    const callback = calendar.callback(first.state, "code");
+    const rejected = assert.rejects(callback, { code: "connection_changed" });
+    await assert.rejects(calendar.callback(first.state, "replay"), {
+      code: "invalid_oauth_state",
+    });
+    calendar.disconnect();
+    const next = replace ? authorization(calendar) : undefined;
+    response.resolve(first.response("old"));
+    await rejected;
+    assert.equal(calendar.connected(), false);
+    assert.equal(
+      store.get<{ state: string }>("oauth", "pending")?.state,
+      next?.state,
+    );
+  });
+}
+for (const status of [200, 400]) {
+  test(`stale Calendar refresh (${status}) cannot alter a reconnected account or supply its token`, async (t) => {
+    const { calendar, store } = setup(t);
+    store.put("secret", "google", {
+      access: "old",
+      refresh: "old-refresh",
+      expiresAt: 0,
+    });
+    const oldRefresh = deferred<Response>();
+    let newRefreshes = 0;
+    let auth: ReturnType<typeof authorization>;
+    mockFetch(t, async (url, init) => {
+      if (String(url).includes("oauth2")) {
+        const body = init!.body as URLSearchParams;
+        if (body.get("grant_type") === "authorization_code")
+          return auth.response("new", 1);
+        if (body.get("refresh_token") === "old-refresh")
+          return oldRefresh.promise;
+        assert.equal(body.get("refresh_token"), "new-refresh");
+        newRefreshes++;
+        return json({ access_token: "new-fresh", expires_in: 3600 });
+      }
+      assert.equal(
+        new Headers(init!.headers).get("Authorization"),
+        "Bearer new-fresh",
+      );
+      return json({ items: [] });
+    });
+    const oldRequest = calendar.list(event);
+    const rejected = assert.rejects(oldRequest, { code: "connection_changed" });
+    calendar.disconnect();
+    auth = authorization(calendar);
+    await calendar.callback(auth.state, "new-code");
+    await calendar.list(event);
+    assert.equal(newRefreshes, 1);
+    oldRefresh.resolve(
+      json({ access_token: "stale", expires_in: 3600 }, status),
+    );
+    await rejected;
+    assert.equal(
+      store.get<{ access: string }>("secret", "google")?.access,
+      "new-fresh",
+    );
+    await calendar.list(event);
+  });
+}
+test("failed Calendar refresh preserves a pending reconnect", async (t) => {
+  const { calendar, store } = setup(t);
+  store.put("secret", "google", {
+    access: "old",
+    refresh: "old-refresh",
+    expiresAt: 0,
+  });
+  const pending = authorization(calendar);
+  mockFetch(t, async () => json({}, 400));
+  await assert.rejects(calendar.list(event), { code: "calendar_disconnected" });
+  assert.equal(
+    store.get<{ state: string }>("oauth", "pending")?.state,
+    pending.state,
+  );
+});
+for (const operation of ["create", "list", "busy"] as const) {
+  test(`Calendar ${operation} stops when the account changes during its provider request`, async (t) => {
+    const { calendar, store } = setup(t);
+    store.put("secret", "google", {
+      access: "old",
+      expiresAt: Date.now() + 3600000,
+    });
+    const first = deferred<Response>();
+    const started = deferred<void>();
+    let requests = 0;
+    let auth: ReturnType<typeof authorization>;
+    mockFetch(t, async (url) => {
+      if (String(url).includes("oauth2")) return auth.response();
+      requests++;
+      started.resolve();
+      return first.promise;
+    });
+    const pending =
+      operation === "create"
+        ? calendar.create(randomUUID(), event)
+        : calendar[operation](event);
+    const rejected = assert.rejects(pending, { code: "connection_changed" });
+    await started.promise;
+    auth = authorization(calendar);
+    await calendar.callback(auth.state, "code");
+    first.resolve(
+      operation === "create"
+        ? json({}, 404)
+        : operation === "list"
+          ? json({ items: [], nextPageToken: "page2" })
+          : json({ calendars: { primary: { busy: [] } } }),
+    );
+    await rejected;
+    assert.equal(requests, 1);
+    assert.equal(
+      store.get<{ access: string }>("secret", "google")?.access,
+      "new",
+    );
+  });
+}
+
+test("uncertain Calendar writes cannot be retried on a different account after adapter restart", async (t) => {
+  const { calendar, store } = setup(t);
+  store.put("secret", "google", {
+    access: "old",
+    expiresAt: Date.now() + 3600000,
+  });
+  const id = randomUUID();
+  let posts = 0;
+  let calendarRequests = 0;
+  let auth: ReturnType<typeof authorization>;
+  mockFetch(t, async (url, init) => {
+    if (String(url).includes("oauth2")) return auth.response();
+    calendarRequests++;
+    if (init?.method === "POST") {
+      posts++;
+      // The provider could have saved the event before the connection failed.
+      throw new Error("response lost");
+    }
+    return json({}, 404);
+  });
+  await assert.rejects(calendar.create(id, event), {
+    code: "provider_unavailable",
+  });
+  assert.equal(posts, 1);
+  auth = authorization(calendar);
+  await calendar.callback(auth.state, "new-code");
+  const restarted = new GoogleCalendar(config(), store);
+  await assert.rejects(restarted.create(id, event), {
+    code: "connection_changed",
+  });
+  assert.equal(calendarRequests, 2);
+  assert.equal(posts, 1);
+});

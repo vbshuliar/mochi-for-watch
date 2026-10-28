@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { Config } from "./config.ts";
 import { Store } from "./store.ts";
@@ -20,7 +20,12 @@ const tokenSchema = z.object({
   refresh_token: z.string().optional(),
   scope: z.string().optional(),
 });
-type Tokens = { access: string; refresh?: string; expiresAt: number };
+type Tokens = {
+  access: string;
+  refresh?: string;
+  expiresAt: number;
+  epoch?: string;
+};
 const googleEvent = z.object({
   id: z.string(),
   status: z.string().optional(),
@@ -49,7 +54,7 @@ function receipt(data: z.infer<typeof googleEvent>): Receipt {
   };
 }
 export class GoogleCalendar implements Calendar {
-  private refreshPromise?: Promise<string>;
+  private refreshes = new Map<string, Promise<string>>();
   constructor(
     private config: Config,
     private store: Store,
@@ -90,50 +95,73 @@ export class GoogleCalendar implements Calendar {
       state: string;
       verifier: string;
       expiresAt: number;
+      consumed?: boolean;
     }>("oauth", "pending");
-    if (!pending || pending.state !== state || pending.expiresAt < Date.now())
+    if (
+      !pending ||
+      pending.consumed ||
+      pending.state !== state ||
+      pending.expiresAt < Date.now()
+    )
       throw new AppError(
         400,
         "invalid_oauth_state",
         "connection expired; start again",
       );
-    this.store.delete("oauth", "pending");
+    this.store.put("oauth", "pending", { ...pending, consumed: true });
     return pending;
   }
   cancelAuthorization(state: string) {
     this.consumeAuthorization(state);
+    this.store.delete("oauth", "pending");
   }
   async callback(state: string, code: string) {
     const pending = this.consumeAuthorization(state);
-    const data = tokenSchema.parse(
-      await externalJson(
-        await externalFetch("https://oauth2.googleapis.com/token", {
-          method: "POST",
-          body: new URLSearchParams({
-            code,
-            client_id: this.config.GOOGLE_CLIENT_ID,
-            client_secret: this.config.GOOGLE_CLIENT_SECRET,
-            redirect_uri: this.config.GOOGLE_REDIRECT_URI,
-            grant_type: "authorization_code",
-            code_verifier: pending.verifier,
+    try {
+      const data = tokenSchema.parse(
+        await externalJson(
+          await externalFetch("https://oauth2.googleapis.com/token", {
+            method: "POST",
+            body: new URLSearchParams({
+              code,
+              client_id: this.config.GOOGLE_CLIENT_ID,
+              client_secret: this.config.GOOGLE_CLIENT_SECRET,
+              redirect_uri: this.config.GOOGLE_REDIRECT_URI,
+              grant_type: "authorization_code",
+              code_verifier: pending.verifier,
+            }),
           }),
-        }),
-      ),
-    );
-    if (
-      !scopes.every((scope) => data.scope?.split(" ").includes(scope)) ||
-      !data.refresh_token
-    )
-      throw new AppError(
-        400,
-        "missing_calendar_permission",
-        "grant Calendar access and offline access, then reconnect",
+        ),
       );
-    this.store.put("secret", "google", {
-      access: data.access_token,
-      refresh: data.refresh_token,
-      expiresAt: Date.now() + data.expires_in * 1000,
-    });
+      if (
+        !scopes.every((scope) => data.scope?.split(" ").includes(scope)) ||
+        !data.refresh_token
+      )
+        throw new AppError(
+          400,
+          "missing_calendar_permission",
+          "grant Calendar access and offline access, then reconnect",
+        );
+      if (
+        this.store.get<{ state: string }>("oauth", "pending")?.state !== state
+      )
+        throw new AppError(
+          409,
+          "connection_changed",
+          "Calendar connection changed; start again",
+        );
+      this.store.put("secret", "google", {
+        epoch: randomUUID(),
+        access: data.access_token,
+        refresh: data.refresh_token,
+        expiresAt: Date.now() + data.expires_in * 1000,
+      });
+    } finally {
+      if (
+        this.store.get<{ state: string }>("oauth", "pending")?.state === state
+      )
+        this.store.delete("oauth", "pending");
+    }
   }
   connected() {
     return !!this.store.get("secret", "google");
@@ -142,7 +170,7 @@ export class GoogleCalendar implements Calendar {
     this.store.delete("secret", "google");
     this.store.delete("oauth", "pending");
   }
-  private async token(): Promise<string> {
+  private epoch(): string {
     const tokens = this.store.get<Tokens>("secret", "google");
     if (!tokens)
       throw new AppError(
@@ -150,11 +178,30 @@ export class GoogleCalendar implements Calendar {
         "calendar_disconnected",
         "connect Calendar on your phone or computer",
       );
+    // Upgrade credentials saved before connection epochs were introduced.
+    if (!tokens.epoch) {
+      tokens.epoch = randomUUID();
+      this.store.put("secret", "google", tokens);
+    }
+    return tokens.epoch;
+  }
+  private assertEpoch(epoch: string) {
+    if (this.store.get<Tokens>("secret", "google")?.epoch !== epoch)
+      throw new AppError(
+        409,
+        "connection_changed",
+        "Calendar connection changed; try again",
+      );
+  }
+  private async token(epoch: string): Promise<string> {
+    this.assertEpoch(epoch);
+    const tokens = this.store.get<Tokens>("secret", "google")!;
     if (tokens.expiresAt > Date.now() + 60000) return tokens.access;
     if (!tokens.refresh)
       throw new AppError(409, "calendar_disconnected", "reconnect Calendar");
-    if (!this.refreshPromise)
-      this.refreshPromise = (async () => {
+    let refresh = this.refreshes.get(epoch);
+    if (!refresh) {
+      refresh = (async () => {
         const response = await externalFetch(
           "https://oauth2.googleapis.com/token",
           {
@@ -167,8 +214,10 @@ export class GoogleCalendar implements Calendar {
             }),
           },
         );
+        this.assertEpoch(epoch);
         if (response.status === 400) {
-          this.disconnect();
+          // Invalidate only these credentials, preserving any pending reconnect.
+          this.store.delete("secret", "google");
           throw new AppError(
             409,
             "calendar_disconnected",
@@ -176,38 +225,44 @@ export class GoogleCalendar implements Calendar {
           );
         }
         const data = tokenSchema.parse(await externalJson(response));
-        // A concurrent disconnect must not restore credentials.
-        if (!this.connected())
-          throw new AppError(
-            409,
-            "calendar_disconnected",
-            "Calendar disconnected",
-          );
+        this.assertEpoch(epoch);
         this.store.put("secret", "google", {
+          epoch,
           access: data.access_token,
           refresh: data.refresh_token || tokens.refresh,
           expiresAt: Date.now() + data.expires_in * 1000,
         });
         return data.access_token;
       })().finally(() => {
-        this.refreshPromise = undefined;
+        this.refreshes.delete(epoch);
       });
-    return this.refreshPromise;
+      this.refreshes.set(epoch, refresh);
+    }
+    return refresh;
   }
-  private async request(path: string, init: RequestInit = {}) {
-    return externalFetch(
+  private async request(
+    path: string,
+    init: RequestInit = {},
+    epoch = this.epoch(),
+  ) {
+    const token = await this.token(epoch);
+    this.assertEpoch(epoch);
+    const response = await externalFetch(
       `https://www.googleapis.com/calendar/v3/calendars/primary/${path}`,
       {
         ...init,
         headers: {
-          Authorization: `Bearer ${await this.token()}`,
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
           ...init.headers,
         },
       },
     );
+    this.assertEpoch(epoch);
+    return response;
   }
   async list(window: Window, signal?: AbortSignal) {
+    const epoch = this.epoch();
     const items: Receipt[] = [];
     let pageToken: string | undefined;
     for (let page = 0; page < 10; page++) {
@@ -226,9 +281,10 @@ export class GoogleCalendar implements Calendar {
         })
         .parse(
           await externalJson(
-            await this.request(`events?${params}`, { signal }),
+            await this.request(`events?${params}`, { signal }, epoch),
           ),
         );
+      this.assertEpoch(epoch);
       items.push(
         ...data.items.filter((e) => e.status !== "cancelled").map(receipt),
       );
@@ -238,6 +294,9 @@ export class GoogleCalendar implements Calendar {
     throw new AppError(422, "too_many_events", "choose a shorter date range");
   }
   async busy(window: Window, signal?: AbortSignal) {
+    const epoch = this.epoch();
+    const token = await this.token(epoch);
+    this.assertEpoch(epoch);
     // Use Google's freeBusy endpoint so all-day and transparent events are handled by Google.
     const response = await externalFetch(
       "https://www.googleapis.com/calendar/v3/freeBusy",
@@ -245,7 +304,7 @@ export class GoogleCalendar implements Calendar {
         signal,
         method: "POST",
         headers: {
-          Authorization: `Bearer ${await this.token()}`,
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -268,6 +327,7 @@ export class GoogleCalendar implements Calendar {
         ),
       })
       .parse(await externalJson(response));
+    this.assertEpoch(epoch);
     const calendar = data.calendars.primary;
     if (!calendar || calendar.errors?.length || !calendar.busy)
       throw new AppError(
@@ -278,8 +338,21 @@ export class GoogleCalendar implements Calendar {
     return calendar.busy;
   }
   async create(id: string, event: EventInput) {
+    const epoch = this.epoch();
+    // Recovery must stay on the original connection: event IDs are account-local.
+    this.store.transaction(() => {
+      const binding = this.store.get<{ epoch: string }>("calendar_action", id);
+      if (binding && binding.epoch !== epoch)
+        throw new AppError(
+          409,
+          "connection_changed",
+          "Calendar connection changed; check the original Calendar before creating a new request",
+        );
+      if (!binding) this.store.put("calendar_action", id, { epoch });
+    });
     const eventId = id.replaceAll("-", "");
     const verify = (data: unknown) => {
+      this.assertEpoch(epoch);
       const parsed = googleEvent.parse(data);
       if (
         parsed.status === "cancelled" ||
@@ -296,22 +369,28 @@ export class GoogleCalendar implements Calendar {
         );
       return receipt(parsed);
     };
-    const existing = await this.request(`events/${eventId}`);
+    const existing = await this.request(`events/${eventId}`, {}, epoch);
     if (existing.ok) return verify(await existing.json());
     if (existing.status !== 404) await externalJson(existing);
-    const result = await this.request("events", {
-      method: "POST",
-      body: JSON.stringify({
-        id: eventId,
-        summary: event.title,
-        start: { dateTime: event.start, timeZone: event.timeZone },
-        end: { dateTime: event.end, timeZone: event.timeZone },
-        extendedProperties: { private: { museActionId: id } },
-      }),
-    });
+    const result = await this.request(
+      "events",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          id: eventId,
+          summary: event.title,
+          start: { dateTime: event.start, timeZone: event.timeZone },
+          end: { dateTime: event.end, timeZone: event.timeZone },
+          extendedProperties: { private: { museActionId: id } },
+        }),
+      },
+      epoch,
+    );
     if (!result.ok && result.status !== 409) await externalJson(result);
     // Read-after-write verifies the persisted event, including recovery after an uncertain POST.
-    return verify(await externalJson(await this.request(`events/${eventId}`)));
+    return verify(
+      await externalJson(await this.request(`events/${eventId}`, {}, epoch)),
+    );
   }
 }
 export class MockCalendar implements Calendar {
