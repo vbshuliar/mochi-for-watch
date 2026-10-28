@@ -1,3 +1,4 @@
+import {taskGroups,taskLabel,installTaskSwipe} from './tasks.mjs';
 import {reactionFor,reactionPresentation} from './reactions.mjs';
 import {localIntent} from './local-intents.mjs';
 import test from 'node:test';
@@ -10,21 +11,21 @@ const deferred=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {
 async function harness(callHandler,viewerTimeZone){
  const storage=new Map([['muse-session','session']]);
  const elements=new Map(),listeners={},played=[],states=[],timers=new Set();
- function element(){const classes=new Set();return {children:[],parentElement:{scrollHeight:0,scrollTop:0,clientHeight:100},classList:{toggle(name,enabled){if(enabled)classes.add(name);else classes.delete(name);},contains(name){return classes.has(name);}},checked:true,value:'',textContent:'',hidden:false,style:{},append(...items){for(const item of items){item.remove?.();item.parentElement=this;this.children.push(item);}},remove(){const siblings=this.parentElement?.children;if(siblings){const index=siblings.indexOf(this);if(index>=0)siblings.splice(index,1);}},replaceChildren(...items){this.children=items;},scrollIntoView(){},add(){},focus(){},contentWindow:{postMessage(state){states.push(state);}}};}
+ function element(){const classes=new Set();return {children:[],parentElement:{scrollHeight:0,scrollTop:0,clientHeight:100},classList:{toggle(name,enabled){if(enabled)classes.add(name);else classes.delete(name);},contains(name){return classes.has(name);}},checked:true,value:'',textContent:'',hidden:false,style:{},dataset:{},setAttribute(name,value){this[name]=value;},addEventListener(){},append(...items){for(const item of items){item.remove?.();item.parentElement=this;this.children.push(item);}},remove(){const siblings=this.parentElement?.children;if(siblings){const index=siblings.indexOf(this);if(index>=0)siblings.splice(index,1);}},replaceChildren(...items){this.children=items;},scrollIntoView(){},add(){},focus(){},contentWindow:{postMessage(state){states.push(state);}}};}
  const document={hidden:false,querySelector(selector){if(!elements.has(selector))elements.set(selector,element());return elements.get(selector);},createElement:element,addEventListener(name,fn){listeners[name]=fn;}};
  let inFlight, microphone, playbackEnd, now=0;
  class Player{stop(){this.current=null;} async play(text,callbacks){this.current={};playbackEnd=()=>{this.current=null;callbacks.onEnd();};played.push(text);callbacks.onReady(10);callbacks.onStart();}}
  class Recorder{constructor(onLevel){microphone=onLevel;}cancel(){} async start(){return true;}}
  class Transcriber{cancel(){}}
- const ctx={reactionFor,reactionPresentation,localIntent,streamReply:async(id,request,{signal})=>{const r=await ctx.fetch(`/api/v1/sessions/${id}/turns`,{signal});return r.json();},SentenceSpeaker:class{},document,window:{addEventListener(){},speechSynthesis:{cancel(){},getVoices(){return [];},addEventListener(){}}},location:{origin:'http://localhost'},sessionStorage:{getItem(key){return storage.get(key)||null;},setItem(key,value){storage.set(key,value);},removeItem(key){storage.delete(key);}},setupServices:()=>({setBusy(){},update(){}}),summarizeLog:()=>'',SpeechPlayer:Player,VoiceRecorder:Recorder,RealtimeTranscriber:Transcriber,EndOfSpeech,TurnCoordinator,Option:class{},Blob,AbortSignal,AbortController,URL,performance:{now:()=>now},Intl:viewerTimeZone?{DateTimeFormat:class extends Intl.DateTimeFormat{constructor(locale,options={}){super(locale,{timeZone:viewerTimeZone,...options});}}}:Intl,Date,crypto:globalThis.crypto,setTimeout(fn,ms){const id=setTimeout(fn,ms);timers.add(id);return id;},clearTimeout(id){clearTimeout(id);timers.delete(id);},fetch:async (url,options)=>{
-  if(url.includes('/calls/')&&callHandler)return callHandler(url,options);
+ const ctx={taskGroups,taskLabel,installTaskSwipe,reactionFor,reactionPresentation,localIntent,streamReply:async(id,request,{signal})=>{const r=await ctx.fetch(`/api/v1/sessions/${id}/turns`,{signal});return r.json();},SentenceSpeaker:class{},document,window:{addEventListener(){},speechSynthesis:{cancel(){},getVoices(){return [];},addEventListener(){}}},location:{origin:'http://localhost'},sessionStorage:{getItem(key){return storage.get(key)||null;},setItem(key,value){storage.set(key,value);},removeItem(key){storage.delete(key);}},setupServices:()=>({setBusy(){},update(){}}),summarizeLog:()=>'',SpeechPlayer:Player,VoiceRecorder:Recorder,RealtimeTranscriber:Transcriber,EndOfSpeech,TurnCoordinator,Option:class{},Blob,AbortSignal,AbortController,URL,performance:{now:()=>now},Intl:viewerTimeZone?{DateTimeFormat:class extends Intl.DateTimeFormat{constructor(locale,options={}){super(locale,{timeZone:viewerTimeZone,...options});}}}:Intl,Date,crypto:globalThis.crypto,setTimeout(fn,ms){const id=setTimeout(fn,ms);timers.add(id);return id;},clearTimeout(id){clearTimeout(id);timers.delete(id);},fetch:async (url,options)=>{
+  if((url.includes('/calls/')||url.endsWith('/calls')||options?.method==='DELETE'||url.endsWith('/sessions'))&&callHandler)return callHandler(url,options);
   if(url.endsWith('/cancel'))return new Response('{"cancelled":true}');
   if(url.endsWith('/status'))return new Response(JSON.stringify({mode:'live',speechOutput:'elevenlabs',calendar:'disconnected'}));
   if(url.endsWith('/turns'))return inFlight.promise;
   throw new Error('Unexpected test endpoint '+url);
  }};
  const source=(await readFile(new URL('./emulator.mjs',import.meta.url),'utf8')).replace(/^import .*;\n/gm,'').split('try{\n await status();')[0];
- const app=await vm.runInNewContext('(async()=>{'+source+';await status();return {submit,tap,discardRecording,actionView,callCommand,apiLog,startRecording,restoreSavedAction,announceCall,flushCompletion,background:()=>backgroundCall,pending:()=>pending,view:()=>currentView,busy:()=>busy,recording:()=>recording};})()',ctx);
+ const app=await vm.runInNewContext('(async()=>{'+source+';await status();return {submit,tap,discardRecording,actionView,callCommand,apiLog,startRecording,restoreSavedAction,announceCall,flushCompletion,taskCalls,renderTasks,showTaskPage,refreshTasks,taskPage:()=>taskPage,background:()=>backgroundCall,pending:()=>pending,view:()=>currentView,busy:()=>busy,recording:()=>recording};})()',ctx);
  return {app,document,storage,played,states,finishSpeech(){playbackEnd();},sample(level,at){now=at;microphone(level);},setRequest(){inFlight=deferred();return inFlight;},cleanup(){for(const id of timers)clearTimeout(id);}};
 }
 const reply=text=>new Response(JSON.stringify({state:'speak',speechText:text}));
@@ -175,6 +176,8 @@ test('completion waits through recording and foreground approval',async t=>{
  h.app.discardRecording();assert.equal(h.app.view().state,'approval');
  h.app.actionView(null);assert.equal(h.document.querySelector('#call-card').hidden,false);
  assert.equal(h.document.querySelector('#call-card-title').textContent,'call finished');
+ assert.equal(h.document.querySelector('#call-card').classList.contains('is-confirmed'),false);
+ assert.equal(h.document.querySelector('#call-card-review').textContent,'review call');
  assert.doesNotMatch(h.document.querySelector('#call-card-detail').textContent,/Booking confirmed/);
 });
 test('persisted completion marker prevents replay after restoration',async t=>{
@@ -211,7 +214,9 @@ test('persisted completion marker prevents replay after restoration',async t=>{
  h.app.announceCall(call);
  assert.equal(h.document.querySelector('#call-card-title').textContent,'booking confirmed');
  assert.equal(h.document.querySelector('#call-card-date').textContent,'Fri, 6 Nov · 3:30 pm');
- assert.equal(h.document.querySelector('#call-card-detail').textContent,'Salon\nHaircut');
+ assert.equal(h.document.querySelector('#call-card-detail').textContent,'Haircut');
+ assert.equal(h.document.querySelector('#call-card-business').textContent,'Salon');
+ assert.equal(h.document.querySelector('#call-card').classList.contains('is-confirmed'),true);
  assert.doesNotMatch(h.document.querySelector('#call-card-detail').textContent,/Alex|Tokyo|Los_Angeles/);
  h.app.actionView(call,true);assert.match(h.document.querySelector('#event-time').textContent,/Asia\/Tokyo/);
 });
@@ -228,4 +233,53 @@ test('persisted completion marker prevents replay after restoration',async t=>{
  await h.app.startRecording();
  assert.equal(shell.classList.contains('has-call-card'),false);
  assert.equal(h.document.querySelector('#call-card').hidden,true);
+});
+
+test('task paging preserves speech and task review retains the active call',async t=>{
+ const h=await harness();t.after(h.cleanup);
+ h.app.actionView({...callFixture,id:'ongoing',status:'in_progress'});
+ const request=h.setRequest();const task=h.app.submit({text:'chat',id:'chat'});request.resolve(reply('Still speaking'));await task;
+ h.app.showTaskPage('tasks');assert.equal(h.app.view().state,'speak');assert.equal(h.app.taskPage(),'tasks');
+ h.app.actionView({...callFixture,id:'older',status:'completed',outcome:'booked',finishedAt:Date.now()},true);
+ assert.equal(h.app.background().id,'ongoing');assert.equal(h.app.pending().id,'older');
+ assert.equal(h.app.taskCalls.size,2);assert.equal(h.document.querySelector('#confirm').hidden,true);
+ h.app.showTaskPage('jolly');assert.equal(h.app.view().state,'speak');
+});
+test('reviewing an older call preserves a pending call approval',async t=>{
+ const h=await harness();t.after(h.cleanup);
+ h.app.actionView(callFixture);
+ h.app.actionView({...callFixture,id:'older',status:'completed',finishedAt:Date.now()},true);
+ assert.equal(h.storage.get('muse-action'),'call-1');
+ h.app.actionView(null);assert.equal(h.app.pending().id,'call-1');assert.equal(h.document.querySelector('#confirm').hidden,false);
+});
+test('task list keeps every session call and ignores foreign session records',async t=>{
+ const calls=[{...callFixture,status:'in_progress'},{...callFixture,id:'done',status:'completed',finishedAt:Date.now()},{...callFixture,id:'foreign',sessionId:'other'}];
+ const h=await harness(async()=>new Response(JSON.stringify({calls})));t.after(h.cleanup);
+ await h.app.refreshTasks();assert.equal(h.app.taskCalls.size,2);
+ assert.equal(h.app.view().state,'sleep');assert.deepEqual(h.played,[]);
+});
+test('an older collection response cannot overwrite a fresher task status',async t=>{
+ const stale=deferred();let reads=0;
+ const h=await harness(async()=>++reads===1?stale.promise:new Response(JSON.stringify({calls:[{...callFixture,status:'completed',finishedAt:Date.now()}]})));t.after(h.cleanup);
+ const oldRead=h.app.refreshTasks();await h.app.refreshTasks();
+ stale.resolve(new Response(JSON.stringify({calls:[{...callFixture,status:'in_progress'}]})));await oldRead;
+ assert.equal(h.app.taskCalls.get(callFixture.id).status,'completed');
+});
+test('stopping a selected uncertain task targets that task and retains another ongoing call',async t=>{
+ let stopped;
+ const h=await harness(async url=>{stopped=url;return new Response(JSON.stringify({callAction:{...callFixture,id:'older',status:'stopped',finishedAt:Date.now()}}));});t.after(h.cleanup);
+ h.app.actionView({...callFixture,id:'ongoing',status:'in_progress'});
+ h.app.actionView({...callFixture,id:'older',status:'uncertain'},true);
+ await h.app.callCommand('stop');
+ assert.match(stopped,/\/calls\/older\/stop$/);assert.equal(h.app.background().id,'ongoing');
+ assert.equal(h.app.taskCalls.get('older').status,'stopped');
+});
+test('successful session reset clears task history and rejects an old in-flight collection',async t=>{
+ const stale=deferred();
+ const h=await harness(async(url,options)=>url.endsWith('/calls')?stale.promise:new Response(JSON.stringify(options?.method==='DELETE'?{}:{id:'new-session'})));t.after(h.cleanup);
+ h.app.actionView({...callFixture,status:'completed',finishedAt:Date.now()});
+ const oldRead=h.app.refreshTasks();await h.document.querySelector('#reset').onclick();
+ stale.resolve(new Response(JSON.stringify({calls:[{...callFixture,status:'in_progress'}]})));await oldRead;
+ assert.equal(h.app.taskCalls.size,0);assert.equal(h.storage.get('muse-session'),'new-session');assert.equal(h.app.taskPage(),'jolly');
+ assert.equal(h.document.querySelector('#tasks-empty').hidden,false);
 });

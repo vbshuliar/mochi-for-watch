@@ -1,3 +1,4 @@
+import {taskGroups,taskLabel,installTaskSwipe} from './tasks.mjs';
 import {reactionFor,reactionPresentation} from './reactions.mjs';
 import {streamReply,SentenceSpeaker} from './stream-reply.mjs';
 import {localIntent} from './local-intents.mjs';
@@ -19,6 +20,64 @@ let sessionId=sessionStorage.getItem('muse-session'),pending=null,busy=false,rec
 const serviceViews=setupServices(enabled=>calendarOperation(async()=>{await api('/v1/integrations/google',{method:'PATCH',body:{enabled}});await status();log(`Calendar ${enabled?'enabled':'disabled'}`);}),{api,refresh:status});
 let calendarBusy=false,callRecoveryPending=sessionStorage.getItem('muse-action-kind')==='calls'&&!!sessionStorage.getItem('muse-action');
 let backgroundCall=null,queuedCompletion=null,savedForeground=null,callRestoreBusy=false;
+const taskCalls=new Map();
+let taskPage='jolly',taskRefreshVersion=0,taskTimer=null;
+function rememberTask(call){
+ if(!call||call.sessionId!==sessionId)return;
+ const previous=taskCalls.get(call.id);
+ const observedAt=previous?.observedAt??(previous&&activeCall(previous)&&!activeCall(call)?Date.now():undefined);
+ taskCalls.set(call.id,{...call,...(observedAt?{observedAt}:{})});renderTasks();
+}
+function renderTasks(){
+ const groups=taskGroups([...taskCalls.values()],savedForeground||pending);
+ const container=$('#task-groups');container.replaceChildren();
+ let count=0;
+ for(const [label,tasks] of Object.entries(groups)){
+  if(!tasks.length)continue;count+=tasks.length;
+  const heading=document.createElement('h3');heading.textContent=label;
+  const group=document.createElement('div');group.className='task-group';
+  for(const task of tasks){
+   const row=document.createElement('button');row.className='task-row';row.dataset.status=task.status;
+   const symbol=document.createElement('span');symbol.className='task-symbol';symbol.textContent=label==='In progress'?'◌':label==='Needs you'?'!':'✓';symbol.setAttribute('aria-hidden','true');
+   const copy=document.createElement('span');copy.className='task-copy';
+   const title=document.createElement('strong');title.textContent=task.booking?.destinationName||task.title||task.event?.title||'Task';
+   const detail=document.createElement('small');const instant=task.finishedAt??task.observedAt;
+   detail.textContent=taskLabel(task)+(label==='Recently completed'&&instant?' · '+localBookingTime(instant):'');
+   const chevron=document.createElement('span');chevron.className='task-chevron';chevron.textContent='›';chevron.setAttribute('aria-hidden','true');
+   copy.append(title,detail);row.append(symbol,copy,chevron);
+   row.onclick=()=>{actionView(task,true);$('#approval').scrollIntoView({block:'nearest',behavior:'smooth'});};group.append(row);
+  }
+  container.append(heading,group);
+ }
+ $('#tasks-empty').hidden=count>0;
+}
+function showTaskPage(page){
+ taskPage=page;const isTasks=page==='tasks';
+ $('.watch-shell').classList.toggle('show-tasks',isTasks);$('#watch-tasks').hidden=!isTasks;
+ $('#page-jolly').setAttribute('aria-current',isTasks?'false':'page');$('#page-tasks').setAttribute('aria-current',isTasks?'page':'false');
+ if(isTasks){renderTasks();void refreshTasks();}
+}
+async function refreshTasks(){
+ if(!sessionId||document.hidden)return;
+ const scope=sessionId,version=++taskRefreshVersion;
+ clearTimeout(taskTimer);
+ try{
+  const result=await api(`/v1/sessions/${scope}/calls`);
+  if(scope!==sessionId||version!==taskRefreshVersion)return;
+  for(const call of result.calls||[]){const wasActive=activeCall(taskCalls.get(call.id));rememberTask(call);if(backgroundCall?.id===call.id)updateBackgroundCall(call);else if(wasActive&&!activeCall(call))announceCall(call);}
+  $('#tasks-error').hidden=true;
+ }catch{if(scope===sessionId&&version===taskRefreshVersion)$('#tasks-error').hidden=false;}
+ finally{if(scope===sessionId&&version===taskRefreshVersion&&!document.hidden)taskTimer=setTimeout(refreshTasks,10000);}
+}
+$('#page-jolly').onclick=()=>showTaskPage('jolly');$('#page-tasks').onclick=()=>showTaskPage('tasks');
+installTaskSwipe($('.watch-shell'),showTaskPage);
+let swipeDocument=null;
+function installWatchSwipe(){
+ try{const surface=watch.contentDocument;if(!surface?.documentElement||surface===swipeDocument)return;surface.documentElement.style.touchAction='pan-y';installTaskSwipe(surface,showTaskPage);swipeDocument=surface;}catch{/* Same-origin preview only. */}
+}
+watch.addEventListener('load',installWatchSwipe);installWatchSwipe();
+window.addEventListener('pagehide',()=>{taskRefreshVersion++;clearTimeout(taskTimer);});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){taskRefreshVersion++;clearTimeout(taskTimer);}else void refreshTasks();});
 const callScope=()=>`muse-calls:${location.origin}:${sessionId}`;
 const foregroundApproval=()=>!!savedForeground||!!pending&&(!pending.booking||pending.status==='pending');
 function dialogueIdle(){return !document.hidden&&!callRestoreBusy&&!busy&&!decisionBusy&&!recording&&!recordingPending&&!speechPlayer.current&&!streamSpeaker&&!foregroundApproval();}
@@ -47,7 +106,11 @@ function flushCompletion(){
  sessionStorage.setItem(`${callScope()}:seen:${call.id}:${call.status}:${call.outcome||''}`,'1');
  const booked=call.status==='completed'&&call.outcome==='booked';
  $('#call-card-title').textContent=booked?'booking confirmed':call.status==='uncertain'?'booking unverified':'call finished';
- $('#call-card-detail').textContent=booked?`${call.booking.destinationName}\n${call.booking.purpose}`:call.summary||'No booking has been confirmed. Review the call for details.';
+ $('#call-card-detail').textContent=booked?call.booking.purpose:call.summary||'No booking has been confirmed. Review the call for details.';
+ $('#call-card-business').textContent=booked?call.booking.destinationName:'';
+ $('#call-card-business').hidden=!booked;
+ $('#call-card').classList.toggle('is-confirmed',booked);
+ $('#call-card-review').textContent=booked?'review booking':'review call';
  $('#call-card-date').textContent=booked&&call.bookedSlot?localBookingTime(call.bookedSlot.start):'';
  $('#call-card-date').hidden=!booked||!call.bookedSlot;
  $('#call-card').hidden=false;$('.watch-shell').classList.toggle('has-call-card',true);
@@ -57,6 +120,9 @@ function flushCompletion(){
  clearTimeout(idleTimer);idleTimer=setTimeout(()=>{if(dialogueIdle())face('idle','tap to talk');},2400);
 }
 function updateBackgroundCall(call,notify=false){
+ if(call.sessionId!==sessionId)return;
+ rememberTask(call);
+ if(activeCall(backgroundCall)&&backgroundCall.id!==call.id)return;
  const wasActive=activeCall(backgroundCall)&&backgroundCall.id===call.id;
  backgroundCall=call;
  sessionStorage.setItem(`${callScope()}:active`,call.id);
@@ -70,16 +136,18 @@ async function restoreSavedAction(){
  try{await restoreSavedActionInternal();}finally{callRestoreBusy=false;controls();}
 }
 async function restoreSavedActionInternal(){
+ const scope=sessionId;
  const backgroundId=sessionStorage.getItem(`${callScope()}:active`);
- if(backgroundId){try{const result=await api(`/v1/sessions/${sessionId}/calls/${backgroundId}`);updateBackgroundCall(result.callAction,true);}catch{ $('#call-indicator').hidden=false;$('#call-indicator').textContent='Call status unavailable · retry';$('#call-indicator').onclick=()=>restoreSavedAction();}}
- else{try{const result=await api(`/v1/sessions/${sessionId}/calls`);const active=result.calls?.find(activeCall);if(active)updateBackgroundCall(active);}catch{/* A saved foreground proposal can still be restored. */}}
+ if(backgroundId){try{const result=await api(`/v1/sessions/${sessionId}/calls/${backgroundId}`);if(scope!==sessionId)return;updateBackgroundCall(result.callAction,true);}catch{if(scope!==sessionId)return; $('#call-indicator').hidden=false;$('#call-indicator').textContent='Call status unavailable · retry';$('#call-indicator').onclick=()=>restoreSavedAction();}}
+ else{try{const result=await api(`/v1/sessions/${sessionId}/calls`);if(scope!==sessionId)return;for(const call of result.calls||[])rememberTask(call);const active=result.calls?.find(activeCall);if(active)updateBackgroundCall(active);}catch{/* A saved foreground proposal can still be restored. */}}
  const actionId=sessionStorage.getItem('muse-action');if(!actionId){callRecoveryPending=false;controls();return;}
  const kind=sessionStorage.getItem('muse-action-kind');
  try{
   const restored=await api(`/v1/sessions/${sessionId}/${['documents','calls'].includes(kind)?kind:'actions'}/${actionId}`);
-  callRecoveryPending=false;actionView(restored.callAction||restored.action);
+  if(scope!==sessionId)return;callRecoveryPending=false;actionView(restored.callAction||restored.action);
   if(foregroundApproval())face('approval','tap to review');
  }catch(error){
+  if(scope!==sessionId)return;
   if(kind==='calls'&&error.status!==404){callRecoveryPending=true;controls();throw new Error('Couldn’t restore your call status. Reload to check again before starting another conversation.');}
   callRecoveryPending=false;sessionStorage.removeItem('muse-action');
  }
@@ -114,7 +182,7 @@ async function callCommand(command){
    if(command==='confirm'){uncertainCalls.add(call.id);sessionStorage.setItem('muse-call-attempt',call.id);}
    const decision=['confirm','cancel'].includes(command);
    const result=await api(`${path}/${decision?'decision':command}`,{method:'POST',body:decision?{decision:command}:{}});
-   if(command==='stop'){if(result.callAction)updateBackgroundCall(result.callAction);}else await renderResult(result);
+   if(command==='stop'){if(result.callAction){updateBackgroundCall(result.callAction);if(pending?.id===result.callAction.id)actionView(result.callAction,true);}}else await renderResult(result);
   }
  }catch(error){try{actionView((await api(path)).callAction);}catch{}$('#action-note').textContent='Couldn’t verify the call update. Refresh its status; no automatic redial will occur.';if(['confirm','cancel','calendar'].includes(command))errorView(error);}
  finally{decisionBusy=false;callDeadline=Date.now()+540000;controls();monitorCall();flushCompletion();}
@@ -128,7 +196,7 @@ function message(role,text){apiLog(role==='user'?'input':'reply','',text);}
 function controls(){
  serviceViews.setBusy(calendarBusy||busy||recording||recordingPending);
  $('#send').disabled=callRecoveryPending||busy||recording||recordingPending||!connected||foregroundApproval()||!!(pending&&!pending.booking&&pending.status!=='pending');
- $('#reset').disabled=callRecoveryPending||busy||recording||recordingPending||activeCall(backgroundCall);
+ $('#reset').disabled=callRecoveryPending||decisionBusy||busy||recording||recordingPending||activeCall(backgroundCall);
  $('#confirm').disabled=!!(pending?.booking&&(pending.status!=='pending'||uncertainCalls.has(pending.id)))||busy||recording||recordingPending||!pending||!!(pending.body&&pending.status!=='pending');
  $('#cancel').disabled=busy||recording||recordingPending||!pending||pending.status!=='pending';
  for(const id of ['stop-call','call-calendar','refresh-call','dismiss-document']){const button=$('#'+id);if(button)button.disabled=id==='stop-call'?decisionBusy:busy||recording||recordingPending||(id==='call-calendar'&&!!savedForeground);}
@@ -193,16 +261,17 @@ function speak(text,result){
  });
 }
 function actionView(action,review=false){
- if(review&&action?.booking&&pending&&!pending.booking){savedForeground=pending;}
+ if(action?.booking)rememberTask(action);
+ if(review&&action?.booking&&pending&&pending.id!==action.id&&foregroundApproval()&&!savedForeground){savedForeground=pending;}
  if(!action&&savedForeground){action=savedForeground;savedForeground=null;}
- if(action?.booking&&action.status!=='pending'){updateBackgroundCall(action);if(!review){if(sessionStorage.getItem('muse-action')===action.id){sessionStorage.removeItem('muse-action');sessionStorage.removeItem('muse-action-kind');}if(pending?.booking)pending=null;$('#approval').hidden=!pending;controls();return;}}
+ if(action?.booking&&action.status!=='pending'){if(!review)updateBackgroundCall(action);if(!review){if(sessionStorage.getItem('muse-action')===action.id){sessionStorage.removeItem('muse-action');sessionStorage.removeItem('muse-action-kind');}if(pending?.booking)pending=null;$('#approval').hidden=!pending;controls();return;}}
  if(action?.booking&&sessionStorage.getItem('muse-call-attempt')===action.id)uncertainCalls.add(action.id);
  let dismiss=$('#dismiss-document');if(!dismiss){dismiss=document.createElement('button');dismiss.id='dismiss-document';dismiss.textContent='back to Jolly';dismiss.onclick=()=>{if(!busy){actionView(null);if(dialogueIdle())face('idle','tap to talk');}};$('#approval').append(dismiss);}dismiss.hidden=!((action?.body&&['uncertain','executing'].includes(action.status))||(action?.booking&&(action.status!=='pending'||uncertainCalls.has(action.id))));
  pending=action&&(action.booking||['pending','uncertain','executing'].includes(action.status))?action:null;
  for(const id of ['stop-call','call-calendar','refresh-call']){if($('#'+id))$('#'+id).hidden=true;}
  $('#confirm').hidden=!!pending?.booking&&pending.status!=='pending';
  $('#cancel').hidden=!!pending?.booking&&pending.status!=='pending';
- $('#approval').hidden=!pending;
+ $('#approval').hidden=!pending;renderTasks();
  if(pending){let row=$('#approval-log-row');if(!row){row=document.createElement('li');row.id='approval-log-row';row.className='log-row';$('#api-log').append(row);}row.append($('#approval'));}
  if(!pending){sessionStorage.removeItem('muse-action');sessionStorage.removeItem('muse-action-kind');controls();return;}
  const persisted=savedForeground||pending;sessionStorage.setItem('muse-action',persisted.id);sessionStorage.setItem('muse-action-kind',persisted.booking?'calls':persisted.body?'documents':'actions');
@@ -376,7 +445,7 @@ async function decision(value){
  finally{decisionBusy=false;busy=false;controls();}
 }
 $('#confirm').onclick=()=>decision('confirm');$('#cancel').onclick=()=>decision('cancel');
-$('#reset').onclick=async()=>{if(busy||recording||recordingPending||activeCall(backgroundCall))return;stopSpeech();busy=true;controls();try{if(sessionId)await api(`/v1/sessions/${sessionId}`,{method:'DELETE'});backgroundCall=null;queuedCompletion=null;savedForeground=null;renderCallWidget();sessionId=null;sessionStorage.removeItem('muse-session');actionView(null);lastRequest=null;$('#retry').hidden=true;$('#replay').hidden=true;$('#conversation').replaceChildren();$('#error').textContent='';await session();face('sleep','tap on me to wake up');$('#hint').textContent='A fresh conversation. Tap Jolly to start.';}catch(error){errorView(error);}finally{busy=false;controls();flushCompletion();}};
+$('#reset').onclick=async()=>{if(decisionBusy||busy||recording||recordingPending||activeCall(backgroundCall))return;stopSpeech();busy=true;controls();try{if(sessionId)await api(`/v1/sessions/${sessionId}`,{method:'DELETE'});taskRefreshVersion++;clearTimeout(taskTimer);taskCalls.clear();backgroundCall=null;queuedCompletion=null;savedForeground=null;renderCallWidget();sessionId=null;showTaskPage('jolly');sessionStorage.removeItem('muse-session');actionView(null);lastRequest=null;$('#retry').hidden=true;$('#replay').hidden=true;$('#conversation').replaceChildren();$('#error').textContent='';await session();face('sleep','tap on me to wake up');$('#hint').textContent='A fresh conversation. Tap Jolly to start.';}catch(error){errorView(error);}finally{busy=false;controls();flushCompletion();}};
 async function calendarOperation(operation){
  if(calendarBusy||busy||recording||recordingPending)return;
  calendarBusy=true;controls();$('#phone-error').hidden=true;
@@ -426,6 +495,6 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)discardReco
 try{
  await status();
  if(sessionId){try{await api(`/v1/sessions/${sessionId}/events`);}catch(error){if(error.status!==404)throw error;sessionId=null;sessionStorage.removeItem('muse-session');sessionStorage.removeItem('muse-action');}}
- await session();await restoreSavedAction();
+ await session();await restoreSavedAction();void refreshTasks();
  $('#hint').textContent=pending?'A previous proposal is ready for review.':'Tap Jolly to start a real conversation.';log('backend connected');
 }catch(error){connected=false;$('#connection').textContent='○ backend unavailable';errorView(error);controls();}
