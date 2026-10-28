@@ -17,34 +17,48 @@ struct WatchHome: View {
   let model: ConversationModel
   let store: ConnectionStore
   @Environment(\.scenePhase) private var phase
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @State private var reviewing = false
+  @State private var callReview = false
   @State private var showingSources = false
   var body: some View {
     GeometryReader { geometry in
       VStack(spacing: 0) {
         Spacer(minLength: 0)
-        Button {
-          if model.hasProposal { reviewing = true } else { model.tap() }
-        } label: {
-          JollyView(mood: model.mood, level: model.level, heartStart: model.heartStart)
-            .frame(width: geometry.size.width * 0.86, height: geometry.size.width * 0.86)
-            .contentShape(Rectangle())
+        if model.completionCall == nil {
+          Button {
+            if model.hasProposal { reviewing = true } else { model.tap() }
+          } label: {
+            JollyView(mood: model.mood, level: model.level, heartStart: model.heartStart)
+              .frame(width: geometry.size.width * 0.86, height: geometry.size.width * 0.86)
+              .contentShape(Rectangle())
+          }
+          .buttonStyle(.plain)
+          .accessibilityLabel(
+            model.recording
+              ? "Finish speaking" : model.hasProposal ? "Review proposal" : "Talk to Jolly"
+          )
+          .accessibilityHint(model.caption)
+          Button { showingSources = true } label: {
+            Text(store.connection == nil ? "open Muse on your iPhone" : model.caption)
+            .font(.system(size: 11)).lineLimit(1).minimumScaleFactor(0.85)
+            .foregroundStyle(Color(white: 0.88)).padding(.top, 8).padding(.horizontal, 8)
+            .accessibilityAddTraits(.updatesFrequently)
+          }.buttonStyle(.plain).disabled(model.sources.isEmpty)
+            .accessibilityHint(model.sources.isEmpty ? "" : "Tap to view sources for this answer")
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(
-          model.recording
-            ? "Finish speaking" : model.hasProposal ? "Review proposal" : "Talk to Jolly"
-        )
-        .accessibilityHint(model.caption)
-        Button { showingSources = true } label: {
-          Text(store.connection == nil ? "open Muse on your iPhone" : model.caption)
-          .font(.system(size: 11)).lineLimit(1).minimumScaleFactor(0.85)
-          .foregroundStyle(Color(white: 0.88)).padding(.top, 8).padding(.horizontal, 8)
-          .accessibilityAddTraits(.updatesFrequently)
-        }.buttonStyle(.plain).disabled(model.sources.isEmpty)
-          .accessibilityHint(model.sources.isEmpty ? "" : "Tap to view sources for this answer")
+        if let call = model.completionCall {
+          ScrollView {
+            BookingCompletionCard(call: call, review: { callReview = true }, dismiss: { model.dismissCallCompletion() })
+          }.padding(.horizontal, 4)
+        } else if let status = model.callStatusText {
+          Button { callReview = true } label: {
+            Label(status, systemImage: "phone").font(.system(size: 10)).lineLimit(1)
+          }.buttonStyle(.plain).padding(.top, 4)
+        }
         Spacer(minLength: 10)
-      }.frame(maxWidth: .infinity, maxHeight: .infinity).background(.black)
+      }.animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: model.completionCall?.id)
+        .frame(maxWidth: .infinity, maxHeight: .infinity).background(.black)
     }
     .ignoresSafeArea(.container)
     .containerBackground(.black, for: .navigation)
@@ -61,7 +75,7 @@ struct WatchHome: View {
       }
     }
     .sheet(isPresented: $reviewing) {
-      if let call = model.callAction { CallReview(model: model, call: call) }
+      if model.action == nil, model.documentAction == nil, let call = model.callAction { CallReview(model: model, call: call) }
         if let document = model.documentAction {
           DocumentReview(dismiss: { model.dismissDocument() }, action: document, busy: model.deciding) { model.decide($0) }
         }
@@ -69,7 +83,14 @@ struct WatchHome: View {
         ActionReview(action: action, busy: model.deciding) { model.decide($0) }
       }
     }
-    .onChange(of: model.proposalID) { _, new in if new == nil { reviewing = false } }
+    .onAppear { model.resumeCalls() }
+    .sheet(isPresented: $callReview, onDismiss: { if model.hasProposal { reviewing = true } }) {
+      if let call = model.backgroundCall { CallReview(model: model, call: call) }
+    }
+    .onChange(of: model.proposalID) { _, new in
+      if new == nil { reviewing = false }
+      else if callReview { callReview = false }
+    }
     .onChange(of: store.connection) { _, _ in model.connectionChanged() }
     .onChange(of: phase) { _, new in if new != .active { model.suspend() } else { model.resumeCalls() } }
   }

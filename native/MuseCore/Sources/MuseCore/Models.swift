@@ -128,6 +128,10 @@ public struct CallBooking: Codable, Sendable {
   public var allowedWindows: [BookingWindow] { windows ?? [window] }
   public let durationMinutes: Int
 }
+public struct CallProgress: Codable, Sendable {
+  public let stage: String
+  public let text: String
+}
 public struct CallAction: Codable, Identifiable, Sendable {
   public let id: String
   public let sessionId: String
@@ -136,8 +140,23 @@ public struct CallAction: Codable, Identifiable, Sendable {
   public let expiresAt: Double
   public let calendarChecked: Bool
   public let outcome: String?
+  public let progress: CallProgress?
   public let bookedSlot: BookingWindow?
   public let summary: String?
   public var active: Bool { ["starting", "queued", "in_progress"].contains(status) }
   public var booked: Bool { status == "completed" && outcome == "booked" }
+  /// Completion cards show the booked instant in the viewer's current device timezone.
+  public func completionDateText(timeZone: TimeZone = .autoupdatingCurrent) -> String? {
+    guard let slot = bookedSlot else { return nil }
+    let parser = ISO8601DateFormatter()
+    parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    guard let date = parser.date(from: slot.start) ?? ISO8601DateFormatter().date(from: slot.start) else { return nil }
+    let formatter = DateFormatter()
+    formatter.locale = Locale(identifier: "en_GB")
+    formatter.timeZone = timeZone
+    formatter.dateFormat = "EEE, d MMM · h:mm a"
+    formatter.amSymbol = "am"
+    formatter.pmSymbol = "pm"
+    return formatter.string(from: date)
+  }
 }

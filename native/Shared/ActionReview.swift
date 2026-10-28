@@ -66,6 +66,7 @@ struct DocumentReview: View {
 }
 
 struct CallReview: View {
+  @Environment(\.dismiss) private var close
   let model: ConversationModel
   let call: CallAction
   private func date(_ raw: String) -> String {
@@ -103,13 +104,46 @@ struct CallReview: View {
           if call.status == "uncertain" || model.callConfirmationUnknown && call.status == "pending" {
             Text("The result could not be verified. Check with the business before making another booking. Jolly will not redial automatically.").font(.caption)
           }
-          if call.active || call.status == "uncertain" { Button(call.status == "uncertain" ? "Try stopping call" : "Stop call", role: .destructive) { model.callCommand("stop") } }
-          if call.booked { Button("Review Calendar event") { model.callCommand("calendar") }.buttonStyle(.borderedProminent) }
+          if call.active || call.status == "uncertain" || model.callConfirmationUnknown && call.status == "pending" { Button(call.status == "uncertain" ? "Try stopping call" : "Stop call", role: .destructive) { model.callCommand("stop") } }
+          if call.booked {
+            Button("Review Calendar event") { model.callCommand("calendar") }
+              .buttonStyle(.borderedProminent).disabled(model.hasProposal)
+            if model.hasProposal {
+              Text("Finish your current proposal review before preparing this Calendar event.").font(.caption)
+            }
+          }
           Button("Refresh status") { model.callCommand("refresh") }
-          if !call.active { Button("Back to Jolly") { model.dismissCall() } }
+          Button("Back to Jolly") { model.dismissCallCompletion(); close() }
         }
-        if model.deciding { ProgressView("Updating…") }
-      }.padding().disabled(model.deciding)
+        if model.callUpdating { ProgressView("Updating…") }
+      }.padding().disabled(model.callUpdating)
     }.onAppear { model.resumeCalls() }
+  }
+}
+
+
+/// A completion never speaks over a conversation or grants Calendar write permission.
+struct BookingCompletionCard: View {
+  let call: CallAction
+  let review: () -> Void
+  let dismiss: () -> Void
+  var body: some View {
+    VStack(alignment: .leading, spacing: 6) {
+      Label(call.booked ? "booking confirmed" : "booking update",
+        systemImage: call.booked ? "checkmark.circle.fill" : "phone.badge.waveform")
+        .font(.headline).foregroundStyle(call.booked ? Color.green : Color.primary)
+      Text(call.booking.destinationName).font(.subheadline.bold())
+      Text(call.booking.purpose).font(.caption)
+      if let slotText = call.completionDateText(), call.booked { Text(slotText).font(.subheadline.weight(.semibold)) }
+      if !call.booked { Text(call.summary ?? call.status.replacingOccurrences(of: "_", with: " ")).font(.caption) }
+      HStack {
+        Button("Review", action: review)
+        Spacer()
+        Button("Dismiss", action: dismiss).foregroundStyle(.secondary)
+      }.font(.caption)
+    }
+    .padding(12).frame(maxWidth: .infinity, alignment: .leading)
+    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 18))
+    .accessibilityElement(children: .contain)
   }
 }

@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 import MuseCore
 import Observation
 
@@ -19,11 +20,56 @@ struct Activity: Identifiable {
   var sources: [SearchSource] = []
   var action: Action?
   var documentAction: DocumentAction?
-  var callAction: CallAction?
+  private var callProposal: CallAction?
+  var backgroundCall: CallAction?
+  var callAction: CallAction? {
+    get { callProposal ?? backgroundCall }
+    set {
+      if let call = newValue { receiveCall(call) }
+      else { callProposal = nil; backgroundCall = nil }
+    }
+  }
+  var callUpdating = false
+  private var callTask: Task<Void, Never>?
+  private var callGeneration = UUID()
+  private let defaults: UserDefaults
+  private var dismissedCalls: Set<String> = []
+  var completionCall: CallAction? {
+    guard foreground, !recording, !deciding, !callUpdating, !hasProposal,
+      [.idle, .sleep, .error].contains(mood), let call = backgroundCall,
+      !call.active, !dismissedCalls.contains(call.id) else { return nil }
+    return call
+  }
+  var callStatusText: String? {
+    guard let call = backgroundCall else { return nil }
+    return call.active ? (call.progress?.text ?? "Working on your booking") : (call.booked ? "Booking confirmed" : "Booking update")
+  }
+  private var persistenceKey: String? {
+    guard let connection = store.connection else { return nil }
+    let scope = connection.baseURL.absoluteString + "|" + connection.token
+    return "muse.booking." + SHA256.hash(data: Data(scope.utf8)).map { String(format: "%02x", $0) }.joined()
+  }
+  private func persistCall(_ call: CallAction) {
+    guard let key = persistenceKey else { return }
+    defaults.set(call.sessionId, forKey: key + ".session")
+    defaults.set(call.id, forKey: key + ".call")
+    defaults.set(callConfirmationUnknown, forKey: key + ".confirmationUnknown")
+    defaults.set(Array(dismissedCalls), forKey: key + ".dismissed")
+  }
+  func receiveCall(_ call: CallAction) {
+    if call.status == "pending", !callConfirmationUnknown {
+      callProposal = call
+    } else {
+      callProposal = nil
+      backgroundCall = call
+    }
+    sessionID = call.sessionId
+    persistCall(call)
+  }
   var callConfirmationUnknown = false
   private var callPoll: Task<Void, Never>?
-  var hasProposal: Bool { action != nil || documentAction != nil || callAction != nil }
-  var proposalID: String? { action?.id ?? documentAction?.id ?? callAction?.id }
+  var hasProposal: Bool { action != nil || documentAction != nil || callProposal != nil }
+  var proposalID: String? { action?.id ?? documentAction?.id ?? callProposal?.id }
   var activities: [Activity] = []
   var failure: String?
   var deciding = false
@@ -51,8 +97,10 @@ struct Activity: Identifiable {
   private var endpointTimer: Task<Void, Never>?
   init(
     store: ConnectionStore, audio: any AudioIO, transcriber: any TranscriptionIO,
+    defaults: UserDefaults = .standard,
     makeClient: @escaping (Connection) -> APIClient = { APIClient(connection: $0) }
   ) {
+    self.defaults = defaults
     self.store = store
     self.audio = audio
     self.transcriber = transcriber
@@ -319,8 +367,10 @@ struct Activity: Identifiable {
       ["pending", "uncertain", "executing"].contains($0.status) ? $0 : nil
     }
     documentAction = result.documentAction.flatMap { ["pending", "uncertain", "executing"].contains($0.status) ? $0 : nil }
-    if callAction?.id != result.callAction?.id { callConfirmationUnknown = false }
-    callAction = result.callAction
+    if let call = result.callAction {
+      if callAction?.id != call.id { callConfirmationUnknown = false }
+      receiveCall(call)
+    }
     monitorCall()
     try await speechTail?.value
     guard generation == ticket, !Task.isCancelled, foreground else { return }
@@ -395,80 +445,110 @@ struct Activity: Identifiable {
   }
   func resumeCalls() {
     foreground = true
-    monitorCall()
+    guard let connection = store.connection else { return }
+    let scope = callGeneration
+    if let key = persistenceKey {
+      dismissedCalls = Set(defaults.stringArray(forKey: key + ".dismissed") ?? [])
+      if sessionID == nil { sessionID = defaults.string(forKey: key + ".session") }
+      callConfirmationUnknown = defaults.bool(forKey: key + ".confirmationUnknown")
+    }
+    guard let session = sessionID else { return }
+    callPoll?.cancel()
+    callPoll = Task { [weak self] in
+      guard let self else { return }
+      do {
+        let current = try await makeClient(connection).get("v1/sessions/\(session)/calls", as: CallsEnvelope.self)
+        guard !Task.isCancelled, scope == callGeneration, store.connection == connection else { return }
+        let trackedID = persistenceKey.flatMap { self.defaults.string(forKey: $0 + ".call") }
+        if let call = current.calls.first(where: { $0.id == trackedID }) { receiveCall(call) }
+      } catch { /* Keep the saved task available for a later foreground refresh. */ }
+      guard !Task.isCancelled, scope == callGeneration else { return }
+      monitorCall()
+    }
   }
   private func monitorCall() {
     callPoll?.cancel()
     guard foreground, let call = callAction, call.active, let connection = store.connection else { return }
+    let scope = callGeneration
     callPoll = Task { [weak self] in
-      for _ in 0..<180 {
+      while !Task.isCancelled {
         do { try await Task.sleep(for: .seconds(3)) } catch { return }
-        guard let self, !Task.isCancelled, self.foreground, self.callAction?.id == call.id else { return }
+        guard let self, self.foreground, scope == self.callGeneration,
+          self.store.connection == connection, self.callAction?.id == call.id else { return }
         do {
           let current = try await self.makeClient(connection).get("v1/sessions/\(call.sessionId)/calls/\(call.id)", as: CallEnvelope.self)
-          guard !Task.isCancelled, self.callAction?.id == call.id else { return }
-          self.callAction = current.callAction
-          self.failure = nil
+          guard !Task.isCancelled, scope == self.callGeneration, self.store.connection == connection, self.callAction?.id == call.id else { return }
+          self.receiveCall(current.callAction)
           if !current.callAction.active {
             self.log("call", current.callAction.summary ?? current.callAction.status)
-            self.show(current.callAction.booked ? .happy : .approval, current.callAction.booked ? "booking confirmed · tap to review" : "call ended · tap to review")
-            if current.callAction.booked {
-              try? await Task.sleep(for: .seconds(2.4))
-              guard !Task.isCancelled, self.foreground, self.callAction?.id == call.id else { return }
-              self.show(.idle, "booking confirmed · tap to review")
-            }
             return
           }
         } catch {
           guard !Task.isCancelled else { return }
-          self.failure = "Call status temporarily unavailable. Checking again; no new call will be placed."
+          // A temporary polling failure must not interrupt the current conversation.
         }
       }
-      self?.failure = "Live updates paused. Open the call review to refresh."
     }
   }
   func callCommand(_ command: String) {
-    guard let call = callAction, !deciding, let connection = store.connection else { return }
+    guard let call = callAction, !callUpdating, let connection = store.connection else { return }
     if command == "confirm" && (call.status != "pending" || callConfirmationUnknown) { return }
+    if command == "calendar" && hasProposal { return }
     guard ["confirm", "cancel", "stop", "calendar", "refresh"].contains(command) else { return }
-    deciding = true
+    callUpdating = true
+    let blocksApproval = callProposal != nil || command == "calendar"
+    if blocksApproval { deciding = true }
+    let scope = callGeneration
     callPoll?.cancel()
-    task = Task {
-      defer { deciding = false; monitorCall() }
+    callTask = Task {
+      defer {
+        if scope == callGeneration {
+          callUpdating = false
+          if blocksApproval { deciding = false }
+          monitorCall()
+        }
+      }
       let client = makeClient(connection)
       let path = "v1/sessions/\(call.sessionId)/calls/\(call.id)"
       do {
         if command == "refresh" {
           let current = try await client.get(path, as: CallEnvelope.self)
-          guard callAction?.id == call.id else { return }
-          callAction = current.callAction
+          guard scope == callGeneration, store.connection == connection, callAction?.id == call.id else { return }
+          receiveCall(current.callAction)
         } else {
-          if command == "confirm" { callConfirmationUnknown = true }
+          if command == "confirm" { callConfirmationUnknown = true; persistCall(call) }
           let suffix = ["confirm", "cancel"].contains(command) ? "decision" : command
           let bytes = try await client.json(path + "/" + suffix, values: suffix == "decision" ? ["decision": command] : [:])
           let result = try JSONDecoder().decode(TurnResult.self, from: bytes)
-          guard callAction?.id == call.id else { return }
-          callAction = result.callAction
-          if let proposal = result.action { action = proposal; callAction = nil }
+          guard scope == callGeneration, store.connection == connection, callAction?.id == call.id else { return }
+          if let call = result.callAction { receiveCall(call) }
+          if let proposal = result.action { action = proposal; dismissCallCompletion() }
           log("call", result.speechText)
-          show(.approval, "tap to review")
+          if blocksApproval { show(hasProposal ? .approval : .idle, hasProposal ? "tap to review" : "tap to talk") }
         }
         failure = nil
       } catch {
         if let current = try? await client.get(path, as: CallEnvelope.self) {
-          guard callAction?.id == call.id else { return }
-          callAction = current.callAction
+          guard scope == callGeneration, store.connection == connection, callAction?.id == call.id else { return }
+          receiveCall(current.callAction)
         }
-        guard callAction?.id == call.id else { return }
+        guard scope == callGeneration, store.connection == connection, callAction?.id == call.id else { return }
+        if callConfirmationUnknown, let call = callProposal { receiveCall(call) }
         failure = "Couldn’t verify the call update. Refresh its status; no automatic redial will occur."
+        if blocksApproval { show(.idle, "tap to talk") }
       }
     }
   }
+  func dismissCallCompletion() {
+    guard let call = backgroundCall, !call.active else { return }
+    dismissedCalls.insert(call.id)
+    persistCall(call)
+  }
   func dismissCall() {
-    guard !deciding, let call = callAction, !call.active, call.status != "pending" || callConfirmationUnknown else { return }
-    callPoll?.cancel()
-    callAction = nil
-    show(.idle, "tap to talk")
+    guard !callUpdating, let call = callAction, !call.active, call.status != "pending" || callConfirmationUnknown else { return }
+    dismissCallCompletion()
+    callProposal = nil
+    backgroundCall = nil
   }
   func dismissDocument() {
     guard !deciding else { return }
@@ -476,6 +556,11 @@ struct Activity: Identifiable {
     show(.idle, "tap to talk")
   }
   func connectionChanged() {
+    callGeneration = UUID()
+    callTask?.cancel()
+    callUpdating = false
+    deciding = false
+    dismissedCalls = []
     suspend()
     sessionID = nil
     action = nil
@@ -552,3 +637,5 @@ struct Activity: Identifiable {
 }
 
 private struct CallEnvelope: Decodable, Sendable { let callAction: CallAction }
+
+private struct CallsEnvelope: Decodable, Sendable { let calls: [CallAction] }

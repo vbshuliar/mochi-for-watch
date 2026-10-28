@@ -64,6 +64,10 @@ private final class NativeFixture: URLProtocol, @unchecked Sendable {
         let status = request.url!.lastPathComponent
         body = "{\"action\":" + calendarFixture(id: status, status: status) + "}"
       }
+    } else if path.hasSuffix("/calls") {
+      body = "{\"calls\":[" + callFixture + "]}"
+    } else if path.hasSuffix("/stop") {
+      body = #"{"sessionId":"test-session","state":"idle","statusText":"Stopped","speechText":"Call stopped.","simulated":true,"callAction":\#(callFixture.replacingOccurrences(of: "uncertain", with: "cancelled"))}"#
     } else if path.contains("/calls/") {
       body = "{\"callAction\":" + callFixture + "}"
     } else if path.hasSuffix("/stream") {
@@ -87,15 +91,16 @@ private final class NativeFixture: URLProtocol, @unchecked Sendable {
   override func stopLoading() {}
 }
 @MainActor final class NativeConversationTests: XCTestCase {
-  private func makeModel() throws -> (ConversationModel, FakeAudio) {
+  private func makeModel(defaults: UserDefaults? = nil, token: String = String(repeating: "t", count: 32)) throws -> (ConversationModel, FakeAudio) {
     let connection = try Connection(
-      baseURL: URL(string: "https://native.fixture")!, token: String(repeating: "t", count: 32))
+      baseURL: URL(string: "https://native.fixture")!, token: token)
     let config = URLSessionConfiguration.ephemeral
     config.protocolClasses = [NativeFixture.self]
     let session = URLSession(configuration: config)
     let audio = FakeAudio()
     let model = ConversationModel(
       store: ConnectionStore(connection: connection), audio: audio, transcriber: FakeTranscript(),
+      defaults: defaults ?? UserDefaults(suiteName: "native-tests-" + UUID().uuidString)!,
       makeClient: { APIClient(connection: $0, session: session) })
     return (model, audio)
   }
@@ -249,5 +254,154 @@ extension NativeConversationTests {
     XCTAssertEqual(model.reply, "")
     XCTAssertTrue(model.sources.isEmpty)
     XCTAssertEqual(audio.played, 0)
+  }
+}
+
+
+extension NativeConversationTests {
+  private func call(_ status: String, booked: Bool = false) throws -> CallAction {
+    var data = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(callFixture.utf8)) as? [String: Any])
+    data["status"] = status
+    if booked {
+      data["outcome"] = "booked"
+      data["bookedSlot"] = ["start": "2026-11-01T10:00:00Z", "end": "2026-11-01T10:30:00Z"]
+    }
+    return try JSONDecoder().decode(CallAction.self, from: JSONSerialization.data(withJSONObject: data))
+  }
+  func testActiveBookingAllowsVoiceAndUnrelatedReplyPreservesTask() async throws {
+    let (model, audio) = try makeModel()
+    defer { model.suspend() }
+    model.receiveCall(try call("in_progress"))
+    XCTAssertFalse(model.hasProposal)
+    model.tap()
+    await eventually { model.recording }
+    model.sendText("hello")
+    await eventually { audio.played == 1 }
+    XCTAssertEqual(model.backgroundCall?.id, "call-1")
+    XCTAssertEqual(model.backgroundCall?.status, "in_progress")
+    XCTAssertFalse(model.hasProposal)
+  }
+  func testCompletionWaitsForSpeechThenDismissalSurvivesRefresh() async throws {
+    let (model, audio) = try makeModel()
+    defer { model.suspend() }
+    model.receiveCall(try call("in_progress"))
+    model.sendText("hello")
+    await eventually { audio.played == 1 }
+    model.receiveCall(try call("completed", booked: true))
+    XCTAssertNil(model.completionCall)
+    XCTAssertEqual(model.mood, .speak)
+    audio.complete()
+    await eventually { model.mood == .idle }
+    XCTAssertEqual(model.completionCall?.id, "call-1")
+    model.dismissCallCompletion()
+    model.receiveCall(try call("completed", booked: true))
+    XCTAssertNil(model.completionCall)
+    model.tap()
+    await eventually { model.recording }
+  }
+  func testCompletionWaitsForRecordingAndForegroundApproval() async throws {
+    let (model, _) = try makeModel()
+    defer { model.suspend() }
+    model.tap()
+    await eventually { model.recording }
+    model.receiveCall(try call("completed", booked: true))
+    XCTAssertNil(model.completionCall)
+    model.suspend()
+    model.mood = .idle
+    model.action = try JSONDecoder().decode(Action.self, from: Data(calendarFixture(id: "pending", status: "pending").utf8))
+    model.resumeCalls()
+    XCTAssertNil(model.completionCall)
+  }
+  func testResumeRestoresOnlyTrackedConnectionTaskAndDismissal() async throws {
+    let defaults = UserDefaults(suiteName: "native-restore-" + UUID().uuidString)!
+    let (original, _) = try makeModel(defaults: defaults)
+    original.receiveCall(try call("uncertain"))
+    original.dismissCallCompletion()
+    original.suspend()
+    let (restored, _) = try makeModel(defaults: defaults)
+    defer { restored.suspend() }
+    restored.resumeCalls()
+    await eventually { restored.backgroundCall?.id == "call-1" }
+    restored.mood = .idle
+    XCTAssertNil(restored.completionCall)
+    XCTAssertFalse(restored.hasProposal)
+    let (other, _) = try makeModel(defaults: defaults, token: String(repeating: "x", count: 32))
+    other.resumeCalls()
+    try await Task.sleep(for: .milliseconds(50))
+    XCTAssertNil(other.callAction)
+  }
+  func testStopRemainsAvailableDuringConversation() async throws {
+    let (model, audio) = try makeModel()
+    defer { model.suspend() }
+    model.receiveCall(try call("in_progress"))
+    model.sendText("hello")
+    await eventually { audio.played == 1 }
+    model.action = try JSONDecoder().decode(Action.self, from: Data(calendarFixture(id: "pending", status: "pending").utf8))
+    model.callCommand("stop")
+    XCTAssertFalse(model.deciding)
+    await eventually { !model.callUpdating }
+    XCTAssertEqual(model.backgroundCall?.status, "cancelled")
+    XCTAssertEqual(model.mood, .speak)
+    XCTAssertNotNil(audio.finish)
+    XCTAssertNil(model.completionCall)
+  }
+  func testLateCallResponseCannotRestoreClearedConnection() async throws {
+    let (model, _) = try makeModel()
+    model.receiveCall(try call("in_progress"))
+    model.callCommand("refresh")
+    model.connectionChanged()
+    try await Task.sleep(for: .milliseconds(100))
+    XCTAssertNil(model.callAction)
+    XCTAssertFalse(model.callUpdating)
+  }
+}
+
+
+extension NativeConversationTests {
+  func testPendingApprovalStillBlocksChatAndThinkingDefersCompletion() async throws {
+    let (model, audio) = try makeModel()
+    model.receiveCall(try call("pending"))
+    XCTAssertTrue(model.hasProposal)
+    model.sendText("hello")
+    model.tap()
+    try await Task.sleep(for: .milliseconds(30))
+    XCTAssertFalse(model.recording)
+    XCTAssertEqual(audio.played, 0)
+    model.receiveCall(try call("completed", booked: true))
+    model.mood = .think
+    XCTAssertNil(model.completionCall)
+    model.mood = .idle
+    XCTAssertTrue(model.completionCall?.booked == true)
+    model.suspend()
+  }
+}
+
+
+extension NativeConversationTests {
+  func testBookingCalendarCannotReplaceForegroundProposal() throws {
+    let (model, _) = try makeModel()
+    model.receiveCall(try call("completed", booked: true))
+    let existing = try JSONDecoder().decode(Action.self, from: Data(calendarFixture(id: "existing", status: "pending").utf8))
+    model.action = existing
+    model.callCommand("calendar")
+    XCTAssertFalse(model.callUpdating, "No Calendar request may start while another proposal needs review")
+    XCTAssertEqual(model.action?.id, "existing")
+    XCTAssertEqual(model.backgroundCall?.id, "call-1")
+    model.suspend()
+  }
+}
+
+
+extension NativeConversationTests {
+  func testCompletionDateUsesViewerTimezoneAndTwelveHourClock() throws {
+    var object = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(callFixture.utf8)) as? [String: Any])
+    object["status"] = "completed"
+    object["outcome"] = "booked"
+    object["bookedSlot"] = ["start": "2026-11-06T23:30:00.000Z", "end": "2026-11-07T00:00:00Z"]
+    let booking = try JSONDecoder().decode(CallAction.self, from: JSONSerialization.data(withJSONObject: object))
+    XCTAssertEqual(booking.completionDateText(timeZone: try XCTUnwrap(TimeZone(identifier: "America/Los_Angeles"))), "Fri, 6 Nov · 3:30 pm")
+    XCTAssertEqual(booking.completionDateText(timeZone: try XCTUnwrap(TimeZone(identifier: "Asia/Tokyo"))), "Sat, 7 Nov · 8:30 am")
+    XCTAssertEqual(booking.completionDateText(timeZone: try XCTUnwrap(TimeZone(secondsFromGMT: 3600))), "Sat, 7 Nov · 12:30 am")
+    XCTAssertEqual(booking.completionDateText(), booking.completionDateText(timeZone: .autoupdatingCurrent))
   }
 }

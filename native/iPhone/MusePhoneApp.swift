@@ -204,19 +204,32 @@ struct ConnectionDetail: View {
 struct PhoneConversation: View {
   let model: ConversationModel
   @State private var review = false
+  @State private var callReview = false
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
   var body: some View {
     ScrollView {
       VStack(spacing: 16) {
-        Button {
-          if model.hasProposal { review = true } else { model.tap() }
-        } label: {
-          JollyView(mood: model.mood, level: model.level, heartStart: model.heartStart).frame(
-            width: 260, height: 260)
-        }.buttonStyle(.plain).accessibilityLabel(
-          model.recording ? "Finish speaking" : "Talk to Jolly")
-        Text(model.caption).font(.subheadline)
+        if model.completionCall == nil {
+          Button {
+            if model.hasProposal { review = true } else { model.tap() }
+          } label: {
+            JollyView(mood: model.mood, level: model.level, heartStart: model.heartStart)
+              .frame(width: 260, height: 260)
+          }.buttonStyle(.plain).accessibilityLabel(
+            model.recording ? "Finish speaking" : "Talk to Jolly")
+          Text(model.caption).font(.subheadline)
+        }
         if let failure = model.failure {
           Text(failure).font(.footnote).foregroundStyle(.secondary).padding(.horizontal)
+        }
+        if let call = model.completionCall {
+          BookingCompletionCard(call: call, review: { callReview = true }, dismiss: { model.dismissCallCompletion() })
+            .padding(.horizontal)
+        } else if let status = model.callStatusText {
+          Button { callReview = true } label: {
+            Label(status, systemImage: model.backgroundCall?.active == true ? "phone.connection" : "phone")
+              .font(.footnote)
+          }.accessibilityHint("Review booking progress or stop the call")
         }
         if model.hasProposal { Button("Review proposal") { review = true } }
         ForEach(model.activities) { entry in
@@ -234,9 +247,10 @@ struct PhoneConversation: View {
           Divider().padding(.leading)
         }
       }
-    }.navigationTitle("Jolly").navigationBarTitleDisplayMode(.inline)
+    }.animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: model.completionCall?.id)
+      .navigationTitle("Jolly").navigationBarTitleDisplayMode(.inline)
       .sheet(isPresented: $review) {
-        if let call = model.callAction { CallReview(model: model, call: call) }
+        if model.action == nil, model.documentAction == nil, let call = model.callAction { CallReview(model: model, call: call) }
         if let document = model.documentAction {
           DocumentReview(dismiss: { model.dismissDocument() }, action: document, busy: model.deciding) { model.decide($0) }
         }
@@ -244,7 +258,13 @@ struct PhoneConversation: View {
           ActionReview(action: action, busy: model.deciding) { model.decide($0) }
         }
       }
-      .onChange(of: model.proposalID) { _, value in if value == nil { review = false } }
+      .sheet(isPresented: $callReview, onDismiss: { if model.hasProposal { review = true } }) {
+        if let call = model.backgroundCall { CallReview(model: model, call: call) }
+      }
+      .onChange(of: model.proposalID) { _, value in
+        if value == nil { review = false }
+        else if callReview { callReview = false }
+      }
       .onAppear { model.resumeCalls() }
       .onDisappear { model.suspend() }
   }
