@@ -92,6 +92,12 @@ function providers(
       const form = new URLSearchParams(init.body);
       assert.equal(form.get("TimeLimit"), "300");
       assert.equal(form.get("Record"), "false");
+      assert.deepEqual(form.getAll("StatusCallbackEvent"), [
+        "initiated",
+        "ringing",
+        "answered",
+        "completed",
+      ]);
       return Response.json({ sid });
     }
     counts.stop++;
@@ -174,6 +180,11 @@ test("approval is session bound, expires and decisions are idempotent", async (t
     calls.decide(a.sessionId, a.id, "cancel"),
     /already has a decision/,
   );
+  calls.status(a.id, {
+    ...callback,
+    SequenceNumber: "0",
+    CallStatus: "completed",
+  });
   const b = (await calls.prepare(randomUUID(), booking)).callAction!;
   store.put("call", b.id, { ...b, expiresAt: Date.now() - 1 });
   await assert.rejects(
@@ -1047,4 +1058,225 @@ test("large call proposals keep internal candidates off the client wire", async 
   assert.ok(
     Buffer.byteLength(JSON.stringify({ type: "result", result })) < 65536,
   );
+});
+
+test("background calls survive chat and report only actual progress through completion", async (t) => {
+  providers(t);
+  let context: unknown;
+  let plannerCalls = 0;
+  const built = await buildApp(config, {
+    calendar,
+    planner: {
+      async plan(_messages, _zone, options) {
+        plannerCalls++;
+        context = options?.latestCall;
+        return { kind: "reply", text: "Hello there." };
+      },
+      async transcribe() {
+        return "";
+      },
+    },
+  });
+  t.after(() => built.app.close());
+  const session = built.service.createSession("Europe/London");
+  const other = built.service.createSession("Europe/London");
+  const ask = (text: string) =>
+    built.service.turn(session.id, randomUUID(), { text });
+  assert.match(
+    (await ask("How is my booking going?")).speechText,
+    /haven’t started/,
+  );
+  assert.equal(plannerCalls, 0);
+  const a = (await built.calls.prepare(session.id, booking)).callAction!;
+  await ask("Hello");
+  assert.equal(built.calls.get(session.id, a.id).status, "pending");
+  await built.calls.decide(session.id, a.id, "confirm");
+  assert.match(
+    (await ask("How is my booking going?")).speechText,
+    /waiting for it to connect/,
+  );
+  assert.equal(plannerCalls, 1);
+  assert.equal(built.calls.get(session.id, a.id).progress?.stage, "queued");
+  built.calls.status(a.id, {
+    ...callback,
+    SequenceNumber: "0",
+    CallStatus: "ringing",
+  });
+  assert.match((await ask("How is my booking going?")).speechText, /ringing/);
+  built.calls.status(a.id, {
+    ...callback,
+    SequenceNumber: "1",
+    CallStatus: "in-progress",
+  });
+  await ask("Tell me something fun");
+  assert.equal(built.calls.get(session.id, a.id).status, "in_progress");
+  assert.deepEqual(context, {
+    status: "in_progress",
+    progress: "The call is connected. No booking is confirmed yet.",
+    summary: undefined,
+    destinationName: "Salon",
+  });
+  assert.match((await ask("Did they answer?")).speechText, /connected/);
+  assert.equal(plannerCalls, 2);
+  built.calls.status(a.id, {
+    ...callback,
+    SequenceNumber: "0",
+    CallStatus: "ringing",
+  });
+  assert.equal(
+    built.calls.get(session.id, a.id).progress?.stage,
+    "in_conversation",
+  );
+  assert.throws(
+    () =>
+      built.calls.status(a.id, {
+        ...callback,
+        SequenceNumber: "9",
+        CallStatus: "invented",
+      }),
+    /Invalid call status/,
+  );
+  built.calls.status(a.id, {
+    ...callback,
+    SequenceNumber: "2",
+    CallStatus: "completed",
+  });
+  const final = await ask("Is my call done?");
+  assert.match(final.speechText, /without a confirmed booking/);
+  assert.equal(final.callAction?.progress, undefined);
+  built.calls.status(a.id, {
+    ...callback,
+    SequenceNumber: "3",
+    CallStatus: "in-progress",
+  });
+  assert.equal(built.calls.get(session.id, a.id).status, "completed");
+  const headers = { authorization: `Bearer ${config.API_TOKEN}` };
+  assert.equal(
+    (await built.app.inject(`/v1/sessions/${session.id}/calls`)).statusCode,
+    401,
+  );
+  assert.deepEqual(
+    (
+      await built.app.inject({ url: `/v1/sessions/${other.id}/calls`, headers })
+    ).json(),
+    { calls: [] },
+  );
+  assert.equal(
+    (
+      await built.app.inject({
+        url: `/v1/sessions/${other.id}/calls/${a.id}`,
+        headers,
+      })
+    ).statusCode,
+    404,
+  );
+  assert.equal(
+    (
+      await built.app.inject({
+        url: `/v1/sessions/${session.id}/calls`,
+        headers,
+      })
+    ).json().calls[0].id,
+    a.id,
+  );
+});
+
+test("one global active call is claimed before any preparation await and restart remains blocked", async (t) => {
+  const counts = providers(t);
+  const { calls, store } = fixture(t);
+  const a = (await calls.prepare(randomUUID(), booking)).callAction!;
+  const b = (await calls.prepare(randomUUID(), booking)).callAction!;
+  const first = calls.decide(a.sessionId, a.id, "confirm");
+  await assert.rejects(
+    calls.decide(b.sessionId, b.id, "confirm"),
+    /already active or unverified/,
+  );
+  await assert.rejects(
+    calls.prepare(randomUUID(), booking),
+    /already active or unverified/,
+  );
+  await first;
+  assert.equal(counts.dial, 1);
+  const restarted = new Calls(config, store, calendar, () => false);
+  assert.equal(restarted.get(a.sessionId, a.id).status, "uncertain");
+  assert.equal(
+    restarted.publicAction(restarted.get(a.sessionId, a.id)).progress,
+    undefined,
+  );
+  await assert.rejects(
+    restarted.decide(b.sessionId, b.id, "confirm"),
+    /already active or unverified/,
+  );
+  assert.equal(counts.dial, 1);
+});
+
+test("confirmed summary includes localized appointment and separate Calendar truth", async (t) => {
+  const { calls, store } = fixture(t);
+  const a = (await calls.prepare(randomUUID(), booking)).callAction!;
+  const stored = calls.get(a.sessionId, a.id);
+  stored.status = "completed";
+  stored.outcome = "booked";
+  stored.bookedSlot = stored.slots[0];
+  store.put("call", a.id, stored);
+  assert.match(
+    calls.statusReply(a.sessionId).speechText,
+    /5 November 2030.*10:00/,
+  );
+  assert.match(
+    calls.statusReply(a.sessionId).speechText,
+    /not been saved to Calendar/,
+  );
+  assert.equal(store.list("action").length, 0);
+  stored.calendarActionId = randomUUID();
+  store.put("call", a.id, stored);
+  store.put("action", stored.calendarActionId, { status: "pending" });
+  assert.match(
+    calls.statusReply(a.sessionId).speechText,
+    /not been saved to Calendar/,
+  );
+  store.put("action", stored.calendarActionId, { status: "completed" });
+  assert.match(calls.statusReply(a.sessionId).speechText, /Saved to Calendar/);
+});
+
+test("overdue active progress is factual without changing durable state or redialing", async (t) => {
+  const { calls, store } = fixture(t);
+  const fetch = t.mock.method(globalThis, "fetch", async () => {
+    throw new Error("No provider request is allowed");
+  });
+  const prepared = (await calls.prepare(randomUUID(), booking)).callAction!;
+  const now = Date.now();
+  t.mock.method(Date, "now", () => now);
+  for (const [status, stage] of [
+    ["starting", "starting"],
+    ["queued", "queued"],
+    ["queued", "ringing"],
+    ["in_progress", "in_conversation"],
+  ] as const) {
+    const a = calls.get(prepared.sessionId, prepared.id);
+    a.status = status;
+    a.startedAt = now - 6 * 60000;
+    a.progress = { stage, text: "Last verified progress." };
+    store.put("call", a.id, a);
+    assert.equal(calls.publicAction(a).progress?.stage, stage);
+    a.startedAt--;
+    store.put("call", a.id, a);
+    const before = calls.get(a.sessionId, a.id);
+    assert.equal(calls.publicAction(a).progress?.stage, "awaiting_update");
+    assert.equal(calls.list(a.sessionId)[0].progress?.stage, "awaiting_update");
+    assert.match(
+      calls.result(a).speechText,
+      /haven’t received a final call update/,
+    );
+    assert.equal(calls.result(a).statusText, "call update overdue");
+    assert.match(
+      calls.statusReply(a.sessionId).speechText,
+      /haven’t received a final call update/,
+    );
+    assert.deepEqual(calls.get(a.sessionId, a.id), before);
+    await assert.rejects(
+      calls.prepare(randomUUID(), booking),
+      /already active or unverified/,
+    );
+  }
+  assert.equal(fetch.mock.callCount(), 0);
 });

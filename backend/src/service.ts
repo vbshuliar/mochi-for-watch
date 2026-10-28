@@ -240,12 +240,25 @@ export class Service {
           { role: "user" as const, content: text },
         ].slice(-16);
         const memories = this.memories();
+        const latestCall = this.calls?.list(id)[0];
         const plan = planSchema.parse(
-          await this.planner.plan(messages, session.timeZone, {
-            signal,
-            onText: options.onText,
-            memories,
-          }),
+          /^(?:how(?:’s|'s| is) (?:the |my )?(?:booking|call)(?: going)?|(?:is|has) (?:the |my )?(?:booking|call) (?:done|finished|completed)|did (?:they|the business) (?:answer|confirm|book it)|what(?:’s|'s| is) (?:the )?(?:call|booking) (?:status|progress))\??$/i.test(
+            text.trim(),
+          )
+            ? { kind: "call_status" }
+            : await this.planner.plan(messages, session.timeZone, {
+                signal,
+                onText: options.onText,
+                memories,
+                latestCall: latestCall
+                  ? {
+                      status: latestCall.status,
+                      progress: latestCall.progress?.text,
+                      summary: latestCall.summary,
+                      destinationName: latestCall.booking.destinationName,
+                    }
+                  : undefined,
+              }),
         );
         check();
         if (["create_event", "list_events", "availability"].includes(plan.kind))
@@ -254,7 +267,6 @@ export class Service {
         // A new request supersedes earlier unapproved proposals in this session.
         const supersede = () => {
           this.workflows?.supersede(id);
-          this.calls?.supersede(id);
           for (const { id: actionId, value } of this.store.list<Action>(
             "action",
           ))
@@ -264,7 +276,11 @@ export class Service {
                 status: "cancelled",
               });
         };
-        if (plan.kind === "call_booking") {
+        if (plan.kind === "call_status") {
+          result =
+            this.calls?.statusReply(id) ??
+            this.result(id, "speak", "No booking call has been started.");
+        } else if (plan.kind === "call_booking") {
           if (!this.calls)
             throw new AppError(
               409,
@@ -288,6 +304,7 @@ export class Service {
               "phone_required",
               "Please provide the destination phone number, including country code.",
             );
+          this.calls.supersede(id);
           supersede();
           result = await this.calls.prepare(id, plan.booking, signal);
           check();

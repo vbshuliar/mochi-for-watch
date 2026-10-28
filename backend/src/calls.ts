@@ -64,6 +64,11 @@ export type CallAction = {
   calendarActionId?: string;
   decision?: "confirm" | "cancel";
   sequence?: number;
+  progress?: {
+    stage:
+      "starting" | "queued" | "ringing" | "in_conversation" | "awaiting_update";
+    text: string;
+  };
 };
 export type PublicCallAction = Omit<CallAction, "slots"> & { slots: [] };
 
@@ -172,14 +177,89 @@ export class Calls {
     }
     return a;
   }
+  list(sessionId: string): PublicCallAction[] {
+    return this.store
+      .list<CallAction>("call")
+      .map(({ value }) => value)
+      .filter((a) => a.sessionId === sessionId)
+      .sort((a, b) => b.expiresAt - a.expiresAt || b.id.localeCompare(a.id))
+      .slice(0, 20)
+      .map((a) => this.publicAction(this.get(sessionId, a.id)));
+  }
+  private assertNoActiveCall() {
+    if (
+      this.store
+        .list<CallAction>("call")
+        .some(({ value }) =>
+          ["starting", "queued", "in_progress", "uncertain"].includes(
+            value.status,
+          ),
+        )
+    )
+      throw new AppError(
+        409,
+        "call_active",
+        "A call is already active or unverified. Stop or resolve it before starting another.",
+      );
+  }
+  statusReply(sessionId: string): TurnResult {
+    const latest = this.list(sessionId)[0];
+    if (!latest)
+      return {
+        sessionId,
+        state: "speak",
+        statusText: "No booking call yet.",
+        speechText:
+          "You haven’t started a booking call in this conversation yet.",
+        simulated: false,
+      };
+    const result = this.result(this.get(sessionId, latest.id));
+    return { ...result, state: "speak", statusText: "booking update" };
+  }
+  private bookedSummary(a: CallAction) {
+    if (!a.bookedSlot)
+      return "The business confirmed the booking. Review it before adding to Calendar.";
+    const when = new Intl.DateTimeFormat("en-GB", {
+      timeZone: a.booking.timeZone,
+      dateStyle: "full",
+      timeStyle: "short",
+    }).format(new Date(a.bookedSlot.start));
+    const saved =
+      a.calendarActionId &&
+      this.store.get<Action>("action", a.calendarActionId)?.status ===
+        "completed";
+    return `${a.booking.destinationName} confirmed ${a.booking.purpose} for ${when}, ${a.booking.timeZone}. ${saved ? "Saved to Calendar." : "It has not been saved to Calendar; review and approve that separately."}`;
+  }
+  private progressOverdue(a: CallAction) {
+    return (
+      ["starting", "queued", "in_progress"].includes(a.status) &&
+      a.startedAt !== undefined &&
+      Date.now() - a.startedAt > 6 * 60000
+    );
+  }
   publicAction(a: CallAction): PublicCallAction {
     const { slots: _slots, ...result } = a;
     // Keep the legacy field decodable without sending internal candidates.
-    return { ...result, slots: [] };
+    return {
+      ...result,
+      summary: a.outcome === "booked" ? this.bookedSummary(a) : a.summary,
+      progress: terminal.has(a.status)
+        ? undefined
+        : this.progressOverdue(a)
+          ? {
+              stage: "awaiting_update",
+              text: "I haven’t received a final call update. Please review the call status.",
+            }
+          : a.progress,
+      slots: [],
+    };
   }
   result(a: CallAction): TurnResult {
+    const callAction = this.publicAction(a);
     const text =
-      a.summary ||
+      (this.progressOverdue(a) ? callAction.progress?.text : undefined) ||
+      (a.outcome === "booked" ? this.bookedSummary(a) : a.summary) ||
+      callAction.progress?.text ||
       (a.status === "pending"
         ? `Call ${a.booking.destinationName} at ${a.booking.phoneNumber} for ${a.booking.customerName} about ${a.booking.purpose}? Allowed periods: ${(a.booking.windows ?? [a.booking.window]).map((window) => new Intl.DateTimeFormat("en-GB", { timeZone: a.booking.timeZone, day: "numeric", month: "long", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true }).formatRange(new Date(window.start), new Date(window.end))).join("; ")}, ${a.booking.timeZone}; ${a.booking.durationMinutes} minutes. ${a.calendarChecked ? "Calendar availability checked." : "Calendar not checked."}`
         : `Call ${a.status.replaceAll("_", " ")}.`);
@@ -200,10 +280,12 @@ export class Calls {
             ? "booking confirmed"
             : terminal.has(a.status)
               ? "call ended"
-              : "calling…",
+              : this.progressOverdue(a)
+                ? "call update overdue"
+                : "calling…",
       speechText: text,
       simulated: false,
-      callAction: this.publicAction(a),
+      callAction,
     };
   }
   supersede(sessionId: string) {
@@ -214,6 +296,7 @@ export class Calls {
       }
   }
   async prepare(sessionId: string, input: BookingInput, signal?: AbortSignal) {
+    this.assertNoActiveCall();
     if (!this.configured())
       throw new AppError(
         409,
@@ -265,6 +348,7 @@ export class Calls {
         "no_slots",
         "No available booking times fit that window.",
       );
+    this.assertNoActiveCall();
     const a: CallAction = {
       id: randomUUID(),
       sessionId,
@@ -328,8 +412,13 @@ export class Calls {
         "number_not_allowed",
         "This destination is no longer enabled for calls.",
       );
+    this.assertNoActiveCall();
     a.decision = decision;
     a.status = "starting";
+    a.progress = {
+      stage: "starting",
+      text: "Preparing your approved booking call.",
+    };
     this.save(a);
     try {
       // Recheck availability immediately before dialing; never broaden approved slots.
@@ -378,24 +467,35 @@ export class Calls {
         .parse(
           await this.twilio(
             "Calls.json",
-            new URLSearchParams({
-              To: a.booking.phoneNumber,
-              From: this.config.TWILIO_FROM_NUMBER,
-              Url: this.url(`/webhooks/calls/${a.id}/voice/0`),
-              Method: "POST",
-              StatusCallback: this.url(`/webhooks/calls/${a.id}/status`),
-              StatusCallbackMethod: "POST",
-              TimeLimit: "300",
-              Timeout: "30",
-              Record: "false",
-            }),
+            new URLSearchParams([
+              ...Object.entries({
+                To: a.booking.phoneNumber,
+                From: this.config.TWILIO_FROM_NUMBER,
+                Url: this.url(`/webhooks/calls/${a.id}/voice/0`),
+                Method: "POST",
+                StatusCallback: this.url(`/webhooks/calls/${a.id}/status`),
+                StatusCallbackMethod: "POST",
+                TimeLimit: "300",
+                Timeout: "30",
+                Record: "false",
+              }),
+              ...["initiated", "ringing", "answered", "completed"].map(
+                (event) => ["StatusCallbackEvent", event],
+              ),
+            ]),
           ),
         );
       a = this.get(sessionId, id);
       if (a.callSid && a.callSid !== response.sid)
         throw new Error("SID mismatch");
       a.callSid = response.sid;
-      if (a.status === "starting") a.status = "queued";
+      if (a.status === "starting") {
+        a.status = "queued";
+        a.progress = {
+          stage: "queued",
+          text: "The phone provider accepted the call; waiting for it to connect.",
+        };
+      }
       this.save(a);
     } catch {
       a = this.get(sessionId, id);
@@ -454,6 +554,20 @@ export class Calls {
     if (!Number.isInteger(sequence) || sequence < 0)
       throw new AppError(400, "invalid_callback", "Invalid callback sequence.");
     if (sequence <= (a.sequence ?? -1) || terminal.has(a.status)) return;
+    if (
+      ![
+        "queued",
+        "initiated",
+        "ringing",
+        "in-progress",
+        "completed",
+        "busy",
+        "failed",
+        "no-answer",
+        "canceled",
+      ].includes(body.CallStatus)
+    )
+      throw new AppError(400, "invalid_callback", "Invalid call status.");
     a.sequence = sequence;
     if (["busy", "failed", "no-answer", "canceled"].includes(body.CallStatus)) {
       a.status = "failed";
@@ -464,7 +578,25 @@ export class Calls {
         a.outcome === "booked"
           ? "The business confirmed the booking. Review it before adding to Calendar."
           : "Call ended without a confirmed booking.";
-    } else if (body.CallStatus === "in-progress") a.status = "in_progress";
+    } else if (body.CallStatus === "in-progress") {
+      a.status = "in_progress";
+      a.progress = {
+        stage: "in_conversation",
+        text: "The call is connected. No booking is confirmed yet.",
+      };
+    } else if (a.status !== "in_progress") {
+      a.status = "queued";
+      a.progress =
+        body.CallStatus === "ringing"
+          ? {
+              stage: "ringing",
+              text: "The phone is ringing. No booking is confirmed yet.",
+            }
+          : {
+              stage: "queued",
+              text: "The phone provider is connecting the call. No booking is confirmed yet.",
+            };
+    }
     this.save(a);
   }
   private wait(a: CallAction, n: number) {
@@ -509,6 +641,10 @@ export class Calls {
     }
     if (t.status === "pending") return this.wait(a, n);
     a.status = "in_progress";
+    a.progress = {
+      stage: "in_conversation",
+      text: "The call is connected. No booking is confirmed yet.",
+    };
     this.save(a);
     const play = `<Play>${xml(this.url(`/call-audio/${t.audioToken}`))}</Play>`;
     if (t.finish) {
@@ -816,7 +952,7 @@ export class Calls {
         "Call identity is not yet verified. Check Twilio.",
       );
     }
-    a.status = "stopped";
+    a.status = "uncertain";
     a.summary =
       "Stop requested; any booking already agreed must be checked with the business.";
     this.save(a);
@@ -825,6 +961,8 @@ export class Calls {
         `Calls/${a.callSid}.json`,
         new URLSearchParams({ Status: "completed" }),
       );
+      a.status = "stopped";
+      this.save(a);
     } catch {
       a.status = "uncertain";
       a.summary = "Could not verify that the call stopped. Check Twilio.";

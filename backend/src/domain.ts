@@ -77,6 +77,12 @@ export type PlanOptions = {
   signal?: AbortSignal;
   onText?: (text: string) => void;
   memories?: Memory[];
+  latestCall?: {
+    status: string;
+    progress?: string;
+    summary?: string;
+    destinationName: string;
+  };
 };
 export const workflowPlan = z
   .object({
@@ -122,6 +128,7 @@ export const bookingSchema = z
 export type BookingInput = z.infer<typeof bookingSchema>;
 export const planSchema = z.discriminatedUnion("kind", [
   workflowPlan,
+  z.object({ kind: z.literal("call_status") }).strict(),
   z
     .object({ kind: z.literal("call_booking"), booking: bookingSchema })
     .strict(),

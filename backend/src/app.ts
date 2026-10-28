@@ -499,6 +499,11 @@ export async function buildApp(
       .parse(req.body);
     return service.decideDocument(id, actionId, decision);
   });
+  app.get("/v1/sessions/:id/calls", async (req) => {
+    const { id } = z.object({ id: z.uuid() }).parse(req.params);
+    service.session(id);
+    return { calls: calls.list(id) };
+  });
   app.get("/v1/sessions/:id/calls/:actionId", async (req) => {
     const { id, actionId } = actionParams.parse(req.params);
     service.session(id);
