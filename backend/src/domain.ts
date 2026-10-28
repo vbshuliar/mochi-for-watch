@@ -128,6 +128,13 @@ export const bookingSchema = z
 export type BookingInput = z.infer<typeof bookingSchema>;
 export const planSchema = z.discriminatedUnion("kind", [
   workflowPlan,
+  z
+    .object({
+      kind: z.literal("social_task"),
+      provider: z.enum(["instagram", "facebook"]),
+      instruction: z.string().trim().min(1).max(1500),
+    })
+    .strict(),
   z.object({ kind: z.literal("call_status") }).strict(),
   z
     .object({ kind: z.literal("call_booking"), booking: bookingSchema })

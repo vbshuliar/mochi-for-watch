@@ -14,6 +14,7 @@ import {
 } from "./domain.ts";
 import type { Calls } from "./calls.ts";
 import type { Workflows } from "./workflows.ts";
+import type { SocialWorkflow } from "./social-workflow.ts";
 import { Store } from "./store.ts";
 type CachedTurn = {
   hash: string;
@@ -50,6 +51,7 @@ export class Service {
     readonly simulated: boolean,
     private workflows?: Workflows,
     private calls?: Calls,
+    private social?: SocialWorkflow,
   ) {
     for (const { id, value } of store.list<Action>("action"))
       if (value.status === "executing")
@@ -308,6 +310,21 @@ export class Service {
           supersede();
           result = await this.calls.prepare(id, plan.booking, signal);
           check();
+        } else if (plan.kind === "social_task") {
+          if (!this.social)
+            throw new AppError(
+              503,
+              "connection_unavailable",
+              "this connection isn’t available yet",
+            );
+          result = await this.social.prepare(
+            id,
+            plan.provider,
+            plan.instruction,
+            signal,
+          );
+          check();
+          supersede();
         } else if (plan.kind === "workspace_task") {
           if (!this.workflows)
             throw new AppError(

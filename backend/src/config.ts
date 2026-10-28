@@ -10,6 +10,13 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env) {
       DATABASE_PATH: z.string().default("./data/muse.sqlite"),
       MODEL_API_KEY: z.string().default(""),
       META_BASE_URL: z.url().default("https://api.meta.ai/v1"),
+      META_SOCIAL_APP_ID: z.string().default(""),
+      META_SOCIAL_APP_SECRET: z.string().default(""),
+      META_SOCIAL_REDIRECT_BASE: z.url().default("http://127.0.0.1:8787"),
+      GRAPH_API_VERSION: z
+        .string()
+        .regex(/^v[0-9]{2}\.0$/)
+        .default("v24.0"),
       META_MODEL: z.string().default("muse-spark-1.3"),
       META_REASONING_EFFORT: z
         .enum(["minimal", "low", "medium", "high"])
@@ -48,6 +55,7 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env) {
   if (new URL(c.META_BASE_URL).protocol !== "https:")
     throw new Error("Meta URL must use HTTPS");
   for (const value of [
+    c.META_SOCIAL_REDIRECT_BASE,
     c.GOOGLE_REDIRECT_URI,
     c.GMAIL_REDIRECT_URI,
     c.NOTION_REDIRECT_URI,

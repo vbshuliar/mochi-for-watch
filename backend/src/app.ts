@@ -16,6 +16,8 @@ import { Store } from "./store.ts";
 import { MetaPlanner, MockPlanner } from "./meta.ts";
 import { GoogleCalendar, MockCalendar } from "./calendar.ts";
 import { Workflows } from "./workflows.ts";
+import { SocialConnections } from "./social.ts";
+import { SocialWorkflow } from "./social-workflow.ts";
 import { Calls } from "./calls.ts";
 import { Service } from "./service.ts";
 import { synthesizeSpeech } from "./speech.ts";
@@ -39,6 +41,7 @@ export async function buildApp(
       overrides.calendar ||
       (config.APP_MODE === "mock" ? new MockCalendar(store) : google);
   const workflows = new Workflows(config, store);
+  const social = new SocialConnections(config, store);
   const calls = new Calls(
     config,
     store,
@@ -57,6 +60,7 @@ export async function buildApp(
     config.APP_MODE === "mock",
     workflows,
     calls,
+    new SocialWorkflow(config, social),
   );
   const app = Fastify({
     bodyLimit: 6 * 1024 * 1024,
@@ -102,6 +106,8 @@ export async function buildApp(
         "/oauth/google/callback",
         "/oauth/gmail/callback",
         "/oauth/notion/callback",
+        "/oauth/instagram/callback",
+        "/oauth/facebook/callback",
       ].includes(path)
     )
       return;
@@ -177,6 +183,7 @@ export async function buildApp(
     mode: config.APP_MODE,
     callsConfigured: calls.configured(),
     ...workflows.status(),
+    ...social.status(),
     webSearch: config.APP_MODE === "live",
     calendar:
       config.APP_MODE === "mock"
@@ -322,6 +329,12 @@ export async function buildApp(
                       "connection_changed",
                       "workflow_unavailable",
                       "mock_mode",
+                      "connection_unavailable",
+                      "social_account_required",
+                      "social_permission_required",
+                      "social_reconnect_required",
+                      "social_connection",
+                      "social_reconnect",
                     ].includes(error.code)
                   ? error.message
                   : "couldn’t complete the reply; please try again",
@@ -428,6 +441,68 @@ export async function buildApp(
       .type("text/plain")
       .send("Calendar connected. You may close this tab.");
   });
+  for (const provider of ["instagram", "facebook"] as const) {
+    const requireSocialLive = () => {
+      if (config.APP_MODE !== "live")
+        throw new AppError(
+          409,
+          "mock_mode",
+          "use live mode to connect a real account",
+        );
+    };
+    app.post(`/v1/integrations/${provider}/connect`, async () => {
+      requireSocialLive();
+      return { url: social.authorize(provider) };
+    });
+    app.delete(`/v1/integrations/${provider}`, async () => {
+      social.disconnect(provider);
+      return {
+        disconnected: true,
+        note: "Local access removed. You can also revoke access in Facebook settings.",
+      };
+    });
+    app.get(`/v1/integrations/${provider}/accounts`, async () => {
+      requireSocialLive();
+      return { accounts: await social.accounts(provider) };
+    });
+    app.put(`/v1/integrations/${provider}/account`, async (req) => {
+      requireSocialLive();
+      const { id } = z
+        .object({ id: z.string().regex(/^\d{1,40}$/) })
+        .strict()
+        .parse(req.body);
+      await social.select(provider, id);
+      return social.status();
+    });
+    app.get(`/oauth/${provider}/callback`, async (req, reply) => {
+      requireSocialLive();
+      const query = z
+        .object({
+          state: z.string().min(1).max(100),
+          code: z.string().min(1).max(4096).optional(),
+          error: z.string().max(200).optional(),
+        })
+        .parse(req.query);
+      if (!query.code && !query.error)
+        throw new AppError(
+          400,
+          "missing_oauth_code",
+          "No sign-in code received. Please connect again.",
+        );
+      await social.callback(
+        provider,
+        query.state,
+        query.error ? undefined : query.code,
+      );
+      return reply
+        .type("text/plain")
+        .send(
+          query.error
+            ? "Connection cancelled. Return to Muse to try again."
+            : "Sign-in complete. Return to Muse and choose the account Jolly should use.",
+        );
+    });
+  }
   for (const provider of ["gmail", "notion"] as const) {
     const connection = workflows[provider];
     app.post(`/v1/integrations/${provider}/connect`, async () => {
