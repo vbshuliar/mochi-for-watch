@@ -135,7 +135,6 @@ public struct CallAction: Codable, Identifiable, Sendable {
   public let status: String
   public let expiresAt: Double
   public let calendarChecked: Bool
-  public let slots: [BookingWindow]
   public let outcome: String?
   public let bookedSlot: BookingWindow?
   public let summary: String?

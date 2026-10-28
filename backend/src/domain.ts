@@ -186,7 +186,7 @@ export type TurnResult = {
   simulated: boolean;
   returnTo?: { state: "idle"; afterMs: number };
   action?: Action;
-  callAction?: import("./calls.ts").CallAction;
+  callAction?: import("./calls.ts").PublicCallAction;
   documentAction?: import("./workflows.ts").DocumentAction;
   data?: unknown;
   sources?: SearchSource[];

@@ -502,7 +502,7 @@ export async function buildApp(
   app.get("/v1/sessions/:id/calls/:actionId", async (req) => {
     const { id, actionId } = actionParams.parse(req.params);
     service.session(id);
-    return { callAction: calls.get(id, actionId) };
+    return { callAction: calls.publicAction(calls.get(id, actionId)) };
   });
   app.post("/v1/sessions/:id/calls/:actionId/decision", async (req) => {
     const { id, actionId } = actionParams.parse(req.params);

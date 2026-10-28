@@ -65,6 +65,8 @@ export type CallAction = {
   decision?: "confirm" | "cancel";
   sequence?: number;
 };
+export type PublicCallAction = Omit<CallAction, "slots"> & { slots: [] };
+
 type VoiceTurn = {
   status: "pending" | "ready" | "failed";
   createdAt: number;
@@ -170,6 +172,11 @@ export class Calls {
     }
     return a;
   }
+  publicAction(a: CallAction): PublicCallAction {
+    const { slots: _slots, ...result } = a;
+    // Keep the legacy field decodable without sending internal candidates.
+    return { ...result, slots: [] };
+  }
   result(a: CallAction): TurnResult {
     const text =
       a.summary ||
@@ -196,7 +203,7 @@ export class Calls {
               : "calling…",
       speechText: text,
       simulated: false,
-      callAction: a,
+      callAction: this.publicAction(a),
     };
   }
   supersede(sessionId: string) {

@@ -144,7 +144,10 @@ test("proposal filters busy intervals, honestly labels disconnected, never dials
   });
   const a = (await calls.prepare(randomUUID(), booking)).callAction!;
   assert.equal(a.calendarChecked, true);
-  assert.equal(a.slots[0].start, "2030-11-05T11:00:00.000Z");
+  assert.equal(
+    calls.get(a.sessionId, a.id).slots[0].start,
+    "2030-11-05T11:00:00.000Z",
+  );
   assert.equal(counts.dial, 0);
   const disconnected = fixture(t).calls;
   assert.match(
@@ -411,7 +414,10 @@ test("rechecked slots persist; negative confirmation asks for clarification", as
     confirmationQuote: "Not booked for 5 November at 11:00.",
   });
   const a = await started(calls);
-  assert.equal(a.slots[0].start, "2030-11-05T11:00:00.000Z");
+  assert.equal(
+    calls.get(a.sessionId, a.id).slots[0].start,
+    "2030-11-05T11:00:00.000Z",
+  );
   calls.gather(a.id, 0, {
     ...callback,
     SpeechResult: "Not booked for 5 November at 11:00.",
@@ -866,7 +872,7 @@ test("flexible days preserve later slots and exclude gaps and Calendar conflicts
     { start: "2030-11-05T00:00:00Z", end: "2030-11-06T23:00:00Z" },
     { start: "2030-11-07T13:00:00Z", end: "2030-11-07T17:00:00Z" },
   ];
-  const a = (
+  const proposal = (
     await calls.prepare(randomUUID(), {
       ...booking,
       window: {
@@ -876,6 +882,7 @@ test("flexible days preserve later slots and exclude gaps and Calendar conflicts
       windows,
     })
   ).callAction!;
+  const a = calls.get(proposal.sessionId, proposal.id);
   assert.ok(a.slots.length > 100);
   assert.equal(a.slots.at(-1)!.start, "2030-11-07T16:30:00.000Z");
   assert.ok(
@@ -1025,4 +1032,19 @@ test("brief introduction discloses AI and a newly connected Calendar is checked 
   assert.match(intro, /Jolly, Alex’s AI assistant/);
   assert.match(intro, /Is it okay to chat/);
   assert.ok(intro.split(/\s+/).length <= 30);
+});
+
+test("large call proposals keep internal candidates off the client wire", async (t) => {
+  const { calls } = fixture(t);
+  const result = await calls.prepare(randomUUID(), {
+    ...booking,
+    window: { start: "2030-11-05T00:00:00Z", end: "2030-11-15T00:00:00Z" },
+  });
+  const a = result.callAction!;
+  assert.ok(calls.get(a.sessionId, a.id).slots.length > 900);
+  assert.deepEqual(a.slots, []);
+  assert.deepEqual(calls.publicAction(calls.get(a.sessionId, a.id)).slots, []);
+  assert.ok(
+    Buffer.byteLength(JSON.stringify({ type: "result", result })) < 65536,
+  );
 });
