@@ -1114,3 +1114,14 @@ footer a { display: inline-flex; align-items: center; min-height: 44px; }
   /* GitHub remains in the header; the footer gives the switch its own row. */
   footer > p, footer > a { display: none; }
 }
+
+/* Keep the interactive Watch behaving like a device, not selectable page text. */
+.watch-product, .watch-product * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+.watch-product img, .watch-product svg {
+  -webkit-user-drag: none;
+  pointer-events: none;
+}
