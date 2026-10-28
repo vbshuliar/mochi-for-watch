@@ -139,3 +139,5 @@ main{height:100dvh;max-width:none;padding:0;gap:0;grid-template-columns:minmax(2
 .phone-shell .service-row .calendar-dot,.phone-shell .service-row .service-dot{display:block;position:absolute;left:30px;bottom:10px;width:6px;height:6px;border:1.5px solid #fff;box-sizing:content-box;background:#c7c7cc;pointer-events:none}
 .phone-shell .service-linked .calendar-dot{background:#248a3d}
 @media(max-width:850px){.phone-shell .service-name h2{font-size:12px}.phone-shell .service-row:not(:last-child)::after{left:43px}.phone-shell .service-row .calendar-dot,.phone-shell .service-row .service-dot{left:28px}}
+
+.phone-shell .service-linked .service-dot{background:#248a3d}

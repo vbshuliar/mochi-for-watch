@@ -16,8 +16,63 @@ let decisionBusy=false,voiceEndedAt=null,softWaitTimer=null;
 let speechOutput=null,affectionActive=false;
 let liveTranscript=null;
 let sessionId=sessionStorage.getItem('muse-session'),pending=null,busy=false,recording=false,recordingPending=false,connected=false,lastRequest=null,lastReply='',speechVersion=0,idleTimer,pollTimer,polling=false,recordVersion=0;
-const serviceViews=setupServices(enabled=>calendarOperation(async()=>{await api('/v1/integrations/google',{method:'PATCH',body:{enabled}});await status();log(`Calendar ${enabled?'enabled':'disabled'}`);}));
-let calendarBusy=false;
+const serviceViews=setupServices(enabled=>calendarOperation(async()=>{await api('/v1/integrations/google',{method:'PATCH',body:{enabled}});await status();log(`Calendar ${enabled?'enabled':'disabled'}`);}),{api,refresh:status});
+let calendarBusy=false,callRecoveryPending=sessionStorage.getItem('muse-action-kind')==='calls'&&!!sessionStorage.getItem('muse-action');
+const announcedCalls=new Set();
+function announceCall(call){
+ if(document.hidden||activeCall(call)||announcedCalls.has(call.id))return;
+ announcedCalls.add(call.id);
+ const booked=call.status==='completed'&&call.outcome==='booked';
+ const caption=booked?'booking confirmed · tap to review':'call ended · tap to review';
+ face(booked?'happy':'approval',caption);
+ if(booked){clearTimeout(idleTimer);idleTimer=setTimeout(()=>{if(pending?.id===call.id&&!document.hidden)face('idle',caption);},2400);}
+}
+async function restoreSavedAction(){
+ const actionId=sessionStorage.getItem('muse-action');if(!actionId){callRecoveryPending=false;controls();return;}
+ const kind=sessionStorage.getItem('muse-action-kind');
+ try{
+  const restored=await api(`/v1/sessions/${sessionId}/${['documents','calls'].includes(kind)?kind:'actions'}/${actionId}`);
+  callRecoveryPending=false;actionView(restored.callAction||restored.action);
+  if(pending)face('approval','tap to review');
+ }catch(error){
+  if(kind==='calls'&&error.status!==404){callRecoveryPending=true;controls();throw new Error('Couldn’t restore your call status. Reload to check again before starting another conversation.');}
+  callRecoveryPending=false;sessionStorage.removeItem('muse-action');
+ }
+}
+let callTimer=null,callAbort=null,callDeadline=0;
+const uncertainCalls=new Set();
+const activeCall=call=>!!call?.booking&&['starting','queued','in_progress'].includes(call.status);
+function stopCallUpdates(){clearTimeout(callTimer);callTimer=null;callAbort?.abort();callAbort=null;}
+function monitorCall(){
+ stopCallUpdates();
+ if(!activeCall(pending)||document.hidden||Date.now()>callDeadline)return;
+ const call=pending;
+ callTimer=setTimeout(async()=>{
+  callAbort=new AbortController();
+  try{const result=await api(`/v1/sessions/${call.sessionId}/calls/${call.id}`,{signal:callAbort.signal});if(pending?.id!==call.id)return;actionView(result.callAction);if(!activeCall(pending))announceCall(pending);}
+  catch{if(pending?.id===call.id){$('#action-note').textContent='Call status temporarily unavailable. Checking again; Jolly will not redial automatically.';monitorCall();}}
+ },3000);
+}
+window.addEventListener('pagehide',stopCallUpdates);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)stopCallUpdates();else{callDeadline=Date.now()+540000;monitorCall();}});
+async function callCommand(command){
+ if(!pending?.booking||busy)return;
+ const call=pending;
+ if(command==='confirm'&&(call.status!=='pending'||uncertainCalls.has(call.id)))return;
+ stopSpeech();stopCallUpdates();busy=decisionBusy=true;controls();
+ const path=`/v1/sessions/${call.sessionId}/calls/${call.id}`;
+ try{
+  if(command==='refresh')actionView((await api(path)).callAction);
+  else{
+   if(command==='confirm'){uncertainCalls.add(call.id);sessionStorage.setItem('muse-call-attempt',call.id);}
+   const decision=['confirm','cancel'].includes(command);
+   const result=await api(`${path}/${decision?'decision':command}`,{method:'POST',body:decision?{decision:command}:{}});
+   await renderResult(result);
+  }
+ }catch(error){try{actionView((await api(path)).callAction);}catch{}$('#action-note').textContent='Couldn’t verify the call update. Refresh its status; no automatic redial will occur.';errorView(error);}
+ finally{busy=decisionBusy=false;callDeadline=Date.now()+540000;controls();monitorCall();}
+}
+
 let currentView={type:'muse-state',state:'sleep',text:'tap on me to wake up'};
 function send(message){watch.contentWindow?.postMessage(message,location.origin);}
 function face(state,text){if(affectionActive&&state==='think'){state='loved';text='aww, thank you!';}if(['transcribe','search','working'].includes(state)){state='think';text='thinking…';}if(currentView.state!==state||currentView.text!==text)log(`${state} · ${text||state}`);currentView={type:'muse-state',state,text,hearts:affectionActive};send(currentView);}
@@ -25,10 +80,11 @@ function log(text){apiLog('state','',text);}
 function message(role,text){apiLog(role==='user'?'input':'reply','',text);}
 function controls(){
  serviceViews.setBusy(calendarBusy||busy||recording||recordingPending);
- $('#send').disabled=busy||recording||recordingPending||!connected||!!(pending&&pending.status!=='pending');
- $('#reset').disabled=busy||recording||recordingPending;
- $('#confirm').disabled=busy||recording||recordingPending||!pending;
+ $('#send').disabled=callRecoveryPending||busy||recording||recordingPending||!connected||!!pending?.booking||!!(pending&&pending.status!=='pending');
+ $('#reset').disabled=callRecoveryPending||busy||recording||recordingPending||activeCall(pending);
+ $('#confirm').disabled=!!(pending?.booking&&(pending.status!=='pending'||uncertainCalls.has(pending.id)))||busy||recording||recordingPending||!pending||!!(pending.body&&pending.status!=='pending');
  $('#cancel').disabled=busy||recording||recordingPending||!pending||pending.status!=='pending';
+ for(const id of ['stop-call','call-calendar','refresh-call','dismiss-document']){const button=$('#'+id);if(button)button.disabled=busy||recording||recordingPending;}
  $('#stop').hidden=!recording&&!recordingPending;
  $('#stop').textContent=recordingPending?'cancel microphone request':'finish talking';
  $('#connect-calendar').disabled=calendarBusy||busy||recording||recordingPending;
@@ -46,7 +102,7 @@ function apiLog(kind,path,data,failed=false){
  heading.append(time,badge,route);details.append(heading);row.append(details);
  if(data!==undefined||path){const pre=document.createElement('pre');pre.textContent=typeof data==='string'?data:JSON.stringify({endpoint:path,...(data===undefined?{}:{details:data})},(key,value)=>/token|secret|authorization|url/i.test(key)?'[redacted]':value,2);details.append(pre);}
  const atBottom=list.parentElement.scrollHeight-list.parentElement.scrollTop-list.parentElement.clientHeight<60;
- list.append(row);while(list.children.length>200)list.firstChild.remove();
+ list.append(row);while(list.children.length>200){const oldest=Array.from(list.children).find(item=>item.id!=='approval-log-row');if(!oldest)break;oldest.remove();}
  if(atBottom)row.scrollIntoView({block:'nearest'});
 }
 async function api(path,{method='GET',body,requestId,signal}={}){
@@ -63,7 +119,7 @@ window.addEventListener('pagehide',stopSpeech);
 function rest(result){
  if(affectionActive){affectionActive=false;result={...result,reaction:null};}
  clearTimeout(idleTimer);
- if(pending){face('approval','review event · tap to hear');return;}
+ if(pending){face('approval','review draft · tap to hear');return;}
  if(result?.state==='happy'){face('happy',result.statusText);idleTimer=setTimeout(()=>face('idle','tap to talk'),2400);return;}
  const reaction=reactionPresentation[result?.reaction];
  const next=result?.state==='clarify'||/\?\s*$/.test(result?.speechText||'')?'tap to answer':'tap to talk';
@@ -88,11 +144,36 @@ function speak(text,result){
  });
 }
 function actionView(action){
- pending=action&&['pending','uncertain','executing'].includes(action.status)?action:null;
+ if(action?.booking&&sessionStorage.getItem('muse-call-attempt')===action.id)uncertainCalls.add(action.id);
+ let dismiss=$('#dismiss-document');if(!dismiss){dismiss=document.createElement('button');dismiss.id='dismiss-document';dismiss.textContent='back to Jolly';dismiss.onclick=()=>{if(!busy){actionView(null);face('idle','tap to talk');}};$('#approval').append(dismiss);}dismiss.hidden=!((action?.body&&['uncertain','executing'].includes(action.status))||(action?.booking&&!activeCall(action)&&(action.status!=='pending'||uncertainCalls.has(action.id))));
+ stopCallUpdates();
+ pending=action&&(action.booking||['pending','uncertain','executing'].includes(action.status))?action:null;
+ for(const id of ['stop-call','call-calendar','refresh-call']){if($('#'+id))$('#'+id).hidden=true;}
+ $('#confirm').hidden=!!pending?.booking&&pending.status!=='pending';
+ $('#cancel').hidden=!!pending?.booking&&pending.status!=='pending';
  $('#approval').hidden=!pending;
  if(pending){let row=$('#approval-log-row');if(!row){row=document.createElement('li');row.id='approval-log-row';row.className='log-row';$('#api-log').append(row);}row.append($('#approval'));}
- if(!pending){sessionStorage.removeItem('muse-action');controls();return;}
- sessionStorage.setItem('muse-action',pending.id);
+ if(!pending){sessionStorage.removeItem('muse-action');sessionStorage.removeItem('muse-action-kind');controls();return;}
+ sessionStorage.setItem('muse-action',pending.id);sessionStorage.setItem('muse-action-kind',pending.booking?'calls':pending.body?'documents':'actions');
+ if(pending.booking){
+  const booking=pending.booking;
+  if(sessionStorage.getItem('muse-call-attempt')===pending.id)uncertainCalls.add(pending.id);
+  const fmt=new Intl.DateTimeFormat(undefined,{timeZone:booking.timeZone,dateStyle:'medium',timeStyle:'short'});
+  const windows=booking.windows??[booking.window];
+  const availability=windows.map(window=>`${fmt.format(new Date(window.start))} → ${fmt.format(new Date(window.end))}`).join('\n');
+  $('#event-title').textContent=`Call ${booking.destinationName} · ${booking.phoneNumber}`;
+  $('#event-time').style.whiteSpace='pre-wrap';
+  $('#event-time').textContent=`${booking.purpose}\nBooking for: ${booking.customerName}\n${availability}\n${booking.timeZone} · ${booking.durationMinutes} minutes\n${pending.calendarChecked?'Calendar checked for availability.':'Calendar has not been checked. Availability is unverified.'}\nStatus: ${pending.status.replaceAll('_',' ')}${pending.summary?'\n'+pending.summary:''}${pending.bookedSlot?'\nBooked: '+fmt.format(new Date(pending.bookedSlot.start))+' → '+fmt.format(new Date(pending.bookedSlot.end)):''}`;
+  $('#action-note').textContent=pending.status==='pending'&&!uncertainCalls.has(pending.id)?'Jolly will call as your AI assistant and share these booking details only after you approve.':pending.status==='uncertain'||uncertainCalls.has(pending.id)&&pending.status==='pending'?'The result is unverified. Check with the business before another booking. Jolly will not redial automatically.':'Review the call update below. Calendar events are saved only with separate approval.';
+  $('#confirm').textContent='approve and call';
+  for(const [id,label,command,visible] of [['stop-call',pending.status==='uncertain'?'try stopping call':'stop call','stop',activeCall(pending)||pending.status==='uncertain'],['call-calendar','review Calendar event','calendar',pending.status==='completed'&&pending.outcome==='booked'],['refresh-call','refresh status','refresh',true]]){
+   let button=$('#'+id);if(!button){button=document.createElement('button');button.id=id;button.textContent=label;button.onclick=()=>callCommand(command);$('#approval').append(button);}button.textContent=label;button.hidden=!visible;
+  }
+  if(!callDeadline)callDeadline=Date.now()+540000;
+  controls();monitorCall();return;
+ }
+ if(pending.body){$('#event-title').textContent=pending.title;$('#event-time').textContent=`Save under: ${pending.parentTitle}\n\n${pending.body}`;$('#event-time').style.whiteSpace='pre-wrap';$('#action-note').textContent=pending.status==='pending'?'Review the full page before saving.':'The save is unverified. Check Notion; automatic retries are disabled.';$('#confirm').textContent='save to Notion';controls();return;}
+ $('#event-time').style.whiteSpace='';
  $('#event-title').textContent=pending.event.title;
  const fmt=new Intl.DateTimeFormat(undefined,{timeZone:pending.event.timeZone,dateStyle:'full',timeStyle:'short'});
  $('#event-time').textContent=`${fmt.format(new Date(pending.event.start))} → ${fmt.format(new Date(pending.event.end))} (${pending.event.timeZone})`;
@@ -106,8 +187,15 @@ function displayData(data){
 async function renderResult(result,ticket,streamed=false){
  const valid=()=>ticket===undefined||turns.current(ticket);
  if(!valid())return;
- if(result.action){const authoritative=await api(`/v1/sessions/${sessionId}/actions/${result.action.id}`);if(!valid())return;actionView(authoritative.action);}else actionView(null);
+ if(result.callAction&&!result.action){actionView(result.callAction);}else if(result.documentAction){const authoritative=await api(`/v1/sessions/${sessionId}/documents/${result.documentAction.id}`);if(!valid())return;actionView(authoritative.action);}else if(result.action){const authoritative=await api(`/v1/sessions/${sessionId}/actions/${result.action.id}`);if(!valid())return;actionView(authoritative.action);}else actionView(null);
  message('assistant',result.speechText);displayData(result.data);
+ if(result.sources?.length){
+  const row=document.createElement('li');row.className='log-row';
+  const details=document.createElement('details'),summary=document.createElement('summary');
+  summary.textContent=`sources · ${result.sources.length} references`;details.append(summary);
+  for(const source of result.sources){try{const url=new URL(source.url);if(!['https:','http:'].includes(url.protocol)||url.username||url.password)continue;const link=document.createElement('a');link.href=url.href;link.textContent=source.title;link.target='_blank';link.rel='noopener noreferrer';link.style.display='block';details.append(link);}catch{}}
+  row.append(details);$('#api-log').append(row);
+ }
  if(result.simulated)$('#mode-note').textContent='SIMULATION MODE: this backend is not using real Meta or Calendar.';
  // Keep thinking until audio actually starts; do not flash the result pose first.
  if(!streamed)speak(result.speechText,result);
@@ -118,7 +206,7 @@ async function status(){const result=await api('/v1/status');speechOutput=result
  $('#calendar-dot').classList.toggle('connected',linked);
  $('#connect-calendar').textContent=linked?'Reconnect with Google':'Connect with Google';
  $('#disconnect-calendar').hidden=!linked;
- if(linked)$('#consent').hidden=true;serviceViews.update(result.calendar,result.mode,result.calendarEnabled!==false);controls();return result;}
+ if(linked)$('#consent').hidden=true;serviceViews.update(result.calendar,result.mode,result.calendarEnabled!==false,result.webSearch===true,result);controls();return result;}
 async function session(){if(!sessionId){const created=await api('/v1/sessions',{method:'POST',body:{timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone||'Europe/London'}});sessionId=created.id;sessionStorage.setItem('muse-session',sessionId);}return sessionId;}
 async function poll(since,ticket){
  if(!polling||!sessionId||!turns.current(ticket))return;
@@ -126,7 +214,7 @@ async function poll(since,ticket){
  if(polling&&turns.current(ticket))pollTimer=setTimeout(()=>poll(since,ticket),1400);
 }
 async function submit(request){
- if(busy)return;
+ if(callRecoveryPending||busy||pending?.booking)return;
  const local=request.text?localIntent(request.text):null;
  if(local==='stop'){stopSpeech();face('idle','tap to talk');log('local command · stopped speaking');return;}
  if(local==='repeat'&&lastReply){log('local command · repeat last reply without Meta');speak(lastReply,{state:pending?'approval':'idle'});return;}
@@ -185,7 +273,7 @@ function noSpeech(){
 const endOfSpeech=new EndOfSpeech();
 const recorder=new VoiceRecorder(level=>{send({type:'muse-level',level});if(recording){const now=performance.now();if(endOfSpeech.sample(level,now)){log('finished speaking · silence detected');void finishRecording();}else if(endOfSpeech.noInput(now))noSpeech();}},()=>finishRecording(),text=>{liveTranscript?.cancel();liveTranscript=null;recordVersion++;recording=recordingPending=false;controls();errorView(new Error(text));},(chunk,rate)=>liveTranscript?.push(chunk,rate));
 async function startRecording(){
- if(busy||recording||recordingPending)return;
+ if(callRecoveryPending||busy||recording||recordingPending||pending?.booking)return;
  if(!connected){try{await status();await session();}catch(error){errorView(error);return;}}
  stopSpeech();endOfSpeech.reset();$('#error').textContent='';recordingPending=true;controls();face('listen','listening…');const version=++recordVersion;
  liveTranscript?.cancel();let lastPartial='';
@@ -213,23 +301,26 @@ async function finishRecording(){
  finally{stream?.cancel();if(liveTranscript===stream)liveTranscript=null;}
 }
 async function tap(){
+ if(callRecoveryPending){face('approval','reload to restore call');return;}
  if(decisionBusy){log('save verification is running · waiting for its result');return;}
+ if(pending?.booking){speak(`Call to ${pending.booking.destinationName}. Review the phone number and booking details beside the watch.`,{state:'approval'});return;}
  if(recording||recordingPending){await finishRecording();return;}
  if(streamSpeaker?.blocked){await streamSpeaker.resume();return;}
  if(speechPlayer.current?.blocked){await speechPlayer.resume();return;}
  if(busy||speechPlayer.current||streamSpeaker){interruptConversation();await startRecording();return;}
- if(pending&&(currentView.state==='approval'||pending.status!=='pending')){speak(`${pending.event.title}, from ${pending.event.start} until ${pending.event.end}, ${pending.event.timeZone}. Review the event beside the watch to approve.`,{state:'approval'});return;}
+ if(pending&&(currentView.state==='approval'||pending.status!=='pending')){if(pending.body){speak(`Your draft ${pending.title} is ready. Review the full page beside the watch before saving.`,{state:'approval'});return;}speak(`${pending.event.title}, from ${pending.event.start} until ${pending.event.end}, ${pending.event.timeZone}. Review the event beside the watch to approve.`,{state:'approval'});return;}
  await startRecording();
 }
 window.addEventListener('message',event=>{if(event.source!==watch.contentWindow||event.origin!==location.origin)return;if(event.data?.type==='muse-ready')send(currentView);if(event.data?.type==='muse-tap')void tap();});
 $('#stop').onclick=finishRecording;
-$('#text-form').onsubmit=event=>{event.preventDefault();const text=$('#text').value.trim();if(!text||busy||recording||recordingPending||(pending&&pending.status!=='pending'))return;$('#text').value='';message('user',text);void submit({text,id:crypto.randomUUID()});};
+$('#text-form').onsubmit=event=>{event.preventDefault();const text=$('#text').value.trim();if(!text||busy||recording||recordingPending||pending?.booking||(pending&&pending.status!=='pending'))return;$('#text').value='';message('user',text);void submit({text,id:crypto.randomUUID()});};
 $('#retry').onclick=()=>{if(lastRequest)void submit(lastRequest);};
 $('#replay').onclick=()=>{if(!busy&&!recording&&!recordingPending)speak(lastReply,{state:pending?'approval':'idle'});};
 async function decision(value){
+ if(pending?.booking){await callCommand(value);return;}
  if(!pending||busy||recording||recordingPending)return;stopSpeech();decisionBusy=true;busy=true;controls();$('#error').textContent='';face('working',value==='confirm'?'saving your event…':'cancelling…');
- try{const result=await api(`/v1/sessions/${sessionId}/actions/${pending.id}/decision`,{method:'POST',body:{decision:value}});await renderResult(result);}
- catch(error){try{actionView((await api(`/v1/sessions/${sessionId}/actions/${pending.id}`)).action);}catch{}errorView(error);}
+ try{const result=await api(`/v1/sessions/${sessionId}/${pending.booking?'calls':pending.body?'documents':'actions'}/${pending.id}/decision`,{method:'POST',body:{decision:value}});await renderResult(result);}
+ catch(error){try{actionView((await api(`/v1/sessions/${sessionId}/${pending.booking?'calls':pending.body?'documents':'actions'}/${pending.id}`)).action);}catch{}errorView(error);}
  finally{decisionBusy=false;busy=false;controls();}
 }
 $('#confirm').onclick=()=>decision('confirm');$('#cancel').onclick=()=>decision('cancel');
@@ -283,6 +374,6 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)discardReco
 try{
  await status();
  if(sessionId){try{await api(`/v1/sessions/${sessionId}/events`);}catch(error){if(error.status!==404)throw error;sessionId=null;sessionStorage.removeItem('muse-session');sessionStorage.removeItem('muse-action');}}
- await session();const actionId=sessionStorage.getItem('muse-action');if(actionId){try{actionView((await api(`/v1/sessions/${sessionId}/actions/${actionId}`)).action);if(pending)face('approval','review pending event');}catch{sessionStorage.removeItem('muse-action');}}
+ await session();await restoreSavedAction();
  $('#hint').textContent=pending?'A previous proposal is ready for review.':'Tap Jolly to start a real conversation.';log('backend connected');
 }catch(error){connected=false;$('#connection').textContent='○ backend unavailable';errorView(error);controls();}

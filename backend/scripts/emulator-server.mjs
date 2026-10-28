@@ -6,7 +6,38 @@ import { WebSocket, WebSocketServer } from "ws";
 const root = resolve(fileURLToPath(new URL("../../", import.meta.url)));
 const port = Number(process.env.EMULATOR_PORT || 4174),
   origin = `http://127.0.0.1:${port}`;
-const backend = `http://127.0.0.1:${Number(process.env.PORT || 8787)}`;
+function backendOrigin(value) {
+  let url;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error(
+      "EMULATOR_BACKEND_URL must be an HTTPS origin or loopback HTTP origin",
+    );
+  }
+  const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+  if (
+    !(url.protocol === "https:" || (url.protocol === "http:" && loopback)) ||
+    url.username ||
+    url.password ||
+    url.pathname !== "/" ||
+    url.search ||
+    url.hash ||
+    value.includes("?") ||
+    value.includes("#")
+  )
+    throw new Error(
+      "EMULATOR_BACKEND_URL must be an HTTPS origin or loopback HTTP origin without credentials, path, query or fragment",
+    );
+  return url.origin;
+}
+const backend = backendOrigin(
+  process.env.EMULATOR_BACKEND_URL ||
+    `http://127.0.0.1:${Number(process.env.PORT || 8787)}`,
+);
+const realtimeBackend = new URL("/v1/realtime", backend);
+realtimeBackend.protocol =
+  realtimeBackend.protocol === "https:" ? "wss:" : "ws:";
 if (!process.env.API_TOKEN)
   throw new Error(
     "Run npm run setup and load .env before starting the emulator",
@@ -140,7 +171,7 @@ const server = createServer(async (req, res) => {
         message:
           error.code === "ENOENT"
             ? "not found"
-            : "backend unavailable; check that npm start is running",
+            : "backend unavailable; check the configured backend connection",
       },
     });
   }
@@ -157,13 +188,10 @@ server.on("upgrade", (req, socket, head) => {
     return;
   }
   streams.handleUpgrade(req, socket, head, (client) => {
-    const upstream = new WebSocket(
-      backend.replace("http:", "ws:") + "/v1/realtime",
-      {
-        headers: { Authorization: `Bearer ${process.env.API_TOKEN}` },
-        maxPayload: 65536,
-      },
-    );
+    const upstream = new WebSocket(realtimeBackend, {
+      headers: { Authorization: `Bearer ${process.env.API_TOKEN}` },
+      maxPayload: 65536,
+    });
     const timer = setTimeout(() => {
       client.terminate();
       upstream.terminate();
