@@ -7,16 +7,16 @@ import {readFile} from 'node:fs/promises';
 import {TurnCoordinator} from './turn-coordinator.mjs';
 import {EndOfSpeech} from './end-of-speech.mjs';
 const deferred=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {promise,resolve};};
-async function harness(callHandler){
+async function harness(callHandler,viewerTimeZone){
  const storage=new Map([['muse-session','session']]);
  const elements=new Map(),listeners={},played=[],states=[],timers=new Set();
- function element(){return {children:[],parentElement:{scrollHeight:0,scrollTop:0,clientHeight:100},classList:{toggle(){}},checked:true,value:'',textContent:'',hidden:false,style:{},append(...items){for(const item of items){item.remove?.();item.parentElement=this;this.children.push(item);}},remove(){const siblings=this.parentElement?.children;if(siblings){const index=siblings.indexOf(this);if(index>=0)siblings.splice(index,1);}},replaceChildren(...items){this.children=items;},scrollIntoView(){},add(){},focus(){},contentWindow:{postMessage(state){states.push(state);}}};}
+ function element(){const classes=new Set();return {children:[],parentElement:{scrollHeight:0,scrollTop:0,clientHeight:100},classList:{toggle(name,enabled){if(enabled)classes.add(name);else classes.delete(name);},contains(name){return classes.has(name);}},checked:true,value:'',textContent:'',hidden:false,style:{},append(...items){for(const item of items){item.remove?.();item.parentElement=this;this.children.push(item);}},remove(){const siblings=this.parentElement?.children;if(siblings){const index=siblings.indexOf(this);if(index>=0)siblings.splice(index,1);}},replaceChildren(...items){this.children=items;},scrollIntoView(){},add(){},focus(){},contentWindow:{postMessage(state){states.push(state);}}};}
  const document={hidden:false,querySelector(selector){if(!elements.has(selector))elements.set(selector,element());return elements.get(selector);},createElement:element,addEventListener(name,fn){listeners[name]=fn;}};
  let inFlight, microphone, playbackEnd, now=0;
- class Player{stop(){this.current=null;} async play(text,callbacks){this.current={};playbackEnd=callbacks.onEnd;played.push(text);callbacks.onReady(10);callbacks.onStart();}}
+ class Player{stop(){this.current=null;} async play(text,callbacks){this.current={};playbackEnd=()=>{this.current=null;callbacks.onEnd();};played.push(text);callbacks.onReady(10);callbacks.onStart();}}
  class Recorder{constructor(onLevel){microphone=onLevel;}cancel(){} async start(){return true;}}
  class Transcriber{cancel(){}}
- const ctx={reactionFor,reactionPresentation,localIntent,streamReply:async(id,request,{signal})=>{const r=await ctx.fetch(`/api/v1/sessions/${id}/turns`,{signal});return r.json();},SentenceSpeaker:class{},document,window:{addEventListener(){},speechSynthesis:{cancel(){},getVoices(){return [];},addEventListener(){}}},location:{origin:'http://localhost'},sessionStorage:{getItem(key){return storage.get(key)||null;},setItem(key,value){storage.set(key,value);},removeItem(key){storage.delete(key);}},setupServices:()=>({setBusy(){},update(){}}),summarizeLog:()=>'',SpeechPlayer:Player,VoiceRecorder:Recorder,RealtimeTranscriber:Transcriber,EndOfSpeech,TurnCoordinator,Option:class{},Blob,AbortSignal,AbortController,URL,performance:{now:()=>now},Intl,Date,crypto:globalThis.crypto,setTimeout(fn,ms){const id=setTimeout(fn,ms);timers.add(id);return id;},clearTimeout(id){clearTimeout(id);timers.delete(id);},fetch:async (url,options)=>{
+ const ctx={reactionFor,reactionPresentation,localIntent,streamReply:async(id,request,{signal})=>{const r=await ctx.fetch(`/api/v1/sessions/${id}/turns`,{signal});return r.json();},SentenceSpeaker:class{},document,window:{addEventListener(){},speechSynthesis:{cancel(){},getVoices(){return [];},addEventListener(){}}},location:{origin:'http://localhost'},sessionStorage:{getItem(key){return storage.get(key)||null;},setItem(key,value){storage.set(key,value);},removeItem(key){storage.delete(key);}},setupServices:()=>({setBusy(){},update(){}}),summarizeLog:()=>'',SpeechPlayer:Player,VoiceRecorder:Recorder,RealtimeTranscriber:Transcriber,EndOfSpeech,TurnCoordinator,Option:class{},Blob,AbortSignal,AbortController,URL,performance:{now:()=>now},Intl:viewerTimeZone?{DateTimeFormat:class extends Intl.DateTimeFormat{constructor(locale,options={}){super(locale,{timeZone:viewerTimeZone,...options});}}}:Intl,Date,crypto:globalThis.crypto,setTimeout(fn,ms){const id=setTimeout(fn,ms);timers.add(id);return id;},clearTimeout(id){clearTimeout(id);timers.delete(id);},fetch:async (url,options)=>{
   if(url.includes('/calls/')&&callHandler)return callHandler(url,options);
   if(url.endsWith('/cancel'))return new Response('{"cancelled":true}');
   if(url.endsWith('/status'))return new Response(JSON.stringify({mode:'live',speechOutput:'elevenlabs',calendar:'disconnected'}));
@@ -24,7 +24,7 @@ async function harness(callHandler){
   throw new Error('Unexpected test endpoint '+url);
  }};
  const source=(await readFile(new URL('./emulator.mjs',import.meta.url),'utf8')).replace(/^import .*;\n/gm,'').split('try{\n await status();')[0];
- const app=await vm.runInNewContext('(async()=>{'+source+';await status();return {submit,tap,discardRecording,actionView,callCommand,apiLog,startRecording,restoreSavedAction,announceCall,pending:()=>pending,view:()=>currentView,busy:()=>busy,recording:()=>recording};})()',ctx);
+ const app=await vm.runInNewContext('(async()=>{'+source+';await status();return {submit,tap,discardRecording,actionView,callCommand,apiLog,startRecording,restoreSavedAction,announceCall,flushCompletion,background:()=>backgroundCall,pending:()=>pending,view:()=>currentView,busy:()=>busy,recording:()=>recording};})()',ctx);
  return {app,document,storage,played,states,finishSpeech(){playbackEnd();},sample(level,at){now=at;microphone(level);},setRequest(){inFlight=deferred();return inFlight;},cleanup(){for(const id of timers)clearTimeout(id);}};
 }
 const reply=text=>new Response(JSON.stringify({state:'speak',speechText:text}));
@@ -70,16 +70,16 @@ test('call review requires approval and failed confirmation never permits automa
  assert.equal(confirmations,0);
  assert.match(h.document.querySelector('#event-time').textContent,/Calendar has not been checked/);
  await h.app.callCommand('confirm');
- assert.equal(confirmations,1);assert.equal(reads,1);assert.equal(h.app.pending().status,'uncertain');
- await h.app.callCommand('confirm');assert.equal(confirmations,1);
+ assert.equal(confirmations,1);assert.equal(reads,1);assert.equal(h.app.background().status,'uncertain');
+ await h.app.callCommand('confirm');assert.equal(confirmations,1);h.app.actionView(h.app.background(),true);
  assert.equal(h.document.querySelector('#confirm').hidden,true);
  assert.equal(h.document.querySelector('#dismiss-document').hidden,false);
 });
 test('only a booked terminal call offers a separate Calendar proposal',async t=>{
  const h=await harness();t.after(h.cleanup);
- h.app.actionView({...callFixture,status:'completed',outcome:'not_booked'});
+ h.app.actionView({...callFixture,status:'completed',outcome:'not_booked'},true);
  assert.equal(h.document.querySelector('#call-calendar').hidden,true);
- h.app.actionView({...callFixture,status:'completed',outcome:'booked'});
+ h.app.actionView({...callFixture,status:'completed',outcome:'booked'},true);
  assert.equal(h.document.querySelector('#call-calendar').hidden,false);
  assert.equal(h.document.querySelector('#confirm').hidden,true);
 });
@@ -88,24 +88,48 @@ test('active call approval survives more than 200 progress log entries',async t=
  const h=await harness();t.after(h.cleanup);
  const list=h.document.querySelector('#api-log'),pinned=h.document.querySelector('#approval-log-row');
  pinned.id='approval-log-row';list.append(pinned);
- h.app.actionView({...callFixture,status:'in_progress'});
+ h.app.actionView({...callFixture,status:'in_progress'},true);
  for(let i=0;i<250;i++)h.app.apiLog('response','/v1/sessions/session/calls/call-1',{status:200});
  assert.equal(list.children.length,200);
  assert.ok(list.children.includes(pinned));
  assert.ok(pinned.children.includes(h.document.querySelector('#approval')));
  assert.equal(h.document.querySelector('#stop-call').hidden,false);
- h.app.actionView({...callFixture,status:'completed',outcome:'booked'});
+ h.app.actionView({...callFixture,status:'completed',outcome:'booked'},true);
  assert.equal(h.document.querySelector('#call-calendar').hidden,false);
 });
-test('tapping spoken call review cannot start recording or replace the live call',async t=>{
+test('active calls allow speech and normal replies retain background tracking',async t=>{
  const h=await harness();t.after(h.cleanup);
  h.app.actionView({...callFixture,status:'in_progress'});
- await h.app.tap();assert.equal(h.app.view().state,'speak');
- await h.app.tap();assert.equal(h.app.recording(),false);
- await h.app.startRecording();assert.equal(h.app.recording(),false);
- await h.app.submit({text:'another request',id:'replacement'});
- assert.equal(h.app.pending().id,'call-1');assert.equal(h.app.pending().status,'in_progress');
- assert.equal(h.document.querySelector('#stop-call').hidden,false);
+ assert.equal(h.app.pending(),null);
+ await h.app.tap();assert.equal(h.app.recording(),true);
+ h.app.discardRecording();
+ const request=h.setRequest();const task=h.app.submit({text:'another question',id:'chat'});
+ request.resolve(reply('Here is your answer'));await task;
+ assert.equal(h.app.background().id,'call-1');
+ assert.equal(h.storage.get('muse-calls:http://localhost:session:active'),'call-1');
+ assert.equal(h.app.view().state,'speak');
+});
+test('completion waits for speech then persists dedupe and can be dismissed',async t=>{
+ const h=await harness();t.after(h.cleanup);
+ const request=h.setRequest();const task=h.app.submit({text:'hello',id:'chat'});request.resolve(reply('Hello'));await task;
+ h.app.announceCall({...callFixture,status:'completed',outcome:'booked'});
+ assert.equal(h.app.view().state,'speak');
+ h.finishSpeech();assert.equal(h.app.view().state,'happy');
+ h.document.querySelector('#call-card-dismiss').onclick();assert.equal(h.app.view().state,'idle');
+ h.app.announceCall({...callFixture,status:'completed',outcome:'booked'});assert.equal(h.app.view().state,'idle');
+ assert.equal(h.storage.get('muse-calls:http://localhost:session:seen:call-1:completed:booked'),'1');
+});
+test('stop call leaves current voice playing',async t=>{
+ const h=await harness(async()=>new Response(JSON.stringify({callAction:{...callFixture,status:'cancelled'}})));t.after(h.cleanup);
+ h.app.actionView({...callFixture,status:'in_progress'});
+ const request=h.setRequest();const task=h.app.submit({text:'hello',id:'chat'});request.resolve(reply('Still talking'));await task;
+ await h.app.callCommand('stop');assert.equal(h.app.view().state,'speak');assert.equal(h.app.background().status,'cancelled');
+});
+test('tracked call restores independently of foreground proposal storage',async t=>{
+ const h=await harness(async()=>new Response(JSON.stringify({callAction:{...callFixture,status:'in_progress'}})));t.after(h.cleanup);
+ h.storage.set('muse-calls:http://localhost:session:active','call-1');
+ await h.app.restoreSavedAction();assert.equal(h.app.background().id,'call-1');assert.equal(h.app.pending(),null);
+ h.app.actionView(null);assert.equal(h.storage.get('muse-calls:http://localhost:session:active'),'call-1');
 });
 
 test('transient saved-call recovery failure preserves pointer and blocks replacement',async t=>{
@@ -119,7 +143,7 @@ test('transient saved-call recovery failure preserves pointer and blocks replace
 });
 test('uncertain call retains safe stop control',async t=>{
  const h=await harness();t.after(h.cleanup);
- h.app.actionView({...callFixture,status:'uncertain'});
+ h.app.actionView({...callFixture,status:'uncertain'},true);
  assert.equal(h.document.querySelector('#stop-call').hidden,false);
  assert.equal(h.document.querySelector('#stop-call').textContent,'try stopping call');
  assert.equal(h.document.querySelector('#confirm').hidden,true);
@@ -140,4 +164,68 @@ test('terminal booked update celebrates once and never announces on restoration 
  const fmt=new Intl.DateTimeFormat(undefined,{timeZone:'Europe/London',dateStyle:'medium',timeStyle:'short'});
  for(const window of windows) assert.ok(text.includes(`${fmt.format(new Date(window.start))} → ${fmt.format(new Date(window.end))}`));
  assert.equal(h.document.querySelector('#confirm').hidden,false);
+});
+
+test('completion waits through recording and foreground approval',async t=>{
+ const h=await harness();t.after(h.cleanup);
+ await h.app.startRecording();
+ h.app.announceCall({...callFixture,status:'completed',outcome:'not_booked'});
+ assert.equal(h.app.view().state,'listen');
+ h.app.actionView(callFixture);
+ h.app.discardRecording();assert.equal(h.app.view().state,'approval');
+ h.app.actionView(null);assert.equal(h.document.querySelector('#call-card').hidden,false);
+ assert.equal(h.document.querySelector('#call-card-title').textContent,'call finished');
+ assert.doesNotMatch(h.document.querySelector('#call-card-detail').textContent,/Booking confirmed/);
+});
+test('persisted completion marker prevents replay after restoration',async t=>{
+ const h=await harness(async()=>new Response(JSON.stringify({callAction:{...callFixture,status:'completed',outcome:'booked'}})));t.after(h.cleanup);
+ h.storage.set('muse-calls:http://localhost:session:active','call-1');
+ h.storage.set('muse-calls:http://localhost:session:seen:call-1:completed:booked','1');
+ await h.app.restoreSavedAction();assert.notEqual(h.app.view().state,'happy');assert.equal(h.app.background().outcome,'booked');
+});
+
+ test('reviewing a background call retains the foreground Calendar proposal',async t=>{
+ const h=await harness();t.after(h.cleanup);
+ h.app.actionView({...callFixture,status:'in_progress'});
+ const proposal={id:'calendar-1',status:'pending',event:{title:'Lunch',start:'2026-11-01T10:00:00Z',end:'2026-11-01T11:00:00Z',timeZone:'Europe/London'}};
+ h.app.actionView(proposal);
+ h.document.querySelector('#call-indicator').onclick();
+ assert.equal(h.storage.get('muse-action'),'calendar-1');
+ h.app.actionView(null);assert.equal(h.app.pending().id,'calendar-1');
+ assert.equal(h.document.querySelector('#confirm').textContent,'add to Calendar');
+});
+
+ test('failed session reset retains the tracked call and review control',async t=>{
+ const h=await harness();t.after(h.cleanup);
+ h.app.actionView({...callFixture,status:'uncertain'});
+ await h.document.querySelector('#reset').onclick();
+ assert.equal(h.app.background().id,'call-1');
+ assert.equal(h.document.querySelector('#call-indicator').hidden,false);
+ h.document.querySelector('#call-indicator').onclick();
+ assert.equal(h.document.querySelector('#stop-call').hidden,false);
+});
+
+ test('completion card uses viewer local date and lowercase twelve-hour time without zone labels',async t=>{
+ const h=await harness(undefined,'America/Los_Angeles');t.after(h.cleanup);
+ const call={...callFixture,status:'completed',outcome:'booked',booking:{...callFixture.booking,timeZone:'Asia/Tokyo'},bookedSlot:{start:'2026-11-06T23:30:00Z',end:'2026-11-07T00:00:00Z'}};
+ h.app.announceCall(call);
+ assert.equal(h.document.querySelector('#call-card-title').textContent,'booking confirmed');
+ assert.equal(h.document.querySelector('#call-card-date').textContent,'Fri, 6 Nov · 3:30 pm');
+ assert.equal(h.document.querySelector('#call-card-detail').textContent,'Salon\nHaircut');
+ assert.doesNotMatch(h.document.querySelector('#call-card-detail').textContent,/Alex|Tokyo|Los_Angeles/);
+ h.app.actionView(call,true);assert.match(h.document.querySelector('#event-time').textContent,/Asia\/Tokyo/);
+});
+
+ test('completion replaces the head until dismissed or conversation resumes',async t=>{
+ const h=await harness();t.after(h.cleanup);
+ const shell=h.document.querySelector('.watch-shell');
+ h.app.announceCall({...callFixture,status:'completed',outcome:'booked'});
+ assert.equal(shell.classList.contains('has-call-card'),true);
+ h.document.querySelector('#call-card-dismiss').onclick();
+ assert.equal(shell.classList.contains('has-call-card'),false);
+ h.app.announceCall({...callFixture,id:'call-2',status:'completed',outcome:'booked'});
+ assert.equal(shell.classList.contains('has-call-card'),true);
+ await h.app.startRecording();
+ assert.equal(shell.classList.contains('has-call-card'),false);
+ assert.equal(h.document.querySelector('#call-card').hidden,true);
 });
