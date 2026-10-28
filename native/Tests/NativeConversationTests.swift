@@ -50,6 +50,8 @@ private final class NativeFixture: URLProtocol, @unchecked Sendable {
     let body: String
     if path.hasSuffix("/sessions") {
       body = #"{"id":"test-session"}"#
+    } else if path.contains("/calls/") {
+      body = "{\"callAction\":" + callFixture + "}"
     } else if path.hasSuffix("/stream") {
       body =
         #"{"type":"text","text":"That’s so sweet! "}"# + "\n"
@@ -145,5 +147,41 @@ private final class NativeFixture: URLProtocol, @unchecked Sendable {
     XCTAssertNil(audio.finish)
     try await Task.sleep(for: .milliseconds(50))
     XCTAssertEqual(model.mood, .sleep)
+  }
+}
+
+private let callFixture = #"{"id":"call-1","sessionId":"test-session","status":"uncertain","expiresAt":9999999999999,"calendarChecked":false,"slots":[],"booking":{"destinationName":"Salon","phoneNumber":"+442012345678","purpose":"Haircut","customerName":"Alex","timeZone":"Europe/London","window":{"start":"2026-11-01T10:00:00Z","end":"2026-11-01T12:00:00Z"},"durationMinutes":30}}"#
+
+extension NativeConversationTests {
+  func testFailedCallConfirmationRefreshesAndCannotRedial() async throws {
+    let (model, _) = try makeModel()
+    model.callAction = try JSONDecoder().decode(CallAction.self, from: Data(callFixture.replacingOccurrences(of: "uncertain", with: "pending").utf8))
+    model.callCommand("confirm")
+    await eventually { !model.deciding }
+    XCTAssertEqual(model.callAction?.status, "uncertain")
+    XCTAssertTrue(model.callConfirmationUnknown)
+    model.callCommand("confirm")
+    XCTAssertFalse(model.deciding)
+    model.dismissCall()
+    XCTAssertNil(model.callAction)
+    XCTAssertFalse(model.hasProposal)
+  }
+}
+
+
+extension NativeConversationTests {
+  func testCallBookingDecodesFlexibleAndLegacyWindows() throws {
+    let legacy = try JSONDecoder().decode(CallAction.self, from: Data(callFixture.utf8))
+    XCTAssertEqual(legacy.booking.allowedWindows.count, 1)
+    var object = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(callFixture.utf8)) as? [String: Any])
+    var booking = try XCTUnwrap(object["booking"] as? [String: Any])
+    booking["windows"] = [
+      ["start": "2026-11-02T14:00:00Z", "end": "2026-11-02T16:00:00Z"],
+      ["start": "2026-11-04T14:00:00Z", "end": "2026-11-04T16:00:00Z"],
+    ]
+    object["booking"] = booking
+    let flexible = try JSONDecoder().decode(CallAction.self, from: JSONSerialization.data(withJSONObject: object))
+    XCTAssertEqual(flexible.booking.allowedWindows.count, 2)
+    XCTAssertEqual(flexible.booking.allowedWindows[1].start, "2026-11-04T14:00:00Z")
   }
 }

@@ -36,6 +36,7 @@
 		C2AB4AE61276E9F1DAA2F2ED /* PlatformBootstrap.swift in Sources */ = {isa = PBXBuildFile; fileRef = E567D8744F192CCB3C54B999 /* PlatformBootstrap.swift */; };
 		D136F6BBA85EC54AF0BE5CD1 /* RealtimeTranscriber.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29A4F5ACAD59FA67859ADE1F /* RealtimeTranscriber.swift */; };
 		D9E034DF7B54E1FB6DF21DC9 /* JollyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0833E711F93D580A24FCCDF /* JollyView.swift */; };
+		D6A1E6F7718DB44EE4AF3375 /* MemoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 591449F0493C3108F29868AF /* MemoryView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -89,6 +90,7 @@
 		E7CC661164AD274C5B266CA3 /* ConnectionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionStore.swift; sourceTree = "<group>"; };
 		F0EC6906F20CDCEAF74A4A55 /* PhoneModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneModel.swift; sourceTree = "<group>"; };
 		F71639B57719A50DE232510F /* MuseCore */ = {isa = PBXFileReference; lastKnownFileType = folder; path = MuseCore; sourceTree = SOURCE_ROOT; };
+		591449F0493C3108F29868AF /* MemoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -149,6 +151,7 @@
 			isa = PBXGroup;
 			children = (
 				26B79FCB9B908C4C257BFE66 /* DemoSetup.swift */,
+				591449F0493C3108F29868AF /* MemoryView.swift */,
 				D18E5BBB71A41EC20BBE98C8 /* MusePhoneApp.swift */,
 				F0EC6906F20CDCEAF74A4A55 /* PhoneModel.swift */,
 			);
@@ -340,6 +343,7 @@
 				47D5A184D1B249E7E36A9CBE /* ConversationModel.swift in Sources */,
 				AFFC2AA9EF4DD9E09A2AE999 /* DemoSetup.swift in Sources */,
 				C04A4055AD8A073250EE4AB4 /* JollyView.swift in Sources */,
+				D6A1E6F7718DB44EE4AF3375 /* MemoryView.swift in Sources */,
 				C0252A2394F6FBA1D493FC75 /* MusePhoneApp.swift in Sources */,
 				0E9795A23B44E7625376368B /* PhoneModel.swift in Sources */,
 				B6ED3D6DDC78C3217AA28119 /* PhoneWatchBridge.swift in Sources */,

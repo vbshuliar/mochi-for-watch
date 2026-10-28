@@ -7,6 +7,7 @@ struct Activity: Identifiable {
   let time = Date()
   let kind: String
   let text: String
+  var sources: [SearchSource] = []
 }
 @MainActor @Observable final class ConversationModel {
   var mood: Mood = .sleep
@@ -15,7 +16,14 @@ struct Activity: Identifiable {
   var heartStart: Date?
   var transcript = ""
   var reply = ""
+  var sources: [SearchSource] = []
   var action: Action?
+  var documentAction: DocumentAction?
+  var callAction: CallAction?
+  var callConfirmationUnknown = false
+  private var callPoll: Task<Void, Never>?
+  var hasProposal: Bool { action != nil || documentAction != nil || callAction != nil }
+  var proposalID: String? { action?.id ?? documentAction?.id ?? callAction?.id }
   var activities: [Activity] = []
   var failure: String?
   var deciding = false
@@ -57,8 +65,8 @@ struct Activity: Identifiable {
       log("transcript", value)
     }
   }
-  private func log(_ kind: String, _ text: String) {
-    activities.append(Activity(kind: kind, text: text))
+  private func log(_ kind: String, _ text: String, sources: [SearchSource] = []) {
+    activities.append(Activity(kind: kind, text: text, sources: sources))
     if activities.count > 100 { activities.removeFirst() }
   }
   private func show(_ mood: Mood, _ text: String) {
@@ -89,20 +97,22 @@ struct Activity: Identifiable {
       return
     }
     // A pending Calendar write belongs to its explicit review sheet.
-    guard action == nil else {
+    guard !hasProposal else {
       show(.approval, "tap to review")
       return
     }
     interrupt()
+    sources = []
     let ticket = generation
     task = Task { await listen(ticket) }
   }
   // Shares the voice turn path; useful for accessibility clients and deterministic tests.
   func sendText(_ text: String) {
-    guard !deciding, action == nil, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    guard !deciding, !hasProposal, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     else { return }
     foreground = true
     interrupt()
+    sources = []
     let ticket = generation
     transcript = text
     log("you", text)
@@ -303,16 +313,21 @@ struct Activity: Identifiable {
   }
   private func complete(_ result: TurnResult, input: String, ticket: UUID) async throws {
     reply = result.speechText
-    log("Jolly", result.speechText)
+    sources = (result.sources ?? []).filter { $0.safeURL != nil }
+    log("Jolly", result.speechText, sources: sources)
     action = result.action.flatMap {
       ["pending", "uncertain", "executing"].contains($0.status) ? $0 : nil
     }
+    documentAction = result.documentAction.flatMap { ["pending", "uncertain", "executing"].contains($0.status) ? $0 : nil }
+    if callAction?.id != result.callAction?.id { callConfirmationUnknown = false }
+    callAction = result.callAction
+    monitorCall()
     try await speechTail?.value
     guard generation == ticket, !Task.isCancelled, foreground else { return }
     clips.removeAll()
     speechTail = nil
     audio.deactivate()
-    if action != nil {
+    if hasProposal {
       show(.approval, "tap to review")
       return
     }
@@ -330,7 +345,11 @@ struct Activity: Identifiable {
     show(.idle, reply.hasSuffix("?") ? "tap to answer" : "tap to talk")
   }
   func decide(_ confirm: Bool) {
-    guard let action, !deciding, let connection = store.connection else { return }
+    guard hasProposal, !deciding, let connection = store.connection else { return }
+    let path: String
+    if let action { path = "v1/sessions/\(action.sessionId)/actions/\(action.id)/decision" }
+    else if let documentAction { path = "v1/sessions/\(documentAction.sessionId)/documents/\(documentAction.id)/decision" }
+    else { return }
     deciding = true
     task?.cancel()
     audio.stop()
@@ -340,24 +359,118 @@ struct Activity: Identifiable {
       do {
         let client = makeClient(connection)
         let bytes = try await client.json(
-          "v1/sessions/\(action.sessionId)/actions/\(action.id)/decision",
+          path,
           values: ["decision": confirm ? "confirm" : "cancel"])
         let result = try JSONDecoder().decode(TurnResult.self, from: bytes)
         speechTail = nil
         queue(result.speechText, client: client, ticket: ticket)
         try await complete(result, input: "", ticket: ticket)
-      } catch { fail(error) }  // Keep the proposal for an explicit retry, never invent success.
+      } catch {
+        if let document = documentAction {
+          struct Envelope: Decodable, Sendable { let action: DocumentAction }
+          if let current = try? await makeClient(connection).get("v1/sessions/\(document.sessionId)/documents/\(document.id)", as: Envelope.self) {
+            documentAction = ["pending", "executing", "uncertain"].contains(current.action.status) ? current.action : nil
+          }
+        }
+        fail(error)
+      } // Preserve uncertain writes without automatically retrying them.
     }
+  }
+  func resumeCalls() {
+    foreground = true
+    monitorCall()
+  }
+  private func monitorCall() {
+    callPoll?.cancel()
+    guard foreground, let call = callAction, call.active, let connection = store.connection else { return }
+    callPoll = Task { [weak self] in
+      for _ in 0..<180 {
+        do { try await Task.sleep(for: .seconds(3)) } catch { return }
+        guard let self, !Task.isCancelled, self.foreground, self.callAction?.id == call.id else { return }
+        do {
+          let current = try await self.makeClient(connection).get("v1/sessions/\(call.sessionId)/calls/\(call.id)", as: CallEnvelope.self)
+          guard !Task.isCancelled, self.callAction?.id == call.id else { return }
+          self.callAction = current.callAction
+          self.failure = nil
+          if !current.callAction.active {
+            self.log("call", current.callAction.summary ?? current.callAction.status)
+            self.show(current.callAction.booked ? .happy : .approval, current.callAction.booked ? "booking confirmed · tap to review" : "call ended · tap to review")
+            if current.callAction.booked {
+              try? await Task.sleep(for: .seconds(2.4))
+              guard !Task.isCancelled, self.foreground, self.callAction?.id == call.id else { return }
+              self.show(.idle, "booking confirmed · tap to review")
+            }
+            return
+          }
+        } catch {
+          guard !Task.isCancelled else { return }
+          self.failure = "Call status temporarily unavailable. Checking again; no new call will be placed."
+        }
+      }
+      self?.failure = "Live updates paused. Open the call review to refresh."
+    }
+  }
+  func callCommand(_ command: String) {
+    guard let call = callAction, !deciding, let connection = store.connection else { return }
+    if command == "confirm" && (call.status != "pending" || callConfirmationUnknown) { return }
+    guard ["confirm", "cancel", "stop", "calendar", "refresh"].contains(command) else { return }
+    deciding = true
+    callPoll?.cancel()
+    task = Task {
+      defer { deciding = false; monitorCall() }
+      let client = makeClient(connection)
+      let path = "v1/sessions/\(call.sessionId)/calls/\(call.id)"
+      do {
+        if command == "refresh" {
+          let current = try await client.get(path, as: CallEnvelope.self)
+          guard callAction?.id == call.id else { return }
+          callAction = current.callAction
+        } else {
+          if command == "confirm" { callConfirmationUnknown = true }
+          let suffix = ["confirm", "cancel"].contains(command) ? "decision" : command
+          let bytes = try await client.json(path + "/" + suffix, values: suffix == "decision" ? ["decision": command] : [:])
+          let result = try JSONDecoder().decode(TurnResult.self, from: bytes)
+          guard callAction?.id == call.id else { return }
+          callAction = result.callAction
+          if let proposal = result.action { action = proposal; callAction = nil }
+          log("call", result.speechText)
+          show(.approval, "tap to review")
+        }
+        failure = nil
+      } catch {
+        if let current = try? await client.get(path, as: CallEnvelope.self) {
+          guard callAction?.id == call.id else { return }
+          callAction = current.callAction
+        }
+        guard callAction?.id == call.id else { return }
+        failure = "Couldn’t verify the call update. Refresh its status; no automatic redial will occur."
+      }
+    }
+  }
+  func dismissCall() {
+    guard !deciding, let call = callAction, !call.active, call.status != "pending" || callConfirmationUnknown else { return }
+    callPoll?.cancel()
+    callAction = nil
+    show(.idle, "tap to talk")
+  }
+  func dismissDocument() {
+    guard !deciding else { return }
+    documentAction = nil
+    show(.idle, "tap to talk")
   }
   func connectionChanged() {
     suspend()
     sessionID = nil
     action = nil
+    documentAction = nil
+    callAction = nil
+    callConfirmationUnknown = false
     reply = ""
     failure = nil
   }
   func suspend() {
     foreground = false
+    callPoll?.cancel()
     guard !deciding else {
       audio.stop()
       return
@@ -420,3 +533,5 @@ struct Activity: Identifiable {
   var error: Error?
   init(buffer: SentenceBuffer) { self.buffer = buffer }
 }
+
+private struct CallEnvelope: Decodable, Sendable { let callAction: CallAction }

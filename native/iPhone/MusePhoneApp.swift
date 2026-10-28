@@ -62,18 +62,27 @@ struct PhoneHome: View {
             }.padding(.vertical, 6)
           }
         }
+        Section {
+          NavigationLink { MemoryView(model: model) } label: {
+            Label("Memory", systemImage: "brain.head.profile")
+          }
+        }
         Section("Connections") {
           ForEach(Connector.all) { connector in
             HStack(spacing: 10) {
               NavigationLink {
-                ConnectionDetail(connector: connector, model: model)
+                if ["gmail", "notion"].contains(connector.id) {
+                  WorkspaceConnectionView(provider: connector.id, model: model)
+                } else {
+                  ConnectionDetail(connector: connector, model: model)
+                }
               } label: {
                 HStack(spacing: 12) {
                   Image(connector.id).resizable().scaledToFit().frame(width: 28, height: 28)
                     .accessibilityHidden(true)
                   Text(connector.title).font(.body)
                   Spacer(minLength: 0)
-                  if connector.id == "google-calendar", model.status?.calendar == "connected" {
+                  if (connector.id == "google-calendar" && model.status?.calendar == "connected") || (connector.id == "gmail" && model.status?.gmail == "connected") || (connector.id == "notion" && model.status?.notion == "connected") {
                     Circle().fill(.green).frame(width: 6, height: 6).accessibilityLabel("Connected")
                   }
                 }.frame(minHeight: 32)
@@ -102,6 +111,7 @@ struct PhoneHome: View {
       .onChange(of: phase) { _, new in
         if new == .active {
           Task { await model.refresh() }
+          conversation.resumeCalls()
           bridge.publish()
         } else {
           conversation.suspend()
@@ -154,6 +164,9 @@ struct ConnectionDetail: View {
                 .foregroundStyle(.secondary)
             }
           }
+        } else if connector.id == "safari", model.status?.webSearch == true {
+          Label("Available through Meta", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+          Text("Ask Jolly about current information. Sources appear with the reply; no extra sign-in needed.").font(.footnote)
         } else {
           Text("This connection isn’t available in this version yet.").foregroundStyle(.secondary)
         }
@@ -195,7 +208,7 @@ struct PhoneConversation: View {
     ScrollView {
       VStack(spacing: 16) {
         Button {
-          if model.action != nil { review = true } else { model.tap() }
+          if model.hasProposal { review = true } else { model.tap() }
         } label: {
           JollyView(mood: model.mood, level: model.level, heartStart: model.heartStart).frame(
             width: 260, height: 260)
@@ -205,7 +218,7 @@ struct PhoneConversation: View {
         if let failure = model.failure {
           Text(failure).font(.footnote).foregroundStyle(.secondary).padding(.horizontal)
         }
-        if model.action != nil { Button("Review event") { review = true } }
+        if model.hasProposal { Button("Review proposal") { review = true } }
         ForEach(model.activities) { entry in
           VStack(alignment: .leading, spacing: 4) {
             HStack {
@@ -214,17 +227,67 @@ struct PhoneConversation: View {
               Text(entry.time, style: .time).font(.caption).foregroundStyle(.secondary)
             }
             Text(entry.text).font(.subheadline)
+            ForEach(entry.sources) { source in
+              if let url = source.safeURL { Link(source.title, destination: url).font(.footnote) }
+            }
           }.frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal)
           Divider().padding(.leading)
         }
       }
     }.navigationTitle("Jolly").navigationBarTitleDisplayMode(.inline)
       .sheet(isPresented: $review) {
+        if let call = model.callAction { CallReview(model: model, call: call) }
+        if let document = model.documentAction {
+          DocumentReview(dismiss: { model.dismissDocument() }, action: document, busy: model.deciding) { model.decide($0) }
+        }
         if let action = model.action {
           ActionReview(action: action, busy: model.deciding) { model.decide($0) }
         }
       }
-      .onChange(of: model.action?.id) { _, value in if value == nil { review = false } }
+      .onChange(of: model.proposalID) { _, value in if value == nil { review = false } }
+      .onAppear { model.resumeCalls() }
       .onDisappear { model.suspend() }
+  }
+}
+
+struct WorkspaceConnectionView: View {
+  let provider: String
+  let model: PhoneModel
+  @Environment(\.openURL) private var openURL
+  @Environment(\.scenePhase) private var phase
+  @State private var disconnecting = false
+  @State private var query = ""
+  private var connected: Bool { (provider == "gmail" ? model.status?.gmail : model.status?.notion) == "connected" }
+  var body: some View {
+    Form {
+      Section {
+        Text(provider == "gmail" ? "Let Jolly find and summarize your email. It can’t send, change or delete messages." : "Let Jolly turn ideas and email summaries into pages. Review every draft before saving.")
+        if connected { Label("Connected", systemImage: "checkmark.circle.fill").foregroundStyle(.green) }
+        Button(connected ? "Reconnect" : (provider == "gmail" ? "Connect with Google" : "Connect with Notion")) {
+          Task { if let url = await model.connectWorkspace(provider) { openURL(url) } }
+        }.disabled(model.busy)
+        if connected { Button("Disconnect", role: .destructive) { disconnecting = true }.disabled(model.busy) }
+      }
+      if provider == "notion", connected {
+        Section {
+          if let parent = model.status?.notionParent { Label(parent.title, systemImage: "folder") }
+          TextField("Find a shared page", text: $query).onSubmit { Task { await model.loadNotionPages(query) } }
+          Button("Find pages") { Task { await model.loadNotionPages(query) } }.disabled(model.busy)
+          ForEach(model.notionPages) { page in
+            Button { Task { await model.chooseNotionPage(page.id) } } label: {
+              HStack { Text(page.title); Spacer(); if model.status?.notionParent?.id == page.id { Image(systemName: "checkmark") } }
+            }.disabled(model.busy)
+          }
+          if model.notionHasMore { Text("More pages are available. Narrow your search.").font(.footnote).foregroundStyle(.secondary) }
+        } header: { Text("Save pages under") } footer: { Text("Choose a page shared with Muse. Anyone who can access that page may also see documents saved beneath it.") }
+      }
+      if let error = model.error { Section { Text(error).font(.footnote).foregroundStyle(.red) } }
+    }
+    .navigationTitle(provider == "gmail" ? "Gmail" : "Notion")
+    .task { await model.refresh(); if provider == "notion", connected { await model.loadNotionPages("") } }
+    .onChange(of: phase) { _, new in if new == .active { Task { await model.refresh(); if provider == "notion", connected { await model.loadNotionPages(query) } } } }
+    .confirmationDialog("Disconnect this service?", isPresented: $disconnecting, titleVisibility: .visible) {
+      Button("Disconnect", role: .destructive) { Task { await model.disconnectWorkspace(provider) } }
+    }
   }
 }
