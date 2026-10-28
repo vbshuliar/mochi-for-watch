@@ -7,7 +7,7 @@ test('idle and confused stay alive, settle after 1.5s, and respect reduced motio
  const caption={},lids={setAttribute(k,v){this[k]=v;}},media={matches:false,addEventListener(k,f){this.change=f;}};
  const face={style:{},querySelector:()=>eyes,querySelectorAll:()=>brows,setAttribute(k,v){attrs[k]=v;},getAttribute:k=>attrs[k],addEventListener(k,f){events[k]=f;}};
  let now=0,id=0;const frames=new Map(),timers=new Map();
- const doc={hidden:false,querySelector:q=>q==='.idle-face'?face:caption,createElementNS:()=>lids,addEventListener(k,f){events[k]=f;}};
+ const doc={hidden:false,querySelector:q=>q==='.idle-face'?face:q==='#watch-caption'?caption:null,createElementNS:()=>lids,addEventListener(k,f){events[k]=f;}};
  vm.runInNewContext(fs.readFileSync(require('node:path').join(__dirname,'../dist/mouse-gaze.js'),'utf8'),{
   document:doc,window:{addEventListener(){}},matchMedia:()=>media,performance:{now:()=>now},
   requestAnimationFrame:f=>(frames.set(++id,f),id),cancelAnimationFrame:i=>frames.delete(i),

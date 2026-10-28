@@ -1,3 +1,17 @@
+// Use the visitor's local timezone and regional clock format.
+(() => {
+  const clock = document.querySelector('.watch-clock');
+  if (!clock) return;
+  let timer;
+  function updateClock() {
+    clearTimeout(timer);
+    clock.textContent = new Date().toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    if (!document.hidden) timer = setTimeout(updateClock, 60000 - Date.now() % 60000 + 20);
+  }
+  document.addEventListener('visibilitychange', updateClock);
+  updateClock();
+})();
+
 // Continuous website character motion, independent of the native Watch renderer.
 (() => {
   const face = document.querySelector('.idle-face');
