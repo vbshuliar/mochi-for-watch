@@ -6,7 +6,7 @@ Jolly has six connections in the iPhone app and browser emulator. Connection cod
 
 | Connection | Implemented capability | Connect flow |
 | --- | --- | --- |
-| Google Calendar | Read events and availability; create an event after explicit approval | Connect with Google; existing enable/disable switch |
+| Google Calendar | Read events and availability; create events and update/remove Jolly's linked booking events after explicit approval | Connect with Google; existing enable/disable switch |
 | Instagram | Read a bounded sample of posts and comments; Meta summarizes activity and suggests reply text | Connect with Facebook, then choose a linked professional Instagram account |
 | Facebook Pages | Read a bounded sample of Page posts and comments; Meta summarizes activity and suggests reply text | Connect with Facebook, then choose a managed Page |
 | Notion Workspace | Turn ideas or Gmail summaries into a page draft; save only after explicit review | Connect with Notion, share pages, then choose a destination |

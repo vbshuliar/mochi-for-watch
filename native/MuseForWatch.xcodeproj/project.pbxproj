@@ -11,11 +11,13 @@
 		0A0FCDD93F79238FDA9E7095 /* VoiceInterfaces.swift in Sources */ = {isa = PBXBuildFile; fileRef = 800501A57C9213A35045E0E1 /* VoiceInterfaces.swift */; };
 		0E9795A23B44E7625376368B /* PhoneModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0EC6906F20CDCEAF74A4A55 /* PhoneModel.swift */; };
 		18B89D8FF5AA40858FF385DF /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8CFFCAEDB4762BF8D29A2F24 /* Assets.xcassets */; };
+		25C9935A39592A2649681C07 /* TaskNotifications.swift in Sources */ = {isa = PBXBuildFile; fileRef = 790878D28D5CD904E1060F9B /* TaskNotifications.swift */; };
 		29D6092940EBF8917028EF3E /* MuseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 26FA3D6F69D857DBE705B263 /* MuseCore */; };
 		2E8D6A9399E2A5FF503A640C /* ConversationModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BCFB686159F3D28E0EB5610 /* ConversationModel.swift */; };
 		382688F283A96BB37257016D /* RealtimeTranscriber.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29A4F5ACAD59FA67859ADE1F /* RealtimeTranscriber.swift */; };
 		435E732BCA09286F1EB61468 /* PhoneWatchBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18FFFDB037B1DB5BBDE7C1BB /* PhoneWatchBridge.swift */; };
 		47D5A184D1B249E7E36A9CBE /* ConversationModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BCFB686159F3D28E0EB5610 /* ConversationModel.swift */; };
+		4BF9AFA17E195E28D1F3FDF5 /* TasksView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B27B4601DFA6332CF1EC843 /* TasksView.swift */; };
 		54CC2999B4AA91683E37A5F8 /* AudioController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 068B4FF030B2512BBDB5CA18 /* AudioController.swift */; };
 		5E3B22CB4CE13A01DCD32394 /* VoiceInterfaces.swift in Sources */ = {isa = PBXBuildFile; fileRef = 800501A57C9213A35045E0E1 /* VoiceInterfaces.swift */; };
 		5F6BAD941814877E7CFD07F8 /* MuseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 4AC30B9F3E8914F95A35B4F8 /* MuseCore */; };
@@ -23,8 +25,10 @@
 		622C7760AF501D34D21997A7 /* ConnectionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7CC661164AD274C5B266CA3 /* ConnectionStore.swift */; };
 		6535F3DE1A770C0D45F10239 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8CFFCAEDB4762BF8D29A2F24 /* Assets.xcassets */; };
 		6E1B730485C4F124E7656030 /* MuseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 00AEA5F70FBE6F258F8C3609 /* MuseCore */; };
+		8667C4998F34DBC29A48E03B /* SerialRegistrationQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86B5EC8DA1935E4E96F31F32 /* SerialRegistrationQueue.swift */; };
 		9A984059D6CFF38CEC640F9C /* ConnectionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7CC661164AD274C5B266CA3 /* ConnectionStore.swift */; };
 		9C780E3463BA6225887DD99A /* ActionReview.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFB8C50B9AAF82E6ECFBEC5B /* ActionReview.swift */; };
+		AB276E98A45F22813C4723F3 /* SerialRegistrationQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86B5EC8DA1935E4E96F31F32 /* SerialRegistrationQueue.swift */; };
 		AFFC2AA9EF4DD9E09A2AE999 /* DemoSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26B79FCB9B908C4C257BFE66 /* DemoSetup.swift */; };
 		B4997002F25DD3A49DF55319 /* NativeConversationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B57EB68D65F91537C5CBF05A /* NativeConversationTests.swift */; };
 		B6ED3D6DDC78C3217AA28119 /* PhoneWatchBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18FFFDB037B1DB5BBDE7C1BB /* PhoneWatchBridge.swift */; };
@@ -34,9 +38,10 @@
 		C0252A2394F6FBA1D493FC75 /* MusePhoneApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D18E5BBB71A41EC20BBE98C8 /* MusePhoneApp.swift */; };
 		C04A4055AD8A073250EE4AB4 /* JollyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0833E711F93D580A24FCCDF /* JollyView.swift */; };
 		C2AB4AE61276E9F1DAA2F2ED /* PlatformBootstrap.swift in Sources */ = {isa = PBXBuildFile; fileRef = E567D8744F192CCB3C54B999 /* PlatformBootstrap.swift */; };
+		CC57A64745293538C4C9C73A /* TaskNotifications.swift in Sources */ = {isa = PBXBuildFile; fileRef = 790878D28D5CD904E1060F9B /* TaskNotifications.swift */; };
 		D136F6BBA85EC54AF0BE5CD1 /* RealtimeTranscriber.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29A4F5ACAD59FA67859ADE1F /* RealtimeTranscriber.swift */; };
-		D9E034DF7B54E1FB6DF21DC9 /* JollyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0833E711F93D580A24FCCDF /* JollyView.swift */; };
 		D6A1E6F7718DB44EE4AF3375 /* MemoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 591449F0493C3108F29868AF /* MemoryView.swift */; };
+		D9E034DF7B54E1FB6DF21DC9 /* JollyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0833E711F93D580A24FCCDF /* JollyView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -76,21 +81,24 @@
 		197C39D0BDD0E49ABDA5FFC0 /* MuseWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MuseWatchApp.swift; sourceTree = "<group>"; };
 		26B79FCB9B908C4C257BFE66 /* DemoSetup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoSetup.swift; sourceTree = "<group>"; };
 		29A4F5ACAD59FA67859ADE1F /* RealtimeTranscriber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealtimeTranscriber.swift; sourceTree = "<group>"; };
+		2B27B4601DFA6332CF1EC843 /* TasksView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TasksView.swift; sourceTree = "<group>"; };
 		3BCFB686159F3D28E0EB5610 /* ConversationModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationModel.swift; sourceTree = "<group>"; };
 		3EED1919B1C4AAA54A12D188 /* MuseNativeTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MuseNativeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		591449F0493C3108F29868AF /* MemoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryView.swift; sourceTree = "<group>"; };
 		606D6C67A3457BFC9B4232BE /* MuseWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MuseWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		790878D28D5CD904E1060F9B /* TaskNotifications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskNotifications.swift; sourceTree = "<group>"; };
 		800501A57C9213A35045E0E1 /* VoiceInterfaces.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceInterfaces.swift; sourceTree = "<group>"; };
+		86B5EC8DA1935E4E96F31F32 /* SerialRegistrationQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SerialRegistrationQueue.swift; sourceTree = "<group>"; };
 		8CFFCAEDB4762BF8D29A2F24 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B57EB68D65F91537C5CBF05A /* NativeConversationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeConversationTests.swift; sourceTree = "<group>"; };
 		BFB8C50B9AAF82E6ECFBEC5B /* ActionReview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionReview.swift; sourceTree = "<group>"; };
 		D0833E711F93D580A24FCCDF /* JollyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JollyView.swift; sourceTree = "<group>"; };
 		D18E5BBB71A41EC20BBE98C8 /* MusePhoneApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusePhoneApp.swift; sourceTree = "<group>"; };
-		E0F539E1977DFC2772A99AF5 /* MusePhone.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MusePhone.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E0F539E1977DFC2772A99AF5 /* MusePhone.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = MusePhone.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E567D8744F192CCB3C54B999 /* PlatformBootstrap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlatformBootstrap.swift; sourceTree = "<group>"; };
 		E7CC661164AD274C5B266CA3 /* ConnectionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionStore.swift; sourceTree = "<group>"; };
 		F0EC6906F20CDCEAF74A4A55 /* PhoneModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneModel.swift; sourceTree = "<group>"; };
-		F71639B57719A50DE232510F /* MuseCore */ = {isa = PBXFileReference; lastKnownFileType = folder; path = MuseCore; sourceTree = SOURCE_ROOT; };
-		591449F0493C3108F29868AF /* MemoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryView.swift; sourceTree = "<group>"; };
+		F71639B57719A50DE232510F /* MuseCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = MuseCore; path = MuseCore; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -154,6 +162,7 @@
 				591449F0493C3108F29868AF /* MemoryView.swift */,
 				D18E5BBB71A41EC20BBE98C8 /* MusePhoneApp.swift */,
 				F0EC6906F20CDCEAF74A4A55 /* PhoneModel.swift */,
+				2B27B4601DFA6332CF1EC843 /* TasksView.swift */,
 			);
 			path = iPhone;
 			sourceTree = "<group>";
@@ -177,6 +186,8 @@
 				18FFFDB037B1DB5BBDE7C1BB /* PhoneWatchBridge.swift */,
 				E567D8744F192CCB3C54B999 /* PlatformBootstrap.swift */,
 				29A4F5ACAD59FA67859ADE1F /* RealtimeTranscriber.swift */,
+				86B5EC8DA1935E4E96F31F32 /* SerialRegistrationQueue.swift */,
+				790878D28D5CD904E1060F9B /* TaskNotifications.swift */,
 				800501A57C9213A35045E0E1 /* VoiceInterfaces.swift */,
 			);
 			path = Shared;
@@ -349,6 +360,9 @@
 				B6ED3D6DDC78C3217AA28119 /* PhoneWatchBridge.swift in Sources */,
 				C2AB4AE61276E9F1DAA2F2ED /* PlatformBootstrap.swift in Sources */,
 				D136F6BBA85EC54AF0BE5CD1 /* RealtimeTranscriber.swift in Sources */,
+				8667C4998F34DBC29A48E03B /* SerialRegistrationQueue.swift in Sources */,
+				25C9935A39592A2649681C07 /* TaskNotifications.swift in Sources */,
+				4BF9AFA17E195E28D1F3FDF5 /* TasksView.swift in Sources */,
 				5E3B22CB4CE13A01DCD32394 /* VoiceInterfaces.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -374,6 +388,8 @@
 				435E732BCA09286F1EB61468 /* PhoneWatchBridge.swift in Sources */,
 				BCC26C722B8A7B2AA9624E8D /* PlatformBootstrap.swift in Sources */,
 				382688F283A96BB37257016D /* RealtimeTranscriber.swift in Sources */,
+				AB276E98A45F22813C4723F3 /* SerialRegistrationQueue.swift in Sources */,
+				CC57A64745293538C4C9C73A /* TaskNotifications.swift in Sources */,
 				0A0FCDD93F79238FDA9E7095 /* VoiceInterfaces.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -413,11 +429,11 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEVELOPMENT_TEAM = 59T623DV9Y;
-				INFOPLIST_FILE = "Generated/Phone-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Muse for Watch";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Connect to your Muse backend on your local network.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Talk to Jolly using your microphone. Audio is sent to Meta for transcription.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_FILE = "Generated/Phone-Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -489,6 +505,7 @@
 				MARKETING_VERSION = 0.1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
+				MUSE_PUSH_ENVIRONMENT = disabled;
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
@@ -551,11 +568,11 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEVELOPMENT_TEAM = 59T623DV9Y;
-				INFOPLIST_FILE = "Generated/Phone-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Muse for Watch";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Connect to your Muse backend on your local network.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Talk to Jolly using your microphone. Audio is sent to Meta for transcription.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_FILE = "Generated/Phone-Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -621,6 +638,7 @@
 				MARKETING_VERSION = 0.1.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
+				MUSE_PUSH_ENVIRONMENT = disabled;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";

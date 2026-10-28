@@ -84,3 +84,12 @@ Flexible booking approval lists every allowed window separately (including multi
 Approved calls run separately from chat. The Watch preview keeps a compact task indicator; clicking it opens review/Stop without discarding a separate pending Calendar or document proposal. Progress questions are answered by the backend from actual call state. Completion cards wait for the conversation to be idle and replace the face with a compact result. Appointment times use the viewer’s local timezone and 12-hour am/pm, with no timezone label. Starting another exchange restores the full face; task review remains available.
 
 Task recovery and completion deduplication are scoped to this browser origin and conversation session. Reopening refreshes a saved task. This version uses in-app cards, not system push notifications. No demo card is evidence that a live booking succeeded.
+
+
+## Shared tasks and booking changes
+
+Tasks refresh from the private owner's authenticated `/v1/tasks` collection across Watch, iPhone and browser conversation sessions. Review and decision requests retain each task's source session ID. Starting a new conversation does not delete the previous session or its shared tasks.
+
+A verified booking offers **reschedule booking** and **cancel booking**. These controls only prepare a new proposal; they never dial directly. Reschedule inputs use the viewer's displayed local timezone and are converted to absolute timestamps. The new proposal retains the original business, customer and appointment details for explicit review before another call. A confirmed change can then offer a separately approved Calendar update or deletion. Obsolete bookings do not offer new changes.
+
+This browser UI has in-app task updates. Remote APNs notifications are a native-client capability requiring provisioning and physical-device acceptance. See [development acceptance](../../docs/development-acceptance.md).

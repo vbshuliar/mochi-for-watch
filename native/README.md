@@ -100,3 +100,31 @@ After call approval, booking progress has its own review button and does not blo
 Completion cards wait until recording, thinking, speech, and foreground approvals finish. The compact card replaces Jolly until dismissal or another conversation, respecting Reduce Motion. Only a verified `booked` outcome is titled **booking confirmed**, with the actual booked start displayed in the viewer’s device timezone using a compact 12-hour clock (for example, `Fri, 6 Nov · 3:30 pm`), without a timezone label. Full call review retains the booking timezone. Other outcomes retain their honest summary. Review offers stop/refresh controls, including uncertain calls. Calendar writes still require a separate explicit approval. Dismissed completion cards do not reappear after refresh or restart.
 
 These are in-app cards, with catch-up on resume. This feature requires no APNs setup, system-notification permission, or paid Apple developer membership. It does not promise delivery while the app is suspended. Building remains unsigned; installation is a separate manual step.
+
+## Shared tasks, changes and notifications (28 October 2026)
+
+Both clients load the private account's task feed from authenticated `GET /v1/tasks`. A fresh device can see bookings created by the other device; conversation histories remain separate. Reviews keep the task's original session identity for approval, stop and Calendar operations. Opening a task retrieves any linked pending Calendar approval. The iPhone has a Tasks entry; the Watch keeps its Tasks page. Foreground polling checks active work every three seconds and idle feeds every fifteen seconds, and stops when the app is inactive.
+
+Confirmed bookings offer **Reschedule booking** and **Cancel booking**. These prepare a new call proposal; they never dial immediately. A reschedule selects an allowed window in the booking's timezone. Review shows the original appointment and the requested change. Jolly must obtain a verified result from the business; any Calendar update or removal has its own clearly labelled approval. Superseded bookings link conceptually to the newer task and no longer offer change controls.
+
+Push delivery is implemented for both iPhone and independent Watch tokens, with explicit notification permission and task refresh on tap. Alerts contain generic task text, never the business, phone number or appointment details. The default development build has `MUSE_PUSH_ENVIRONMENT=disabled` and honestly reports that provisioning is needed. It continues to show task results in-app. Remote delivery has **not** been verified on hardware.
+
+To enable actual push delivery later:
+
+1. Enable Push Notifications for both app identifiers in the Apple developer account and create compatible signing profiles. Use the app's actual bundle identifiers as the server topics.
+2. Set each target's `MUSE_PUSH_ENVIRONMENT` to `development` for sandbox signing or `production` for distribution, and `CODE_SIGN_ENTITLEMENTS` to `Resources/Push.entitlements`. The environment must match the signing profile and backend `APNS_ENVIRONMENT`. Do not set this on an unsigned or unprovisioned build.
+3. Configure the backend APNs signing key, team/key IDs and separate iOS/watchOS topics. Keys stay server-side.
+4. Install both signed clients. Enable updates from Tasks → Notifications on each device. Test with the apps inactive and confirm tapping an alert opens the correct refreshed task without granting any approval. System routing determines which paired device presents an alert; simultaneous delivery is not guaranteed.
+5. Disable updates and confirm server registration removal. Revoking notification permission in system Settings also removes the registration on the next app refresh.
+
+## Device acceptance checklist
+
+The owner requested builds now and physical-device testing later. No device install, live telephone call or Calendar write is authorized by running these checks.
+
+- Install the new signed iPhone and Watch apps; connect them to the same private backend. Start a booking on one device, review it on the other, and confirm duplicate taps do not dial twice.
+- With a separately approved call to a ready consenting test recipient, verify original booking, reschedule and cancellation outcomes against the recipient's actual words. Separately approve and verify each Calendar change.
+- Speak on Watch, pause naturally, interrupt speech, lower the wrist while recording/thinking/playing, reopen, and verify old audio never resumes or triggers an action.
+- Repeat with Bluetooth audio connected, then disconnect during recording and playback. Verify recording stops and the next tap safely establishes the current route.
+- Repeat after losing connectivity; confirm the app offers a clear retry and never retries a call automatically.
+- Inspect the iPhone conversation activity entry `First audio: … ms after input finished`. This uses monotonic time from completing input capture (or submitting text) to the first actual playback callback, once per turn. It is client-observed latency, not a provider estimate or a timing guarantee. Record at least ten real Watch turns and report median and slowest values, including endpointing separately.
+- Compare battery consumption and animation smoothness over a real session, including inactive periods and Reduce Motion. Automated checks cannot verify physical battery impact, microphone quality or wrist-down routing.

@@ -51,6 +51,7 @@ private final class PCMConverter: @unchecked Sendable {
   private var player: AVAudioPlayer?
   private var playback: CheckedContinuation<Void, Error>?
   private var interruption: NSObjectProtocol?
+  private var routeChange: NSObjectProtocol?
   var onPCM: ((Data, Double) -> Void)?
   var onPlaybackStart: (() -> Void)?
   var onInterruption: (() -> Void)?
@@ -58,14 +59,23 @@ private final class PCMConverter: @unchecked Sendable {
     super.init()
     interruption = NotificationCenter.default.addObserver(
       forName: AVAudioSession.interruptionNotification, object: nil, queue: .main
-    ) { [weak self] _ in
+    ) { [weak self] notification in
+      guard let raw = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+        AVAudioSession.InterruptionType(rawValue: raw) == .began else { return }
+      Task { @MainActor in self?.onInterruption?() }
+    }
+    routeChange = NotificationCenter.default.addObserver(
+      forName: AVAudioSession.routeChangeNotification, object: nil, queue: .main
+    ) { [weak self] notification in
+      guard let raw = notification.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
+        AVAudioSession.RouteChangeReason(rawValue: raw) == .oldDeviceUnavailable else { return }
       Task { @MainActor in self?.onInterruption?() }
     }
   }
   func activate() async throws {
     let session = AVAudioSession.sharedInstance()
     #if os(iOS)
-      try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker])
+      try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetoothHFP])
       try session.setActive(true)
     #else
       try session.setCategory(.playAndRecord, mode: .default, policy: .default, options: [])

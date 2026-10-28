@@ -12,7 +12,7 @@ import {
   type Timeline,
   type TurnResult,
 } from "./domain.ts";
-import type { Calls } from "./calls.ts";
+import type { Calls, CallAction } from "./calls.ts";
 import type { Workflows } from "./workflows.ts";
 import type { SocialWorkflow } from "./social-workflow.ts";
 import { Store } from "./store.ts";
@@ -242,7 +242,7 @@ export class Service {
           { role: "user" as const, content: text },
         ].slice(-16);
         const memories = this.memories();
-        const latestCall = this.calls?.list(id)[0];
+        const latestCall = this.calls?.listAll()[0];
         const plan = planSchema.parse(
           /^(?:how(?:’s|'s| is) (?:the |my )?(?:booking|call)(?: going)?|(?:is|has) (?:the |my )?(?:booking|call) (?:done|finished|completed)|did (?:they|the business) (?:answer|confirm|book it)|what(?:’s|'s| is) (?:the )?(?:call|booking) (?:status|progress))\??$/i.test(
             text.trim(),
@@ -254,6 +254,7 @@ export class Service {
                 memories,
                 latestCall: latestCall
                   ? {
+                      id: latestCall.id,
                       status: latestCall.status,
                       progress: latestCall.progress?.text,
                       summary: latestCall.summary,
@@ -282,6 +283,26 @@ export class Service {
           result =
             this.calls?.statusReply(id) ??
             this.result(id, "speak", "No booking call has been started.");
+        } else if (plan.kind === "change_booking") {
+          if (!this.calls)
+            throw new AppError(
+              409,
+              "calls_unavailable",
+              "Booking calls are unavailable.",
+            );
+          const source = this.calls
+            .listAll()
+            .find((call) => call.id === plan.callId);
+          if (!source)
+            throw new AppError(404, "not_found", "Booking not found.");
+          result = await this.calls.prepareChange(
+            source.sessionId,
+            source.id,
+            plan.change,
+            signal,
+          );
+          result = { ...result, sessionId: id };
+          check();
         } else if (plan.kind === "call_booking") {
           if (!this.calls)
             throw new AppError(
@@ -481,7 +502,7 @@ export class Service {
         return this.result(
           sessionId,
           "happy",
-          `added · ${action.event.title}`,
+          `${action.operation === "delete" ? "removed" : action.operation === "update" ? "updated" : "added"} · ${action.event.title}`,
           {
             action,
             data: action.receipt,
@@ -521,18 +542,67 @@ export class Service {
         );
       }
       this.requireCalendarEnabled();
+      const linkedCall = this.store
+        .list<CallAction>("call")
+        .map((r) => r.value)
+        .find((call) => call.calendarActionId === action.id);
+      if (
+        linkedCall &&
+        (linkedCall.supersededBy ||
+          this.store
+            .list<CallAction>("call")
+            .some(
+              ({ value }) =>
+                value.sourceCallId === linkedCall.id &&
+                ["starting", "queued", "in_progress", "uncertain"].includes(
+                  value.status,
+                ),
+            ))
+      )
+        throw new AppError(
+          409,
+          "booking_changed",
+          "A booking change is active or completed. Review its result before changing Calendar.",
+        );
       action.status = "executing";
       this.store.put("action", action.id, action);
-      this.emit(sessionId, "working", "adding your event…");
+      this.emit(
+        sessionId,
+        "working",
+        action.operation === "delete"
+          ? "removing your event…"
+          : action.operation === "update"
+            ? "updating your event…"
+            : "adding your event…",
+      );
       try {
-        action.receipt = await this.calendar.create(action.id, action.event);
+        if (action.operation) {
+          if (
+            !this.calendar.change ||
+            !action.targetReceipt ||
+            !action.sourceActionId
+          )
+            throw new AppError(
+              409,
+              "calendar_change_unavailable",
+              "Calendar changes are unavailable.",
+            );
+          action.receipt = await this.calendar.change(
+            action.id,
+            action.sourceActionId,
+            action.targetReceipt,
+            action.operation,
+            action.event,
+          );
+        } else
+          action.receipt = await this.calendar.create(action.id, action.event);
         action.status = "completed";
         this.store.put("action", action.id, action);
         this.rememberAction(action);
         return this.result(
           sessionId,
           "happy",
-          `added · ${action.event.title}`,
+          `${action.operation === "delete" ? "removed" : action.operation === "update" ? "updated" : "added"} · ${action.event.title}`,
           {
             action,
             data: action.receipt,

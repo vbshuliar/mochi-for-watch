@@ -1,7 +1,9 @@
 import MuseCore
 import SwiftUI
+import WatchKit
 
 @main struct MuseWatchApp: App {
+  @WKApplicationDelegateAdaptor(WatchNotificationDelegate.self) private var notificationDelegate
   @State private var store: ConnectionStore
   @State private var conversation: ConversationModel
   private let bridge: PhoneWatchBridge
@@ -23,6 +25,8 @@ struct WatchHome: View {
   @State private var showingSources = false
   @State private var selectedTaskID: String?
   @State private var page = 0
+  @State private var notificationSettings = false
+  private let notifications = TaskNotifications.shared
   var body: some View {
     TabView(selection: $page) {
       jollyPage.tag(0)
@@ -30,6 +34,17 @@ struct WatchHome: View {
     }
     .tabViewStyle(.page(indexDisplayMode: .always))
     .background(.black)
+    .sheet(isPresented: $notificationSettings) {
+      ScrollView {
+        VStack(spacing: 12) {
+          Text("Notifications").font(.headline)
+          Text(notifications.status).font(.footnote)
+          Button(notifications.optedIn ? "Turn off" : "Enable updates") {
+            Task { if notifications.optedIn { await notifications.disable() } else { await notifications.enable() } }
+          }.disabled(notifications.busy)
+        }.padding()
+      }.task { await notifications.refresh() }
+    }
     .sheet(isPresented: $showingSources) {
       NavigationStack {
         List(model.sources) { source in
@@ -51,16 +66,28 @@ struct WatchHome: View {
         ActionReview(action: action, busy: model.deciding) { model.decide($0) }
       }
     }
-    .onAppear { model.resumeCalls() }
+    .onAppear { notifications.configure(store.connection); model.resumeCalls(); openNotificationTask() }
     .sheet(isPresented: $callReview, onDismiss: { if model.hasProposal { reviewing = true } }) {
-      if let call = selectedTaskID.flatMap({ id in model.taskCalls.first { $0.id == id } }) ?? model.backgroundCall { CallReview(model: model, call: call) }
+      if let selectedTaskID {
+        if let call = model.taskCalls.first(where: { $0.id == selectedTaskID }) { CallReview(model: model, call: call) }
+        else { VStack { Text("Task unavailable or refreshing"); Button("Refresh") { model.resumeCalls() } }.padding() }
+      } else if let call = model.backgroundCall { CallReview(model: model, call: call) }
     }
     .onChange(of: model.proposalID) { _, new in
       if new == nil { reviewing = false }
       else if callReview { callReview = false }
     }
-    .onChange(of: store.connection) { _, _ in model.connectionChanged() }
-    .onChange(of: phase) { _, new in if new != .active { model.suspend() } else { model.resumeCalls() } }
+    .onChange(of: store.connection) { _, _ in model.connectionChanged(); notifications.configure(store.connection); model.resumeCalls() }
+    .onChange(of: notifications.openedTaskID) { _, _ in openNotificationTask() }
+    .onChange(of: phase) { _, new in if new != .active { model.suspend() } else { model.resumeCalls(); Task { await notifications.refresh() } } }
+  }
+  private func openNotificationTask() {
+    guard let id = notifications.openedTaskID else { return }
+    selectedTaskID = id
+    notifications.openedTaskID = nil
+    page = 1
+    model.resumeCalls()
+    callReview = true
   }
   private var jollyPage: some View {
     GeometryReader { geometry in
@@ -113,6 +140,8 @@ struct WatchHome: View {
       ScrollView {
         VStack(alignment: .leading, spacing: 12) {
           Text("Tasks").font(.title3.bold())
+          Button("Refresh tasks") { model.resumeCalls(); Task { await notifications.refresh() } }.font(.caption)
+          Button("Notifications") { notificationSettings = true }.font(.caption)
           taskSection("In progress", calls: active)
           if !attention.isEmpty || model.action != nil || model.documentAction != nil {
             Text("Needs you").font(.caption2).foregroundStyle(.secondary)

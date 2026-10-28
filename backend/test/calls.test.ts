@@ -4,6 +4,7 @@ import { createHmac, randomUUID } from "node:crypto";
 import {
   Calls,
   confirmsSlot,
+  isConditionalConfirmation,
   startTimeRanges,
   conciseTimeOffer,
   type CallAction,
@@ -1111,6 +1112,7 @@ test("background calls survive chat and report only actual progress through comp
   await ask("Tell me something fun");
   assert.equal(built.calls.get(session.id, a.id).status, "in_progress");
   assert.deepEqual(context, {
+    id: a.id,
     status: "in_progress",
     progress: "The call is connected. No booking is confirmed yet.",
     summary: undefined,
@@ -1384,4 +1386,470 @@ test("uncertain calls remain undated until a verified stop", async (t) => {
     now,
   );
   await recovered.close();
+});
+
+async function confirmedSource(calls: Calls, store: Store) {
+  const proposal = (await calls.prepare(randomUUID(), booking)).callAction!;
+  const source = calls.get(proposal.sessionId, proposal.id);
+  source.status = "completed";
+  source.outcome = "booked";
+  source.bookedSlot = source.slots[0];
+  store.put("call", source.id, source);
+  return source;
+}
+
+test("booking change proposals bind the original details, require approval and deduplicate retries", async (t) => {
+  const counts = providers(t);
+  const { calls, store } = fixture(t);
+  const source = await confirmedSource(calls, store);
+  const change = {
+    operation: "reschedule" as const,
+    window: { start: "2030-11-06T10:00:00Z", end: "2030-11-06T12:00:00Z" },
+  };
+  const first = (await calls.prepareChange(source.sessionId, source.id, change))
+    .callAction!;
+  assert.equal(first.operation, "reschedule");
+  assert.equal(first.sourceCallId, source.id);
+  assert.deepEqual(first.originalSlot, source.bookedSlot);
+  assert.equal(first.booking.phoneNumber, source.booking.phoneNumber);
+  assert.equal(first.status, "pending");
+  assert.equal(counts.dial, 0);
+  const second = (
+    await calls.prepareChange(source.sessionId, source.id, change)
+  ).callAction!;
+  assert.equal(second.id, first.id);
+  await assert.rejects(
+    calls.prepareChange(source.sessionId, source.id, {
+      operation: "cancel_booking",
+    }),
+    /existing change request/,
+  );
+  await calls.decide(first.sessionId, first.id, "cancel");
+  assert.equal(calls.get(source.sessionId, source.id).supersededBy, undefined);
+  assert.equal(counts.dial, 0);
+});
+
+test("unverified, past and cross-session bookings cannot be changed", async (t) => {
+  const { calls, store } = fixture(t);
+  const source = await confirmedSource(calls, store);
+  await assert.rejects(
+    calls.prepareChange(randomUUID(), source.id, {
+      operation: "cancel_booking",
+    }),
+    /not found/,
+  );
+  await assert.rejects(
+    calls.prepareChange(source.sessionId, source.id, {
+      operation: "reschedule",
+    }),
+    /window/i,
+  );
+  source.outcome = "not_booked";
+  store.put("call", source.id, source);
+  await assert.rejects(
+    calls.prepareChange(source.sessionId, source.id, {
+      operation: "cancel_booking",
+    }),
+    /confirmed booking/,
+  );
+  source.outcome = "booked";
+  source.bookedSlot = {
+    start: "2020-01-01T10:00:00Z",
+    end: "2020-01-01T10:30:00Z",
+  };
+  store.put("call", source.id, source);
+  await assert.rejects(
+    calls.prepareChange(source.sessionId, source.id, {
+      operation: "cancel_booking",
+    }),
+    /future bookings/,
+  );
+});
+
+test("verified cancellation requires separate call and Calendar approvals", async (t) => {
+  const speech = "Alex's appointment on 5 November at 10:00 is cancelled.";
+  const counts = providers(t, {
+    text: "Thank you, goodbye.",
+    outcome: "booking_cancelled",
+    confirmationQuote: speech,
+  });
+  const { calls, store } = fixture(t, true);
+  const source = await confirmedSource(calls, store);
+  const saved = calls.proposeCalendar(source.sessionId, source.id).action!;
+  saved.status = "completed";
+  saved.receipt = {
+    id: saved.id.replaceAll("-", ""),
+    title: saved.event.title,
+    start: saved.event.start,
+    end: saved.event.end,
+    simulated: false,
+  };
+  store.put("action", saved.id, saved);
+  const proposal = (
+    await calls.prepareChange(source.sessionId, source.id, {
+      operation: "cancel_booking",
+    })
+  ).callAction!;
+  assert.equal(counts.dial, 0);
+  await calls.decide(proposal.sessionId, proposal.id, "confirm");
+  assert.equal(counts.dial, 1);
+  calls.voice(proposal.id, 0, callback);
+  calls.gather(proposal.id, 0, { ...callback, SpeechResult: speech });
+  await calls.close();
+  calls.voice(proposal.id, 1, callback);
+  const completed = calls.get(proposal.sessionId, proposal.id);
+  assert.equal(completed.outcome, "booking_cancelled");
+  assert.equal(
+    calls.get(source.sessionId, source.id).supersededBy,
+    proposal.id,
+  );
+  assert.equal(store.get<any>("action", saved.id).status, "completed");
+  const removal = calls.proposeCalendar(
+    proposal.sessionId,
+    proposal.id,
+  ).action!;
+  assert.equal(removal.operation, "delete");
+  assert.equal(removal.status, "pending");
+  assert.deepEqual(removal.targetReceipt, saved.receipt);
+  assert.equal(removal.sourceActionId, saved.id);
+  await assert.rejects(
+    calls.prepareChange(source.sessionId, source.id, {
+      operation: "cancel_booking",
+    }),
+    /current, confirmed/,
+  );
+});
+
+test("ambiguous cancellation does not change booking or allow Calendar removal", async (t) => {
+  const speech = "Can Alex's appointment on 5 November at 10:00 be cancelled?";
+  providers(t, {
+    text: "It is cancelled.",
+    outcome: "booking_cancelled",
+    confirmationQuote: speech,
+  });
+  const { calls, store } = fixture(t);
+  const source = await confirmedSource(calls, store);
+  const proposal = (
+    await calls.prepareChange(source.sessionId, source.id, {
+      operation: "cancel_booking",
+    })
+  ).callAction!;
+  await calls.decide(proposal.sessionId, proposal.id, "confirm");
+  calls.gather(proposal.id, 0, { ...callback, SpeechResult: speech });
+  await calls.close();
+  assert.match(calls.voice(proposal.id, 1, callback), /Gather/);
+  assert.equal(calls.get(source.sessionId, source.id).supersededBy, undefined);
+  assert.throws(
+    () => calls.proposeCalendar(proposal.sessionId, proposal.id),
+    /No confirmed/,
+  );
+});
+
+test("verified reschedule preserves original evidence and proposes updating the linked event", async (t) => {
+  const speech =
+    "Alex's appointment has been rescheduled to 6 November at 10:00.";
+  providers(t, {
+    text: "Thank you, goodbye.",
+    outcome: "rescheduled",
+    slotIndex: 0,
+    confirmationQuote: speech,
+  });
+  const { calls, store } = fixture(t, true);
+  const source = await confirmedSource(calls, store);
+  const saved = calls.proposeCalendar(source.sessionId, source.id).action!;
+  saved.status = "completed";
+  saved.receipt = {
+    id: saved.id.replaceAll("-", ""),
+    title: saved.event.title,
+    start: saved.event.start,
+    end: saved.event.end,
+    simulated: false,
+  };
+  store.put("action", saved.id, saved);
+  const proposal = (
+    await calls.prepareChange(source.sessionId, source.id, {
+      operation: "reschedule",
+      window: { start: "2030-11-06T10:00:00Z", end: "2030-11-06T12:00:00Z" },
+    })
+  ).callAction!;
+  await calls.decide(proposal.sessionId, proposal.id, "confirm");
+  calls.gather(proposal.id, 0, { ...callback, SpeechResult: speech });
+  await calls.close();
+  calls.voice(proposal.id, 1, callback);
+  assert.equal(
+    calls.get(proposal.sessionId, proposal.id).outcome,
+    "rescheduled",
+  );
+  const update = calls.proposeCalendar(proposal.sessionId, proposal.id).action!;
+  assert.equal(update.operation, "update");
+  assert.equal(update.event.start, "2030-11-06T10:00:00.000Z");
+  assert.equal(update.targetReceipt?.start, source.bookedSlot!.start);
+  assert.equal(
+    store.get<any>("action", saved.id).receipt.start,
+    source.bookedSlot!.start,
+  );
+});
+
+test("task listing and spoken status include another device's active call", async (t) => {
+  providers(t);
+  const { calls } = fixture(t);
+  const call = await started(calls);
+  const other = randomUUID();
+  const result = calls.statusReply(other);
+  assert.equal(result.sessionId, other);
+  assert.equal(result.callAction?.id, call.id);
+  assert.equal(result.callAction?.sessionId, call.sessionId);
+  assert(calls.listAll().some((a) => a.id === call.id));
+});
+
+test("chained changes retain the Calendar creation binding and latest verified event", async (t) => {
+  const { calls, store } = fixture(t, true);
+  const original = await confirmedSource(calls, store);
+  const create = calls.proposeCalendar(original.sessionId, original.id).action!;
+  create.status = "completed";
+  create.receipt = {
+    id: create.id.replaceAll("-", ""),
+    title: create.event.title,
+    start: create.event.start,
+    end: create.event.end,
+    simulated: false,
+  };
+  store.put("action", create.id, create);
+  const next = (
+    await calls.prepareChange(original.sessionId, original.id, {
+      operation: "reschedule",
+      window: { start: "2030-11-06T10:00:00Z", end: "2030-11-06T12:00:00Z" },
+    })
+  ).callAction!;
+  let rescheduled = calls.get(next.sessionId, next.id);
+  rescheduled.status = "completed";
+  rescheduled.outcome = "rescheduled";
+  rescheduled.bookedSlot = rescheduled.slots[0];
+  store.put("call", rescheduled.id, rescheduled);
+  const update = calls.proposeCalendar(
+    rescheduled.sessionId,
+    rescheduled.id,
+  ).action!;
+  update.status = "completed";
+  update.receipt = {
+    ...create.receipt,
+    start: update.event.start,
+    end: update.event.end,
+  };
+  store.put("action", update.id, update);
+  const cancelled = (
+    await calls.prepareChange(rescheduled.sessionId, rescheduled.id, {
+      operation: "cancel_booking",
+    })
+  ).callAction!;
+  const cancellation = calls.get(cancelled.sessionId, cancelled.id);
+  cancellation.status = "completed";
+  cancellation.outcome = "booking_cancelled";
+  store.put("call", cancellation.id, cancellation);
+  const removal = calls.proposeCalendar(
+    cancellation.sessionId,
+    cancellation.id,
+  ).action!;
+  assert.equal(removal.sourceActionId, create.id);
+  assert.deepEqual(removal.targetReceipt, update.receipt);
+  assert.equal(removal.operation, "delete");
+});
+
+test("cancellation after an unsaved reschedule still targets the original saved Calendar event", async (t) => {
+  const { calls, store } = fixture(t, true);
+  const original = await confirmedSource(calls, store);
+  const create = calls.proposeCalendar(original.sessionId, original.id).action!;
+  create.status = "completed";
+  create.receipt = {
+    id: create.id.replaceAll("-", ""),
+    title: create.event.title,
+    start: create.event.start,
+    end: create.event.end,
+    simulated: false,
+  };
+  store.put("action", create.id, create);
+  const next = (
+    await calls.prepareChange(original.sessionId, original.id, {
+      operation: "reschedule",
+      window: { start: "2030-11-06T10:00:00Z", end: "2030-11-06T12:00:00Z" },
+    })
+  ).callAction!;
+  const moved = calls.get(next.sessionId, next.id);
+  moved.status = "completed";
+  moved.outcome = "rescheduled";
+  moved.bookedSlot = moved.slots[0];
+  store.put("call", moved.id, moved);
+  const cancelled = (
+    await calls.prepareChange(moved.sessionId, moved.id, {
+      operation: "cancel_booking",
+    })
+  ).callAction!;
+  const cancellation = calls.get(cancelled.sessionId, cancelled.id);
+  cancellation.status = "completed";
+  cancellation.outcome = "booking_cancelled";
+  store.put("call", cancellation.id, cancellation);
+  const removal = calls.proposeCalendar(
+    cancellation.sessionId,
+    cancellation.id,
+  ).action!;
+  assert.equal(removal.sourceActionId, create.id);
+  assert.deepEqual(removal.targetReceipt, create.receipt);
+});
+
+test("cross-device voice booking changes keep the requesting conversation and original action session", async (t) => {
+  const store = new Store(":memory:", config.ENCRYPTION_KEY);
+  let sourceId = "";
+  const built = await buildApp(config, {
+    store,
+    calendar,
+    planner: {
+      async plan() {
+        return {
+          kind: "change_booking",
+          callId: sourceId,
+          change: { operation: "cancel_booking" },
+        };
+      },
+      async transcribe() {
+        return "";
+      },
+    },
+  });
+  t.after(() => built.app.close());
+  const watch = built.service.createSession("Europe/London");
+  const phone = built.service.createSession("Europe/London");
+  const proposal = (await built.calls.prepare(watch.id, booking)).callAction!;
+  const source = built.calls.get(watch.id, proposal.id);
+  source.status = "completed";
+  source.outcome = "booked";
+  source.bookedSlot = source.slots[0];
+  store.put("call", source.id, source);
+  sourceId = source.id;
+  const result = await built.service.turn(phone.id, randomUUID(), {
+    text: "Call to cancel my confirmed booking",
+  });
+  assert.equal(result.sessionId, phone.id);
+  assert.equal(result.callAction?.sessionId, watch.id);
+  assert.equal(result.callAction?.sourceCallId, source.id);
+  assert.equal(result.callAction?.status, "pending");
+});
+
+for (const operation of ["book", "reschedule", "cancel_booking"] as const) {
+  test(`${operation} accepts confirmed May dates and customer Will`, async (t) => {
+    const outcome =
+      operation === "book"
+        ? "booked"
+        : operation === "reschedule"
+          ? "rescheduled"
+          : "booking_cancelled";
+    const day = operation === "reschedule" ? 6 : 5;
+    const speech =
+      operation === "reschedule"
+        ? "Will's appointment has been rescheduled to 6 May at 10:00."
+        : `Will's appointment on ${day} May at 10:00 is ${operation === "book" ? "booked" : "cancelled"}.`;
+    providers(t, {
+      text: "Thank you, goodbye.",
+      outcome,
+      confirmationQuote: speech,
+      ...(operation !== "cancel_booking" ? { slotIndex: 0 } : {}),
+    });
+    const { calls, store } = fixture(t);
+    const original = (
+      await calls.prepare(randomUUID(), {
+        ...booking,
+        customerName: "Will",
+        window: { start: "2030-05-05T09:00:00Z", end: "2030-05-05T11:00:00Z" },
+      })
+    ).callAction!;
+    let proposal = original;
+    if (operation !== "book") {
+      const source = calls.get(original.sessionId, original.id);
+      source.status = "completed";
+      source.outcome = "booked";
+      source.bookedSlot = source.slots[0];
+      store.put("call", source.id, source);
+      proposal = (
+        await calls.prepareChange(
+          source.sessionId,
+          source.id,
+          operation === "cancel_booking"
+            ? { operation }
+            : {
+                operation,
+                window: {
+                  start: "2030-05-06T09:00:00Z",
+                  end: "2030-05-06T11:00:00Z",
+                },
+              },
+        )
+      ).callAction!;
+    }
+    await calls.decide(proposal.sessionId, proposal.id, "confirm");
+    calls.gather(proposal.id, 0, { ...callback, SpeechResult: speech });
+    await calls.close();
+    calls.voice(proposal.id, 1, callback);
+    assert.equal(calls.get(proposal.sessionId, proposal.id).outcome, outcome);
+  });
+}
+
+test("confirmation grammar rejects future and hypothetical outcomes without treating names/months as verbs", () => {
+  for (const quote of [
+    "It will be booked for Will on 5 May at 10:00",
+    "It may be cancelled",
+    "It could be moved",
+    "It is booked if you pay",
+    "Can it be booked?",
+    "We will confirm tomorrow",
+  ])
+    assert.equal(isConditionalConfirmation(quote), true, quote);
+  for (const quote of [
+    "Will is booked on 5 May at 10:00",
+    "Will's appointment has been cancelled",
+    "I can confirm Will is booked on 5 May at 10:00",
+  ])
+    assert.equal(isConditionalConfirmation(quote), false, quote);
+});
+
+test("rescheduling excludes the verified original event at proposal and rechecks all other conflicts before dialing", async (t) => {
+  const counts = providers(t);
+  let checks = 0,
+    conflict = false;
+  const { calls, store } = fixture(t, true, {
+    ...calendar,
+    async busyExcluding(window, sourceId, target) {
+      checks++;
+      assert.equal(target.id, sourceId.replaceAll("-", ""));
+      assert.equal(target.start, "2030-11-05T10:00:00.000Z");
+      return conflict
+        ? [{ start: "2030-11-05T10:20:00Z", end: "2030-11-05T10:40:00Z" }]
+        : [];
+    },
+  });
+  const original = await confirmedSource(calls, store);
+  const saved = calls.proposeCalendar(original.sessionId, original.id).action!;
+  saved.status = "completed";
+  saved.receipt = {
+    id: saved.id.replaceAll("-", ""),
+    title: saved.event.title,
+    start: saved.event.start,
+    end: saved.event.end,
+    simulated: false,
+  };
+  store.put("action", saved.id, saved);
+  const proposal = (
+    await calls.prepareChange(original.sessionId, original.id, {
+      operation: "reschedule",
+      window: { start: "2030-11-05T10:15:00Z", end: "2030-11-05T10:45:00Z" },
+    })
+  ).callAction!;
+  assert.equal(
+    calls.get(proposal.sessionId, proposal.id).slots[0].start,
+    "2030-11-05T10:15:00.000Z",
+  );
+  assert.equal(checks, 1);
+  conflict = true;
+  const result = await calls.decide(proposal.sessionId, proposal.id, "confirm");
+  assert.equal(checks, 2);
+  assert.equal(result.callAction?.status, "failed");
+  assert.equal(counts.dial, 0);
 });

@@ -1,4 +1,4 @@
-// Session-scoped activity, deliberately separate from future Calendar events.
+// Owner-wide activity, deliberately separate from future Calendar events.
 export function taskGroups(calls, foreground, now=Date.now()) {
  const groups={'In progress':[],'Needs you':[],'Recently completed':[]};
  const tasks=new Map(calls.map(task=>[task.id,task]));
@@ -17,7 +17,7 @@ export function taskGroups(calls, foreground, now=Date.now()) {
 export function taskLabel(task){
  if(task.status==='pending')return 'Approval needed';
  if(task.status==='uncertain')return 'Needs verification';
- if(task.status==='completed')return task.outcome==='booked'?'Booking confirmed':'Call finished';
+ if(task.status==='completed')return ({booked:'Booking confirmed',rescheduled:'Booking rescheduled',booking_cancelled:'Booking cancelled'}[task.outcome]||'Call finished');
  return task.progress?.text||({in_progress:'Calling',starting:'Starting call',queued:'Calling',executing:'Saving',failed:'Couldn’t complete',cancelled:'Cancelled',stopped:'Stopped',expired:'Expired'}[task.status]||task.status);
 }
 // Capture the generated click as well, so a swipe never becomes tap-to-speak.

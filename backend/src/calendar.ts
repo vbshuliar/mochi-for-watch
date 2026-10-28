@@ -28,6 +28,7 @@ type Tokens = {
 };
 const googleEvent = z.object({
   id: z.string(),
+  etag: z.string().optional(),
   status: z.string().optional(),
   summary: z.string().optional(),
   htmlLink: z.url().optional(),
@@ -337,6 +338,111 @@ export class GoogleCalendar implements Calendar {
       );
     return calendar.busy;
   }
+  async busyExcluding(
+    window: Window,
+    sourceActionId: string,
+    target: Receipt,
+    signal?: AbortSignal,
+  ): Promise<Window[]> {
+    const epoch = this.epoch();
+    const binding = this.store.get<{ epoch: string }>(
+      "calendar_action",
+      sourceActionId,
+    );
+    if (
+      !binding ||
+      binding.epoch !== epoch ||
+      target.id !== sourceActionId.replaceAll("-", "")
+    )
+      throw new AppError(
+        409,
+        "connection_changed",
+        "The original booking belongs to a different Calendar connection.",
+      );
+    const matchesSource = (value: z.infer<typeof googleEvent>) =>
+      value.id === target.id &&
+      value.status !== "cancelled" &&
+      value.extendedProperties?.private?.museActionId === sourceActionId &&
+      value.summary === target.title &&
+      Date.parse(value.start.dateTime || "") === Date.parse(target.start) &&
+      Date.parse(value.end.dateTime || "") === Date.parse(target.end);
+    const original = googleEvent.parse(
+      await externalJson(
+        await this.request(
+          `events/${encodeURIComponent(target.id)}`,
+          { signal },
+          epoch,
+        ),
+      ),
+    );
+    if (!matchesSource(original))
+      throw new AppError(
+        409,
+        "event_changed",
+        "The original Calendar event changed; review it before rescheduling.",
+      );
+    // freeBusy merges intervals and loses event identity, so subtracting the source
+    // interval would accidentally erase other overlapping appointments. Enumerate
+    // expanded events instead and exclude only the verified original event.
+    const busy: Window[] = [];
+    let pageToken: string | undefined;
+    const listedEvent = googleEvent
+      .partial({ start: true, end: true })
+      .extend({ transparency: z.enum(["opaque", "transparent"]).optional() });
+    for (let page = 0; page < 10; page++) {
+      const params = new URLSearchParams({
+        timeMin: window.start,
+        timeMax: window.end,
+        singleEvents: "true",
+        maxResults: "250",
+      });
+      if (pageToken) params.set("pageToken", pageToken);
+      const data = z
+        .object({
+          items: z.array(listedEvent).default([]),
+          nextPageToken: z.string().optional(),
+        })
+        .parse(
+          await externalJson(
+            await this.request(`events?${params}`, { signal }, epoch),
+          ),
+        );
+      this.assertEpoch(epoch);
+      for (const entry of data.items) {
+        if (entry.status === "cancelled") continue;
+        if (entry.id === target.id) {
+          if (!matchesSource(googleEvent.parse(entry)))
+            throw new AppError(
+              409,
+              "event_changed",
+              "The original Calendar event changed while checking availability.",
+            );
+          continue;
+        }
+        if (entry.transparency === "transparent") continue;
+        const start = entry.start?.dateTime,
+          end = entry.end?.dateTime;
+        if (
+          !start ||
+          !end ||
+          !Number.isFinite(Date.parse(start)) ||
+          !Number.isFinite(Date.parse(end)) ||
+          Date.parse(end) <= Date.parse(start)
+        ) {
+          // All-day/private malformed entries cannot safely be timezone-converted
+          // from this partial response. Conservatively block the queried window.
+          busy.push({ ...window });
+        } else busy.push({ start, end });
+      }
+      pageToken = data.nextPageToken;
+      if (!pageToken) return busy;
+    }
+    throw new AppError(
+      422,
+      "too_many_events",
+      "Choose a shorter booking window to verify availability.",
+    );
+  }
   async create(id: string, event: EventInput) {
     const epoch = this.epoch();
     // Recovery must stay on the original connection: event IDs are account-local.
@@ -392,6 +498,163 @@ export class GoogleCalendar implements Calendar {
       await externalJson(await this.request(`events/${eventId}`, {}, epoch)),
     );
   }
+  async change(
+    id: string,
+    sourceActionId: string,
+    target: Receipt,
+    operation: "update" | "delete",
+    event: EventInput,
+  ): Promise<Receipt> {
+    const epoch = this.epoch();
+    const source = this.store.get<{ epoch: string }>(
+      "calendar_action",
+      sourceActionId,
+    );
+    if (
+      !source ||
+      source.epoch !== epoch ||
+      target.id !== sourceActionId.replaceAll("-", "")
+    )
+      throw new AppError(
+        409,
+        "connection_changed",
+        "This event belongs to a different Calendar connection.",
+      );
+    const fingerprint = JSON.stringify({
+      sourceActionId,
+      target,
+      operation,
+      event,
+    });
+    type ChangeRecord = {
+      epoch: string;
+      fingerprint: string;
+      writeStarted?: boolean;
+      receipt?: Receipt;
+    };
+    let binding = this.store.get<ChangeRecord>("calendar_change", id);
+    if (
+      binding &&
+      (binding.epoch !== epoch || binding.fingerprint !== fingerprint)
+    )
+      throw new AppError(
+        409,
+        "change_conflict",
+        "This Calendar change no longer matches its approval.",
+      );
+    if (binding?.receipt) return binding.receipt;
+    binding ||= { epoch, fingerprint };
+    this.store.put("calendar_change", id, binding);
+    const path = `events/${encodeURIComponent(target.id)}`;
+    const deletedReceipt = (): Receipt => ({ ...target, deleted: true });
+    const finish = (result: Receipt) => {
+      this.assertEpoch(epoch);
+      this.store.put("calendar_change", id, { ...binding!, receipt: result });
+      return result;
+    };
+    const read = await this.request(path, {}, epoch);
+    if (
+      [404, 410].includes(read.status) &&
+      operation === "delete" &&
+      binding.writeStarted
+    )
+      return finish(deletedReceipt());
+    const rawCurrent = await externalJson(read);
+    if (
+      operation === "delete" &&
+      binding.writeStarted &&
+      rawCurrent &&
+      typeof rawCurrent === "object" &&
+      "status" in rawCurrent &&
+      rawCurrent.status === "cancelled" &&
+      "id" in rawCurrent &&
+      rawCurrent.id === target.id
+    )
+      return finish(deletedReceipt());
+    const current = googleEvent.parse(rawCurrent);
+    const matches = (
+      value: z.infer<typeof googleEvent>,
+      expected: { title: string; start: string; end: string },
+    ) =>
+      value.summary === expected.title &&
+      Date.parse(value.start.dateTime || "") === Date.parse(expected.start) &&
+      Date.parse(value.end.dateTime || "") === Date.parse(expected.end);
+    if (
+      operation === "update" &&
+      current.extendedProperties?.private?.museChangeId === id &&
+      current.status !== "cancelled" &&
+      matches(current, event)
+    )
+      return finish(receipt(current));
+    if (
+      operation === "delete" &&
+      current.status === "cancelled" &&
+      binding.writeStarted
+    )
+      return finish(deletedReceipt());
+    if (
+      current.status === "cancelled" ||
+      current.id !== target.id ||
+      current.extendedProperties?.private?.museActionId !== sourceActionId ||
+      !matches(current, target) ||
+      !current.etag
+    )
+      throw new AppError(
+        409,
+        "event_changed",
+        "The Calendar event changed. Review it before approving another change.",
+      );
+    binding.writeStarted = true;
+    this.store.put("calendar_change", id, binding);
+    const response = await this.request(
+      path,
+      {
+        method: operation === "delete" ? "DELETE" : "PATCH",
+        headers: { "If-Match": current.etag },
+        ...(operation === "update"
+          ? {
+              body: JSON.stringify({
+                summary: event.title,
+                start: { dateTime: event.start, timeZone: event.timeZone },
+                end: { dateTime: event.end, timeZone: event.timeZone },
+                extendedProperties: {
+                  private: {
+                    ...current.extendedProperties?.private,
+                    museChangeId: id,
+                  },
+                },
+              }),
+            }
+          : {}),
+      },
+      epoch,
+    );
+    if (!response.ok) await externalJson(response);
+    const verified = await this.request(path, {}, epoch);
+    if (operation === "delete") {
+      if ([404, 410].includes(verified.status)) return finish(deletedReceipt());
+      const tombstone = z
+        .object({ id: z.string(), status: z.string() })
+        .parse(await externalJson(verified));
+      if (tombstone.id === target.id && tombstone.status === "cancelled")
+        return finish(deletedReceipt());
+    } else {
+      const updated = googleEvent.parse(await externalJson(verified));
+      if (
+        updated.id === target.id &&
+        updated.status !== "cancelled" &&
+        updated.extendedProperties?.private?.museActionId === sourceActionId &&
+        updated.extendedProperties?.private?.museChangeId === id &&
+        matches(updated, event)
+      )
+        return finish(receipt(updated));
+    }
+    throw new AppError(
+      409,
+      "change_unverified",
+      "The Calendar change could not be verified; retry to check.",
+    );
+  }
 }
 export class MockCalendar implements Calendar {
   constructor(private store: Store) {}
@@ -408,6 +671,28 @@ export class MockCalendar implements Calendar {
   async busy(window: Window) {
     return (await this.list(window)).map(({ start, end }) => ({ start, end }));
   }
+  async busyExcluding(
+    window: Window,
+    sourceActionId: string,
+    target: Receipt,
+  ): Promise<Window[]> {
+    const original = this.store.get<Receipt>("mock_event", target.id);
+    if (
+      !original ||
+      original.id !== sourceActionId ||
+      original.title !== target.title ||
+      original.start !== target.start ||
+      original.end !== target.end
+    )
+      throw new AppError(
+        409,
+        "event_changed",
+        "The original event no longer matches the booking.",
+      );
+    return (await this.list(window))
+      .filter((event) => event.id !== target.id)
+      .map(({ start, end }) => ({ start, end }));
+  }
   async create(id: string, event: EventInput) {
     const saved = this.store.get<Receipt>("mock_event", id);
     if (saved) return saved;
@@ -419,6 +704,40 @@ export class MockCalendar implements Calendar {
       simulated: true,
     };
     this.store.put("mock_event", id, result);
+    return result;
+  }
+  async change(
+    id: string,
+    sourceActionId: string,
+    target: Receipt,
+    operation: "update" | "delete",
+    event: EventInput,
+  ): Promise<Receipt> {
+    const saved = this.store.get<Receipt>("mock_change", id);
+    if (saved) return saved;
+    const current = this.store.get<Receipt>("mock_event", target.id);
+    if (
+      !current ||
+      current.id !== sourceActionId ||
+      JSON.stringify(current) !== JSON.stringify(target)
+    )
+      throw new AppError(
+        409,
+        "event_changed",
+        "The event no longer matches the approved change.",
+      );
+    const result: Receipt =
+      operation === "delete"
+        ? { ...current, deleted: true }
+        : {
+            ...current,
+            title: event.title,
+            start: event.start,
+            end: event.end,
+          };
+    if (operation === "delete") this.store.delete("mock_event", target.id);
+    else this.store.put("mock_event", target.id, result);
+    this.store.put("mock_change", id, result);
     return result;
   }
 }

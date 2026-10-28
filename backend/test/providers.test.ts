@@ -393,3 +393,289 @@ test("uncertain Calendar writes cannot be retried on a different account after a
   assert.equal(calendarRequests, 2);
   assert.equal(posts, 1);
 });
+
+test("Calendar update is conditional, verified, and retries do not repeat the write", async (t) => {
+  const { calendar, store } = setup(t);
+  const sourceId = randomUUID(),
+    changeId = randomUUID();
+  const epoch = "account-a";
+  store.put("secret", "google", {
+    access: "access",
+    expiresAt: Date.now() + 3600000,
+    epoch,
+  });
+  store.put("calendar_action", sourceId, { epoch });
+  const target = {
+    id: sourceId.replaceAll("-", ""),
+    title: event.title,
+    start: event.start,
+    end: event.end,
+    simulated: false,
+  };
+  const updated = {
+    ...event,
+    start: "2030-10-28T13:00:00Z",
+    end: "2030-10-28T14:00:00Z",
+  };
+  let current: any = {
+    id: target.id,
+    summary: event.title,
+    start: { dateTime: event.start },
+    end: { dateTime: event.end },
+    etag: '"version1"',
+    status: "confirmed",
+    extendedProperties: {
+      private: { museActionId: sourceId, other: "preserved" },
+    },
+  };
+  let writes = 0;
+  mockFetch(t, async (_url, init) => {
+    if (init?.method === "PATCH") {
+      writes++;
+      assert.equal(new Headers(init.headers).get("If-Match"), '"version1"');
+      current = {
+        ...current,
+        ...JSON.parse(String(init.body)),
+        etag: '"version2"',
+      };
+      throw new Error("Connection lost after Google persisted the update");
+    }
+    return json(current);
+  });
+  await assert.rejects(
+    calendar.change(changeId, sourceId, target, "update", updated),
+  );
+  const receipt = await calendar.change(
+    changeId,
+    sourceId,
+    target,
+    "update",
+    updated,
+  );
+  assert.equal(receipt.start, updated.start);
+  assert.equal(writes, 1);
+  assert.equal(current.extendedProperties.private.other, "preserved");
+  assert.deepEqual(
+    await calendar.change(changeId, sourceId, target, "update", updated),
+    JSON.parse(JSON.stringify(receipt)),
+  );
+  assert.equal(writes, 1);
+  await assert.rejects(
+    calendar.change(changeId, sourceId, target, "update", event),
+    /approval/,
+  );
+});
+
+test("Calendar deletion verifies absence and recovers without a duplicate delete", async (t) => {
+  const { calendar, store } = setup(t);
+  const sourceId = randomUUID(),
+    changeId = randomUUID(),
+    epoch = "account-a";
+  store.put("secret", "google", {
+    access: "access",
+    expiresAt: Date.now() + 3600000,
+    epoch,
+  });
+  store.put("calendar_action", sourceId, { epoch });
+  const target = {
+    id: sourceId.replaceAll("-", ""),
+    title: event.title,
+    start: event.start,
+    end: event.end,
+    simulated: false,
+  };
+  let deleted = false,
+    writes = 0;
+  mockFetch(t, async (_url, init) => {
+    if (init?.method === "DELETE") {
+      writes++;
+      assert.equal(new Headers(init.headers).get("If-Match"), '"version1"');
+      deleted = true;
+      throw new Error("Lost response");
+    }
+    if (deleted) return json({ id: target.id, status: "cancelled" });
+    return json({
+      id: target.id,
+      summary: event.title,
+      start: { dateTime: event.start },
+      end: { dateTime: event.end },
+      etag: '"version1"',
+      extendedProperties: { private: { museActionId: sourceId } },
+    });
+  });
+  await assert.rejects(
+    calendar.change(changeId, sourceId, target, "delete", event),
+  );
+  const receipt = await calendar.change(
+    changeId,
+    sourceId,
+    target,
+    "delete",
+    event,
+  );
+  assert.equal(receipt.deleted, true);
+  assert.equal(writes, 1);
+});
+
+test("Calendar changes reject altered events and switched accounts before mutation", async (t) => {
+  const { calendar, store } = setup(t);
+  const sourceId = randomUUID(),
+    epoch = "account-a";
+  store.put("secret", "google", {
+    access: "access",
+    expiresAt: Date.now() + 3600000,
+    epoch,
+  });
+  store.put("calendar_action", sourceId, { epoch });
+  const target = {
+    id: sourceId.replaceAll("-", ""),
+    title: event.title,
+    start: event.start,
+    end: event.end,
+    simulated: false,
+  };
+  let writes = 0;
+  mockFetch(t, async (_url, init) => {
+    if (init?.method) writes++;
+    return json({
+      id: target.id,
+      summary: "Someone edited this",
+      start: { dateTime: event.start },
+      end: { dateTime: event.end },
+      etag: '"v2"',
+      extendedProperties: { private: { museActionId: sourceId } },
+    });
+  });
+  await assert.rejects(
+    calendar.change(randomUUID(), sourceId, target, "delete", event),
+    /event changed/,
+  );
+  assert.equal(writes, 0);
+  store.put("secret", "google", {
+    access: "new",
+    expiresAt: Date.now() + 3600000,
+    epoch: "account-b",
+  });
+  await assert.rejects(
+    calendar.change(randomUUID(), sourceId, target, "update", event),
+    /different Calendar connection/,
+  );
+  assert.equal(writes, 0);
+});
+
+test("reschedule availability excludes only verified source identity across pages, retaining overlapping opaque events", async (t) => {
+  const { calendar, store } = setup(t);
+  const sourceId = randomUUID(),
+    epoch = "account-a";
+  store.put("secret", "google", {
+    access: "access",
+    expiresAt: Date.now() + 3600000,
+    epoch,
+  });
+  store.put("calendar_action", sourceId, { epoch });
+  const target = {
+    id: sourceId.replaceAll("-", ""),
+    title: event.title,
+    start: event.start,
+    end: event.end,
+    simulated: false,
+  };
+  const source = {
+    id: target.id,
+    summary: event.title,
+    start: { dateTime: event.start },
+    end: { dateTime: event.end },
+    extendedProperties: { private: { museActionId: sourceId } },
+  };
+  const overlap = {
+    start: "2030-10-27T13:15:00Z",
+    end: "2030-10-27T13:45:00Z",
+  };
+  let pages = 0;
+  mockFetch(t, async (raw) => {
+    const url = new URL(String(raw));
+    if (!url.search) return json(source);
+    pages++;
+    assert.equal(url.searchParams.get("singleEvents"), "true");
+    if (!url.searchParams.has("pageToken"))
+      return json({
+        items: [
+          source,
+          {
+            id: "free",
+            transparency: "transparent",
+            start: { dateTime: event.start },
+            end: { dateTime: event.end },
+          },
+          { id: "deleted", status: "cancelled" },
+        ],
+        nextPageToken: "page2",
+      });
+    return json({
+      items: [
+        {
+          id: "other",
+          start: { dateTime: overlap.start },
+          end: { dateTime: overlap.end },
+        },
+      ],
+    });
+  });
+  assert.deepEqual(
+    await calendar.busyExcluding(
+      { start: event.start, end: event.end },
+      sourceId,
+      target,
+    ),
+    [overlap],
+  );
+  assert.equal(pages, 2);
+});
+
+test("reschedule availability conservatively blocks all-day/unknown events and refuses an altered source", async (t) => {
+  const { calendar, store } = setup(t);
+  const sourceId = randomUUID(),
+    epoch = "account-a";
+  store.put("secret", "google", {
+    access: "access",
+    expiresAt: Date.now() + 3600000,
+    epoch,
+  });
+  store.put("calendar_action", sourceId, { epoch });
+  const target = {
+    id: sourceId.replaceAll("-", ""),
+    title: event.title,
+    start: event.start,
+    end: event.end,
+    simulated: false,
+  };
+  let changed = false;
+  mockFetch(t, async (raw) => {
+    if (!new URL(String(raw)).search)
+      return json({
+        id: target.id,
+        summary: changed ? "Changed elsewhere" : event.title,
+        start: { dateTime: event.start },
+        end: { dateTime: event.end },
+        extendedProperties: { private: { museActionId: sourceId } },
+      });
+    return json({
+      items: [
+        {
+          id: "all-day",
+          start: { date: "2030-10-27" },
+          end: { date: "2030-10-28" },
+        },
+      ],
+    });
+  });
+  const window = { start: event.start, end: event.end };
+  assert.deepEqual(await calendar.busyExcluding(window, sourceId, target), [
+    window,
+  ]);
+  changed = true;
+  await assert.rejects(
+    calendar.busyExcluding(window, sourceId, target),
+    /original Calendar event changed/,
+  );
+});

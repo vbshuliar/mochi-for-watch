@@ -2,6 +2,7 @@ import MuseCore
 import SwiftUI
 
 @main struct MusePhoneApp: App {
+  @UIApplicationDelegateAdaptor(PhoneNotificationDelegate.self) private var notificationDelegate
   @State private var store: ConnectionStore
   @State private var phone: PhoneModel
   @State private var conversation: ConversationModel
@@ -42,6 +43,8 @@ struct PhoneHome: View {
   let bridge: PhoneWatchBridge
   @Environment(\.scenePhase) private var phase
   @State private var setup = false
+  @State private var showingTasks = false
+  private let notifications = TaskNotifications.shared
   var body: some View {
     NavigationStack {
       List {
@@ -63,6 +66,7 @@ struct PhoneHome: View {
           }
         }
         Section {
+          Button { showingTasks = true } label: { Label("Tasks", systemImage: "checklist") }
           NavigationLink { MemoryView(model: model) } label: {
             Label("Memory", systemImage: "brain.head.profile")
           }
@@ -108,11 +112,13 @@ struct PhoneHome: View {
       }
       .listStyle(.insetGrouped).navigationTitle("your companion")
       .refreshable { await model.refresh() }
-      .task { await model.refresh() }
-      .onChange(of: store.connection) { _, _ in conversation.connectionChanged() }
+      .task { notifications.configure(store.connection); await model.refresh(); conversation.resumeCalls(); if notifications.openedTaskID != nil { showingTasks = true } }
+      .onChange(of: store.connection) { _, _ in conversation.connectionChanged(); notifications.configure(store.connection); conversation.resumeCalls() }
+      .onChange(of: notifications.openedTaskID) { _, id in if id != nil { showingTasks = true } }
+      .navigationDestination(isPresented: $showingTasks) { PhoneTasksView(model: conversation) }
       .onChange(of: phase) { _, new in
         if new == .active {
-          Task { await model.refresh() }
+          Task { await model.refresh(); await notifications.refresh() }
           conversation.resumeCalls()
           bridge.publish()
         } else {

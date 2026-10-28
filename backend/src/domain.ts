@@ -78,6 +78,7 @@ export type PlanOptions = {
   onText?: (text: string) => void;
   memories?: Memory[];
   latestCall?: {
+    id?: string;
     status: string;
     progress?: string;
     summary?: string;
@@ -126,6 +127,27 @@ export const bookingSchema = z
     }
   });
 export type BookingInput = z.infer<typeof bookingSchema>;
+export const bookingChangeSchema = z
+  .object({
+    operation: z.enum(["reschedule", "cancel_booking"]),
+    window: windowSchema.optional(),
+    windows: z.array(windowSchema).min(1).max(14).optional(),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    if (value.operation === "reschedule" && !value.window)
+      ctx.addIssue({
+        code: "custom",
+        path: ["window"],
+        message: "Choose the new allowed booking window",
+      });
+    if (value.operation === "cancel_booking" && (value.window || value.windows))
+      ctx.addIssue({
+        code: "custom",
+        message: "Cancellation cannot include new booking windows",
+      });
+  });
+export type BookingChange = z.infer<typeof bookingChangeSchema>;
 export const planSchema = z.discriminatedUnion("kind", [
   workflowPlan,
   z
@@ -136,6 +158,13 @@ export const planSchema = z.discriminatedUnion("kind", [
     })
     .strict(),
   z.object({ kind: z.literal("call_status") }).strict(),
+  z
+    .object({
+      kind: z.literal("change_booking"),
+      callId: z.uuid(),
+      change: bookingChangeSchema,
+    })
+    .strict(),
   z
     .object({ kind: z.literal("call_booking"), booking: bookingSchema })
     .strict(),
@@ -170,6 +199,9 @@ export type Session = {
   createdAt: number;
 };
 export type Action = {
+  operation?: "update" | "delete";
+  targetReceipt?: Receipt;
+  sourceActionId?: string;
   id: string;
   sessionId: string;
   event: EventInput;
@@ -190,6 +222,7 @@ export type Receipt = {
   end: string;
   simulated: boolean;
   url?: string;
+  deleted?: boolean;
 };
 export type Timeline = { at: string; state: string; statusText: string };
 export type TurnResult = {
@@ -216,7 +249,20 @@ export interface Planner {
 export interface Calendar {
   list(window: Window, signal?: AbortSignal): Promise<Receipt[]>;
   busy(window: Window, signal?: AbortSignal): Promise<Window[]>;
+  busyExcluding?(
+    window: Window,
+    sourceActionId: string,
+    target: Receipt,
+    signal?: AbortSignal,
+  ): Promise<Window[]>;
   create(id: string, event: EventInput): Promise<Receipt>;
+  change?(
+    id: string,
+    sourceActionId: string,
+    target: Receipt,
+    operation: "update" | "delete",
+    event: EventInput,
+  ): Promise<Receipt>;
 }
 export function validateWav(audio: Buffer) {
   if (

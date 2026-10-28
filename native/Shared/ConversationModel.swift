@@ -44,7 +44,7 @@ struct Activity: Identifiable {
   }
   var callStatusText: String? {
     guard let call = backgroundCall else { return nil }
-    return call.active ? (call.progress?.text ?? "Working on your booking") : (call.booked ? "Booking confirmed" : "Booking update")
+    return call.active ? (call.progress?.text ?? "Working on your booking") : call.resultTitle.capitalized
   }
   private var persistenceKey: String? {
     guard let connection = store.connection else { return nil }
@@ -71,7 +71,6 @@ struct Activity: Identifiable {
       if callProposal?.id == call.id { callProposal = nil }
       backgroundCall = call
     }
-    sessionID = call.sessionId
     persistCall(call)
   }
   private var unknownConfirmations: Set<String> = []
@@ -101,6 +100,8 @@ struct Activity: Identifiable {
   private var detector = EndpointDetector()
   private var pcm = Data()
   private var startTime = 0.0
+  private var responseStartedAt: TimeInterval?
+  private(set) var firstAudioLatencyMs: Int?
   private var captionChanged = Date.distantPast
   private var captionTask: Task<Void, Never>?
   private var foreground = true
@@ -175,6 +176,7 @@ struct Activity: Identifiable {
     sources = []
     let ticket = generation
     transcript = text
+    responseStartedAt = ProcessInfo.processInfo.systemUptime
     log("you", text)
     show(.think, "thinking…")
     task = Task {
@@ -236,6 +238,7 @@ struct Activity: Identifiable {
       show(.idle, "didn’t hear you · tap to try")
       return
     }
+    responseStartedAt = ProcessInfo.processInfo.systemUptime
     let ticket = generation
     let recording = pcm
     show(.think, "thinking…")
@@ -368,6 +371,11 @@ struct Activity: Identifiable {
   private func playbackCallback(_ ticket: UUID) -> () -> Void {
     { [weak self] in
       guard let self, generation == ticket, foreground else { return }
+      if let start = responseStartedAt {
+        firstAudioLatencyMs = Int((ProcessInfo.processInfo.systemUptime - start) * 1000)
+        responseStartedAt = nil
+        log("latency", "First audio: \(firstAudioLatencyMs!) ms after input finished")
+      }
       show(.speak, "speaking…")
     }
   }
@@ -461,20 +469,18 @@ struct Activity: Identifiable {
     let scope = callGeneration
     if let key = persistenceKey {
       dismissedCalls = Set(defaults.stringArray(forKey: key + ".dismissed") ?? [])
-      if sessionID == nil { sessionID = defaults.string(forKey: key + ".session") }
       unknownConfirmations = Set(defaults.stringArray(forKey: key + ".unknownCalls") ?? [])
       if defaults.bool(forKey: key + ".confirmationUnknown"), let id = defaults.string(forKey: key + ".call") { unknownConfirmations.insert(id) }
       callConfirmationUnknown = defaults.bool(forKey: key + ".confirmationUnknown")
     }
-    guard let session = sessionID else { return }
     callPoll?.cancel()
     callPoll = Task { [weak self] in
       guard let self else { return }
       do {
-        let current = try await makeClient(connection).get("v1/sessions/\(session)/calls", as: CallsEnvelope.self)
+        let current = try await makeClient(connection).get("v1/tasks", as: CallsEnvelope.self)
         guard !Task.isCancelled, scope == callGeneration, store.connection == connection else { return }
         let trackedID = persistenceKey.flatMap { self.defaults.string(forKey: $0 + ".call") }
-        taskCalls = current.calls.filter { $0.sessionId == session }
+        taskCalls = current.calls
         if let call = taskCalls.first(where: { $0.id == trackedID }) { receiveCall(call) }
         tasksLoadFailed = false
       } catch { if scope == callGeneration { tasksLoadFailed = true } }
@@ -484,23 +490,21 @@ struct Activity: Identifiable {
   }
   private func monitorCall() {
     callPoll?.cancel()
-    guard foreground, taskCalls.contains(where: { $0.active }),
-      let session = sessionID, let connection = store.connection else { return }
+    guard foreground, let connection = store.connection else { return }
     let scope = callGeneration
     callPoll = Task { [weak self] in
       while !Task.isCancelled {
-        do { try await Task.sleep(for: .seconds(3)) } catch { return }
+        do { try await Task.sleep(for: .seconds(self?.taskCalls.contains(where: { $0.active }) == true ? 3 : 15)) } catch { return }
         guard let self, self.foreground, scope == self.callGeneration,
           self.store.connection == connection else { return }
         do {
-          let current = try await self.makeClient(connection).get("v1/sessions/\(session)/calls", as: CallsEnvelope.self)
+          let current = try await self.makeClient(connection).get("v1/tasks", as: CallsEnvelope.self)
           guard !Task.isCancelled, scope == self.callGeneration, self.store.connection == connection else { return }
-          self.taskCalls = current.calls.filter { $0.sessionId == session }
+          self.taskCalls = current.calls
           if let tracked = self.callAction, let update = self.taskCalls.first(where: { $0.id == tracked.id }) {
             self.receiveCall(update)
           }
           self.tasksLoadFailed = false
-          if !self.taskCalls.contains(where: { $0.active }) { return }
         } catch {
           guard !Task.isCancelled else { return }
           self.tasksLoadFailed = true
@@ -546,7 +550,10 @@ struct Activity: Identifiable {
           let result = try JSONDecoder().decode(TurnResult.self, from: bytes)
           guard scope == callGeneration, store.connection == connection, taskCalls.contains(where: { $0.id == call.id && $0.sessionId == call.sessionId }) else { return }
           if let call = result.callAction { receiveCall(call, track: tracksCall) }
-          if let proposal = result.action { action = proposal; dismissCallCompletion() }
+          if let proposal = result.action {
+            action = ["pending", "uncertain", "executing"].contains(proposal.status) ? proposal : nil
+            dismissCallCompletion()
+          }
           log("call", result.speechText)
           if blocksApproval { show(hasProposal ? .approval : .idle, hasProposal ? "tap to review" : "tap to talk") }
         }
@@ -563,6 +570,61 @@ struct Activity: Identifiable {
       }
     }
   }
+  func loadLinkedCalendarAction(_ call: CallAction) {
+    guard let id = call.calendarActionId, call.supersededBy == nil, !hasProposal,
+      !deciding, let connection = store.connection else { return }
+    let scope = callGeneration
+    Task {
+      do {
+        struct Envelope: Decodable, Sendable { let action: Action }
+        let result = try await makeClient(connection).get("v1/sessions/\(call.sessionId)/actions/\(id)", as: Envelope.self)
+        guard scope == callGeneration, store.connection == connection, !hasProposal,
+          result.action.sessionId == call.sessionId, result.action.id == id else { return }
+        if ["pending", "uncertain", "executing"].contains(result.action.status) { action = result.action }
+      } catch {
+        guard scope == callGeneration else { return }
+        failure = "Couldn’t refresh the linked Calendar approval. Try again."
+      }
+    }
+  }
+
+  /// Preparing a change creates a reviewable proposal; only the decision endpoint may dial.
+  func prepareBookingChange(_ call: CallAction, operation: String, start: Date? = nil, end: Date? = nil) {
+    guard call.booked, call.supersededBy == nil, !callUpdating, !hasProposal, let connection = store.connection,
+      ["reschedule", "cancel_booking"].contains(operation) else { return }
+    struct Change: Encodable {
+      let operation: String
+      let window: BookingWindow?
+    }
+    let window: BookingWindow?
+    if operation == "reschedule" {
+      guard let start, let end, start > Date(), end > start else {
+        failure = "Choose a future start and a later end for the allowed booking window."
+        return
+      }
+      window = BookingWindow(start: ISO8601DateFormatter().string(from: start), end: ISO8601DateFormatter().string(from: end))
+    } else { window = nil }
+    let scope = callGeneration
+    callUpdating = true
+    callTask = Task {
+      defer { if scope == callGeneration { callUpdating = false; monitorCall() } }
+      do {
+        let bytes = try await makeClient(connection).data(
+          "v1/sessions/\(call.sessionId)/calls/\(call.id)/change", method: "POST",
+          body: JSONEncoder().encode(Change(operation: operation, window: window)))
+        let result = try JSONDecoder().decode(TurnResult.self, from: bytes)
+        guard scope == callGeneration, store.connection == connection else { return }
+        if let proposal = result.callAction { receiveCall(proposal) }
+        failure = nil
+        log("call", result.speechText)
+        show(.approval, "tap to review")
+      } catch {
+        guard scope == callGeneration, store.connection == connection else { return }
+        failure = error.localizedDescription
+      }
+    }
+  }
+
   func dismissCallCompletion() {
     guard let call = backgroundCall, !call.active else { return }
     dismissedCalls.insert(call.id)
@@ -610,6 +672,9 @@ struct Activity: Identifiable {
   }
   private func interrupt() {
     generation = UUID()
+    responseStartedAt = nil
+    firstAudioLatencyMs = nil
+    pcm.removeAll()
     task?.cancel()
     endpointTimer?.cancel()
     speechTail?.cancel()
@@ -637,6 +702,8 @@ struct Activity: Identifiable {
       cancellation = Task { try await client.cancel(sessionID: sessionID, requestID: id) }
       activeRequest = nil
     }
+    responseStartedAt = nil
+    pcm.removeAll()
     failure = error.localizedDescription
     log("error", error.localizedDescription)
     audio.deactivate()

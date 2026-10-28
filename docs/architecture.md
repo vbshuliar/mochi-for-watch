@@ -30,7 +30,8 @@ Only the backend holds model, voice and OAuth secrets. Native connection credent
 | [`service.ts`](../backend/src/service.ts) | Sessions, personal memory, turn orchestration and Calendar action decisions |
 | [`meta.ts`](../backend/src/meta.ts), [`search.ts`](../backend/src/search.ts) | Model planning, transcription and grounded answers with source links |
 | [`realtime.ts`](../backend/src/realtime.ts), [`speech.ts`](../backend/src/speech.ts) | Live transcription relay and ElevenLabs synthesis |
-| [`calendar.ts`](../backend/src/calendar.ts) | Google OAuth, account identity, availability, reads and event creation |
+| [`calendar.ts`](../backend/src/calendar.ts) | Google OAuth, account identity, availability, reads and verified event creation/update/removal |
+| [`notifications.ts`](../backend/src/notifications.ts) | Device opt-in, encrypted outbox, APNs signing, bounded retries and generic task alerts |
 | [`connections.ts`](../backend/src/connections.ts), [`workflows.ts`](../backend/src/workflows.ts) | Gmail/Notion authorization and reviewed document workflows |
 | [`calls.ts`](../backend/src/calls.ts) | Booking preparation, approvals, Twilio callbacks, negotiation and outcome verification |
 | [`store.ts`](../backend/src/store.ts) | AES-256-GCM record-value encryption and SQLite transactions |
@@ -64,6 +65,8 @@ A provider's “call completed” status is not proof of a booking. The outcome 
 SQLite stores records by kind and ID, with JSON values encrypted using AES-256-GCM. Identifiers are not encrypted. The encryption key is supplied outside Git; losing it makes existing encrypted values unreadable.
 
 Stored records include conversation history, personal memories, provider grants, pending actions and receipts. Shared memories outlive individual sessions until edited/deleted. Session deletion does not undo external changes. Active or unresolved calls block deletion so recovery controls are not silently discarded.
+
+Booking discovery uses an account-wide task feed while conversations retain separate histories. Starting a new conversation preserves task records. Device tokens and notification outbox records are encrypted in the same store; alerts carry opaque task identifiers and generic text, not appointment content. The app fetches authoritative state on notification taps. See [shared tasks and notifications](task-notifications.md).
 
 Microphone audio is not persisted. Generated telephone reply clips are encrypted, accessible through opaque six-minute links, and pruned on later synthesis or restart. Expiry prevents retrieval; it is not an immediate physical-erasure guarantee. Provider retention is separate.
 

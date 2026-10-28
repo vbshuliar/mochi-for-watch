@@ -7,6 +7,7 @@ import { z } from "zod";
 import type { Config } from "./config.ts";
 import {
   AppError,
+  bookingChangeSchema,
   timezone,
   validateWav,
   type Planner,
@@ -19,6 +20,7 @@ import { Workflows } from "./workflows.ts";
 import { SocialConnections } from "./social.ts";
 import { SocialWorkflow } from "./social-workflow.ts";
 import { Calls } from "./calls.ts";
+import { Notifications } from "./notifications.ts";
 import { Service } from "./service.ts";
 import { synthesizeSpeech } from "./speech.ts";
 const sessionParams = z.object({ id: z.uuid() });
@@ -42,6 +44,7 @@ export async function buildApp(
       (config.APP_MODE === "mock" ? new MockCalendar(store) : google);
   const workflows = new Workflows(config, store);
   const social = new SocialConnections(config, store);
+  const notifications = new Notifications(config, store);
   const calls = new Calls(
     config,
     store,
@@ -49,6 +52,7 @@ export async function buildApp(
     () =>
       google.connected() &&
       store.get<boolean>("integration", "calendar-enabled") !== false,
+    (call) => notifications.enqueue(call),
   );
   const service = new Service(
     store,
@@ -582,6 +586,20 @@ export async function buildApp(
     service.session(id);
     return { calls: calls.list(id) };
   });
+  // This deployment has one private account/token. Session IDs remain part of
+  // mutation URLs so an approval always targets its original persisted action.
+  app.get("/v1/tasks", async () => ({
+    calls: calls.listAll(),
+    simulated: service.simulated,
+  }));
+  app.get("/v1/notifications/status", async () => notifications.status());
+  app.post("/v1/notifications/devices", async (req) =>
+    notifications.register(req.body),
+  );
+  app.delete("/v1/notifications/devices/:id", async (req, reply) => {
+    notifications.remove(sessionParams.parse(req.params).id);
+    return reply.code(204).send();
+  });
   app.get("/v1/sessions/:id/calls/:actionId", async (req) => {
     const { id, actionId } = actionParams.parse(req.params);
     service.session(id);
@@ -605,6 +623,15 @@ export async function buildApp(
     const { id, actionId } = actionParams.parse(req.params);
     service.session(id);
     return calls.proposeCalendar(id, actionId);
+  });
+  app.post("/v1/sessions/:id/calls/:actionId/change", async (req) => {
+    const { id, actionId } = actionParams.parse(req.params);
+    service.session(id);
+    return calls.prepareChange(
+      id,
+      actionId,
+      bookingChangeSchema.parse(req.body),
+    );
   });
   for (const route of ["voice/:turn", "gather/:turn", "status"]) {
     app.post(
@@ -645,7 +672,13 @@ export async function buildApp(
   });
   app.addHook("onClose", async () => {
     await calls.close();
+    await notifications.close();
     store.close();
   });
-  return { app, service, store, calls };
+  app.addHook("onReady", async () => {
+    // Recover an alert if the process stopped after persisting a call outcome.
+    for (const call of calls.listAll()) notifications.enqueue(call);
+    notifications.start();
+  });
+  return { app, service, store, calls, notifications };
 }

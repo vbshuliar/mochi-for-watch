@@ -135,3 +135,15 @@ Progress questions use the `call_status` planner action and a server-generated f
 One active or uncertain call is allowed across the backend owner’s sessions. Confirmation claims `starting` synchronously before any provider await, and new proposals are rejected while a call is active or uncertain. Restarted calls remain uncertain and block new dialing until resolved. Stopping retains that guard until the provider acknowledges termination. These checks do not dial a phone during automated tests; live call and device acceptance remain pending.
 
 Completion cards display the appointment in the viewer’s local timezone with compact 12-hour am/pm formatting and no timezone identifier. They temporarily replace Jolly’s face; dismissing or starting a conversation restores it. The stored appointment instant and booking timezone remain unchanged.
+
+## Booking changes and shared tasks — 28 October 2026
+
+The authenticated `GET /v1/tasks` feed exposes booking tasks from all conversations in this private single-user account. Clients keep their independent voice histories, use each task's original session ID for mutations, and refresh linked Calendar proposals when reviewing a task from another device. Starting a new conversation does not delete shared tasks.
+
+`POST /v1/sessions/:id/calls/:actionId/change` accepts `{operation: "cancel_booking"}` or `{operation: "reschedule", window: {start, end}, windows?: [{start, end}]}`. The source must be a future, verified current booking. Business, phone, customer and original appointment are copied from persisted evidence; a client cannot change the destination through this route. Voice requests can propose the same changes. Preparing a change never dials: the resulting new call action requires explicit approval through the existing decision endpoint.
+
+A verified change produces `rescheduled` or `booking_cancelled`; ambiguous recipient language does not count as success. The source becomes `supersededBy` the verified successor, preventing stale changes. Failed or unresolved calls retain their honest state and cannot silently redial. A rescheduling failure does not establish that the original booking was changed.
+
+Calendar changes remain separate approved actions. A reschedule updates the existing linked event when one was previously saved; cancellation proposes removal of that event. Chained changes retain the original Calendar creation binding and the latest verified receipt. The Google adapter checks the connection epoch, existing event and ETag, then verifies the result after writing. Retries inspect persisted change evidence before repeating a write. Provider failures remain uncertain until verified.
+
+Automated tests cover approval-only preparation, strict confirmation, repeated/conflicting changes, cross-conversation requests, chained Calendar changes and uncertain update/delete recovery. No live change call or Calendar modification was performed in this development pass. The owner requested test preparation only; physical app installation and live acceptance are deferred. See [acceptance checklist](development-acceptance.md) and [notification setup](task-notifications.md).

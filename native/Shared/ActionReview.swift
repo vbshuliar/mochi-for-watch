@@ -5,6 +5,7 @@ struct ActionReview: View {
   let action: Action
   let busy: Bool
   let decide: (Bool) -> Void
+  private var approvalTitle: String { action.operation == "delete" ? "Remove from Calendar" : action.operation == "update" ? "Update Calendar event" : "Add to Calendar" }
   private func date(_ raw: String) -> String {
     let parser = ISO8601DateFormatter()
     parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -20,7 +21,7 @@ struct ActionReview: View {
     ScrollView {
       VStack(alignment: .leading, spacing: 16) {
         VStack(alignment: .leading, spacing: 5) {
-          Text("Review event").font(.caption).foregroundStyle(.secondary)
+          Text(action.operation == "delete" ? "Review event removal" : action.operation == "update" ? "Review event update" : "Review event").font(.caption).foregroundStyle(.secondary)
           Text(action.event.title).font(.headline)
         }
         VStack(alignment: .leading, spacing: 12) {
@@ -31,11 +32,11 @@ struct ActionReview: View {
         Divider()
         Text(
           action.status == "uncertain"
-            ? "The last save wasn’t verified. Check it before trying again."
-            : "Nothing is saved until you confirm."
+            ? "The last Calendar change wasn’t verified. Check it before trying again."
+            : "Nothing changes in Calendar until you confirm."
         ).font(.footnote).foregroundStyle(.secondary)
         VStack(spacing: 8) {
-          ReviewButton(action.status == "uncertain" ? "Verify save" : "Add to Calendar", prominent: true) { decide(true) }
+          ReviewButton(action.status == "uncertain" ? "Verify Calendar change" : approvalTitle, prominent: true) { decide(true) }
             .disabled(busy)
           ReviewButton("Cancel", role: .cancel) { decide(false) }
             .disabled(busy || action.status == "uncertain")
@@ -77,6 +78,10 @@ struct CallReview: View {
   @Environment(\.dismiss) private var close
   let model: ConversationModel
   let call: CallAction
+  @State private var changingTime = false
+  @State private var cancellingBooking = false
+  @State private var windowStart = Date().addingTimeInterval(86400)
+  @State private var windowEnd = Date().addingTimeInterval(90000)
   private func date(_ raw: String) -> String {
     let parser = ISO8601DateFormatter()
     parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -99,6 +104,10 @@ struct CallReview: View {
         VStack(alignment: .leading, spacing: 12) {
           ReviewDetail("Phone", value: call.booking.phoneNumber)
           ReviewDetail("Booking for", value: call.booking.customerName)
+          if let original = call.originalSlot {
+            ReviewDetail("Original appointment", value: "\(date(original.start)) until \(date(original.end))")
+            Text(call.operation == "cancel_booking" ? "Ask the business to cancel this appointment." : "Ask the business to move this appointment to an allowed time below.").font(.footnote)
+          }
           ForEach(Array(call.booking.allowedWindows.enumerated()), id: \.offset) { _, window in
             ReviewDetail("Allowed time", value: "Between \(date(window.start)) and \(date(window.end))")
           }
@@ -109,6 +118,7 @@ struct CallReview: View {
         Text(call.calendarChecked ? "Calendar checked for availability." : "Calendar has not been checked. Availability is unverified.")
           .font(.footnote).foregroundStyle(.secondary)
         if let summary = call.summary { Text(summary).font(.body) }
+        if call.supersededBy != nil { Text("This booking was changed. Open the newer task for the current appointment.").font(.footnote) }
         if let slot = call.bookedSlot {
           ReviewDetail("Booked", value: "\(date(slot.start)) until \(date(slot.end))")
         }
@@ -129,12 +139,16 @@ struct CallReview: View {
             if call.active || call.status == "uncertain" || model.confirmationUnknown(for: call) && call.status == "pending" {
               ReviewButton(call.status == "uncertain" ? "Try stopping call" : "Stop call", role: .destructive) { model.callCommand("stop", callID: call.id) }
             }
-            if call.booked {
-              ReviewButton("Review Calendar event", prominent: true) { model.callCommand("calendar", callID: call.id) }
+            if (call.booked || call.bookingCancelled) && call.supersededBy == nil {
+              ReviewButton(call.bookingCancelled ? "Review Calendar removal" : "Review Calendar event", prominent: true) { model.callCommand("calendar", callID: call.id) }
                 .disabled(model.hasProposal)
               if model.hasProposal {
                 Text("Finish your current proposal review before preparing this Calendar event.").font(.footnote)
               }
+            }
+            if call.booked && call.supersededBy == nil {
+              ReviewButton("Reschedule booking") { changingTime = true }.disabled(model.hasProposal)
+              ReviewButton("Cancel booking", role: .destructive) { cancellingBooking = true }.disabled(model.hasProposal)
             }
             ReviewButton("Refresh status") { model.callCommand("refresh", callID: call.id) }
             ReviewButton("Back to Jolly") { model.dismissCallCompletion(); close() }
@@ -143,7 +157,28 @@ struct CallReview: View {
         if model.callUpdating { ProgressView("Updating…").frame(maxWidth: .infinity) }
       }.padding().frame(maxWidth: .infinity, alignment: .leading)
         .fixedSize(horizontal: false, vertical: true).disabled(model.callUpdating)
-    }.onAppear { model.resumeCalls() }
+    }.onAppear { model.resumeCalls(); model.loadLinkedCalendarAction(call) }
+      .sheet(isPresented: $changingTime) {
+        NavigationStack {
+          Form {
+            Section {
+              DatePicker("Earliest start", selection: $windowStart, in: Date()..., displayedComponents: [.date, .hourAndMinute])
+              DatePicker("Available until", selection: $windowEnd, in: windowStart..., displayedComponents: [.date, .hourAndMinute])
+              Text("Times use \(call.booking.timeZone). Jolly will prepare a new call for your approval. The existing booking stays unchanged until the business confirms a change.").font(.footnote)
+            }
+            Button("Prepare reschedule call") {
+              model.prepareBookingChange(call, operation: "reschedule", start: windowStart, end: windowEnd)
+              changingTime = false
+            }.disabled(windowEnd <= windowStart || windowStart <= Date())
+          }.environment(\.timeZone, TimeZone(identifier: call.booking.timeZone) ?? .current)
+            .navigationTitle("Reschedule")
+        }
+      }
+      .confirmationDialog("Prepare a cancellation call?", isPresented: $cancellingBooking, titleVisibility: .visible) {
+        Button("Prepare cancellation") { model.prepareBookingChange(call, operation: "cancel_booking") }
+      } message: {
+        Text("You will review and approve the call before Jolly asks the business to cancel. Calendar removal needs a separate approval.")
+      }
   }
 }
 
@@ -168,7 +203,7 @@ struct BookingCompletionCard: View {
           .font(.system(size: 28, weight: .medium))
           .foregroundStyle(call.booked ? Color.green : Color.secondary)
           .accessibilityHidden(true)
-        Text(call.booked ? "booking confirmed" : "booking update")
+        Text(call.resultTitle)
           .font(.caption).foregroundStyle(.secondary)
       }
       VStack(spacing: 5) {

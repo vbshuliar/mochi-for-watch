@@ -64,12 +64,18 @@ private final class NativeFixture: URLProtocol, @unchecked Sendable {
         let status = request.url!.lastPathComponent
         body = "{\"action\":" + calendarFixture(id: status, status: status) + "}"
       }
-    } else if path.hasSuffix("/calls") {
-      body = "{\"calls\":[" + callFixture + "," + callFixture.replacingOccurrences(of: "call-1", with: "call-2") + "]}"
+    } else if path.hasSuffix("/tasks") {
+      body = "{\"calls\":[" + callFixture + "," + callFixture.replacingOccurrences(of: "call-1", with: "call-2").replacingOccurrences(of: "test-session", with: "foreign-session") + "]}"
+    } else if path.hasSuffix("/change") {
+      let changed = callFixture.replacingOccurrences(of: "call-1", with: "change-proposal").replacingOccurrences(of: "uncertain", with: "pending")
+      body = #"{"sessionId":"test-session","state":"approval","statusText":"Review cancellation call","speechText":"Review this call before Jolly cancels the booking.","simulated":true,"callAction":\#(changed)}"#
     } else if path.hasSuffix("/stop") {
       body = #"{"sessionId":"test-session","state":"idle","statusText":"Stopped","speechText":"Call stopped.","simulated":true,"callAction":\#(callFixture.replacingOccurrences(of: "uncertain", with: "cancelled"))}"#
     } else if path.contains("/calls/") {
       body = "{\"callAction\":" + callFixture + "}"
+    } else if path.contains("/sessions/foreign-session/stream") {
+      responseStatus = 409
+      body = #"{"error":{"message":"A task must not replace the conversation session."}}"#
     } else if path.hasSuffix("/stream") {
       body =
         #"{"type":"text","text":"That’s so sweet! "}"# + "\n"
@@ -466,5 +472,119 @@ extension NativeConversationTests {
     other.resumeCalls()
     XCTAssertTrue(other.taskCalls.isEmpty)
     other.suspend()
+  }
+}
+
+
+extension NativeConversationTests {
+  func testFreshDeviceLoadsTasksFromOtherSessionsWithoutStartingConversation() async throws {
+    let (model, audio) = try makeModel()
+    defer { model.suspend() }
+    model.resumeCalls()
+    await eventually { model.taskCalls.count == 2 }
+    XCTAssertEqual(Set(model.taskCalls.map(\.sessionId)), ["test-session", "foreign-session"])
+    XCTAssertNil(model.callAction, "Task discovery must not force a foreground approval")
+    XCTAssertEqual(audio.played, 0)
+    XCTAssertFalse(model.tasksLoadFailed)
+  }
+  func testForeignTaskDoesNotAdoptItsConversationSession() async throws {
+    let (model, audio) = try makeModel()
+    defer { model.suspend() }
+    let foreign = callFixture.replacingOccurrences(of: "test-session", with: "foreign-session")
+    model.receiveCall(try JSONDecoder().decode(CallAction.self, from: Data(foreign.utf8)))
+    model.sendText("hello")
+    await eventually { audio.played == 1 }
+    XCTAssertNil(model.failure)
+    XCTAssertEqual(model.backgroundCall?.sessionId, "foreign-session")
+  }
+  func testAudioInterruptionStopsRecordingAndLatePartialCannotReviveIt() async throws {
+    let (model, audio) = try makeModel()
+    model.tap()
+    await eventually { model.recording }
+    audio.onInterruption?()
+    XCTAssertFalse(model.recording)
+    XCTAssertFalse(audio.recording)
+    XCTAssertEqual(model.mood, .sleep)
+    audio.onPCM?(Data(repeating: 0, count: 4800), 1)
+    try await Task.sleep(for: .milliseconds(30))
+    XCTAssertEqual(model.mood, .sleep)
+    XCTAssertEqual(audio.played, 0)
+  }
+  func testFirstAudioLatencyIsMeasuredOnceAndClearsOnInterruption() async throws {
+    let (model, audio) = try makeModel()
+    model.sendText("hello")
+    await eventually { audio.played == 1 }
+    XCTAssertNotNil(model.firstAudioLatencyMs)
+    XCTAssertEqual(model.activities.filter { $0.kind == "latency" }.count, 1)
+    audio.onPlaybackStart?()
+    XCTAssertEqual(model.activities.filter { $0.kind == "latency" }.count, 1)
+    model.suspend()
+    XCTAssertNil(model.firstAudioLatencyMs)
+  }
+  func testChangedBookingOutcomeIsNotMislabelled() throws {
+    let data = callFixture.replacingOccurrences(of: "\"uncertain\"", with: "\"completed\",\"outcome\":\"booking_cancelled\",\"operation\":\"cancel_booking\"")
+    let cancelled = try JSONDecoder().decode(CallAction.self, from: Data(data.utf8))
+    XCTAssertTrue(cancelled.bookingCancelled)
+    XCTAssertFalse(cancelled.booked)
+    XCTAssertEqual(cancelled.resultTitle, "booking cancelled")
+    let moved = try JSONDecoder().decode(CallAction.self, from: Data(data.replacingOccurrences(of: "booking_cancelled", with: "rescheduled").utf8))
+    XCTAssertTrue(moved.booked)
+    XCTAssertEqual(moved.resultTitle, "booking rescheduled")
+  }
+}
+
+
+extension NativeConversationTests {
+  func testRegistrationQueueOrdersRemovalBeforeReconnectRegistration() async {
+    let queue = SerialRegistrationQueue()
+    var events: [String] = []
+    var release: CheckedContinuation<Void, Never>?
+    queue.enqueue {
+      events.append("register A started")
+      await withCheckedContinuation { release = $0 }
+      events.append("register A finished")
+    }
+    await eventually { release != nil }
+    queue.enqueue { events.append("remove A") }
+    queue.enqueue { events.append("remove B") }
+    let newest = queue.enqueue { events.append("register A again") }
+    XCTAssertEqual(events, ["register A started"])
+    release?.resume()
+    await newest.value
+    XCTAssertEqual(events, ["register A started", "register A finished", "remove A", "remove B", "register A again"])
+  }
+}
+
+
+extension NativeConversationTests {
+  func testPreparingBookingChangeOnlyCreatesReviewProposal() async throws {
+    let (model, audio) = try makeModel()
+    defer { model.suspend() }
+    let booked = try call("completed", booked: true)
+    model.receiveCall(booked)
+    model.prepareBookingChange(booked, operation: "cancel_booking")
+    await eventually { !model.callUpdating }
+    XCTAssertEqual(model.proposalID, "change-proposal")
+    XCTAssertEqual(model.callAction?.status, "pending")
+    XCTAssertTrue(model.taskCalls.first { $0.id == booked.id }?.booked == true)
+    XCTAssertEqual(audio.played, 0)
+  }
+  func testPreparingRescheduleRejectsInvalidWindowWithoutRequest() throws {
+    let (model, _) = try makeModel()
+    let booked = try call("completed", booked: true)
+    model.prepareBookingChange(booked, operation: "reschedule", start: Date().addingTimeInterval(-60), end: Date())
+    XCTAssertNotNil(model.failure)
+    XCTAssertFalse(model.callUpdating)
+    XCTAssertNil(model.proposalID)
+  }
+  func testTaskReviewLoadsLinkedCalendarApprovalOnAnotherDevice() async throws {
+    let (model, _) = try makeModel()
+    defer { model.suspend() }
+    var object = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(callFixture.utf8)) as? [String: Any])
+    object["calendarActionId"] = "pending"
+    let linked = try JSONDecoder().decode(CallAction.self, from: JSONSerialization.data(withJSONObject: object))
+    model.loadLinkedCalendarAction(linked)
+    await eventually { model.action?.id == "pending" }
+    XCTAssertEqual(model.action?.sessionId, linked.sessionId)
   }
 }

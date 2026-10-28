@@ -9,6 +9,8 @@ For the current product, start with the [project README](../README.md). To devel
 | Document | What belongs here |
 |---|---|
 | [Booking calls](booking-calls.md) | Meta-led phone bookings, approvals, provider setup and live acceptance |
+| [Shared tasks and notifications](task-notifications.md) | Cross-device task access, opt-in APNs setup, delivery guarantees and verification limits |
+| [Development acceptance](development-acceptance.md) | Final validation, approved live booking tests and physical Watch acceptance checklist |
 | [Gmail and Notion](gmail-notion.md) | OAuth setup, email-to-document workflows, approvals and limits |
 | [Personal memory](memory.md) | Cross-conversation facts, iPhone controls, API and privacy boundaries |
 | [Web search](web-search.md) | Meta search routing, citations, client behaviour, verification and limits |

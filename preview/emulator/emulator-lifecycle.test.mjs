@@ -18,7 +18,7 @@ async function harness(callHandler,viewerTimeZone){
  class Recorder{constructor(onLevel){microphone=onLevel;}cancel(){} async start(){return true;}}
  class Transcriber{cancel(){}}
  const ctx={taskGroups,taskLabel,installTaskSwipe,reactionFor,reactionPresentation,localIntent,streamReply:async(id,request,{signal})=>{const r=await ctx.fetch(`/api/v1/sessions/${id}/turns`,{signal});return r.json();},SentenceSpeaker:class{},document,window:{addEventListener(){},speechSynthesis:{cancel(){},getVoices(){return [];},addEventListener(){}}},location:{origin:'http://localhost'},sessionStorage:{getItem(key){return storage.get(key)||null;},setItem(key,value){storage.set(key,value);},removeItem(key){storage.delete(key);}},setupServices:()=>({setBusy(){},update(){}}),summarizeLog:()=>'',SpeechPlayer:Player,VoiceRecorder:Recorder,RealtimeTranscriber:Transcriber,EndOfSpeech,TurnCoordinator,Option:class{},Blob,AbortSignal,AbortController,URL,performance:{now:()=>now},Intl:viewerTimeZone?{DateTimeFormat:class extends Intl.DateTimeFormat{constructor(locale,options={}){super(locale,{timeZone:viewerTimeZone,...options});}}}:Intl,Date,crypto:globalThis.crypto,setTimeout(fn,ms){const id=setTimeout(fn,ms);timers.add(id);return id;},clearTimeout(id){clearTimeout(id);timers.delete(id);},fetch:async (url,options)=>{
-  if((url.includes('/calls/')||url.endsWith('/calls')||options?.method==='DELETE'||url.endsWith('/sessions'))&&callHandler)return callHandler(url,options);
+  if((url.includes('/calls/')||url.endsWith('/calls')||url.endsWith('/tasks')||options?.method==='DELETE'||url.endsWith('/sessions'))&&callHandler)return callHandler(url,options);
   if(url.endsWith('/cancel'))return new Response('{"cancelled":true}');
   if(url.endsWith('/status'))return new Response(JSON.stringify({mode:'live',speechOutput:'elevenlabs',calendar:'disconnected'}));
   if(url.endsWith('/turns'))return inFlight.promise;
@@ -252,10 +252,10 @@ test('reviewing an older call preserves a pending call approval',async t=>{
  assert.equal(h.storage.get('muse-action'),'call-1');
  h.app.actionView(null);assert.equal(h.app.pending().id,'call-1');assert.equal(h.document.querySelector('#confirm').hidden,false);
 });
-test('task list keeps every session call and ignores foreign session records',async t=>{
+test('task list includes calls from every session of the authenticated owner',async t=>{
  const calls=[{...callFixture,status:'in_progress'},{...callFixture,id:'done',status:'completed',finishedAt:Date.now()},{...callFixture,id:'foreign',sessionId:'other'}];
  const h=await harness(async()=>new Response(JSON.stringify({calls})));t.after(h.cleanup);
- await h.app.refreshTasks();assert.equal(h.app.taskCalls.size,2);
+ await h.app.refreshTasks();assert.equal(h.app.taskCalls.size,3);
  assert.equal(h.app.view().state,'sleep');assert.deepEqual(h.played,[]);
 });
 test('an older collection response cannot overwrite a fresher task status',async t=>{
@@ -274,12 +274,114 @@ test('stopping a selected uncertain task targets that task and retains another o
  assert.match(stopped,/\/calls\/older\/stop$/);assert.equal(h.app.background().id,'ongoing');
  assert.equal(h.app.taskCalls.get('older').status,'stopped');
 });
-test('successful session reset clears task history and rejects an old in-flight collection',async t=>{
+test('new conversation preserves shared task history and rejects an old in-flight collection',async t=>{
  const stale=deferred();
- const h=await harness(async(url,options)=>url.endsWith('/calls')?stale.promise:new Response(JSON.stringify(options?.method==='DELETE'?{}:{id:'new-session'})));t.after(h.cleanup);
+ const h=await harness(async(url,options)=>url.endsWith('/tasks')?stale.promise:new Response(JSON.stringify(options?.method==='DELETE'?{}:{id:'new-session'})));t.after(h.cleanup);
  h.app.actionView({...callFixture,status:'completed',finishedAt:Date.now()});
  const oldRead=h.app.refreshTasks();await h.document.querySelector('#reset').onclick();
  stale.resolve(new Response(JSON.stringify({calls:[{...callFixture,status:'in_progress'}]})));await oldRead;
- assert.equal(h.app.taskCalls.size,0);assert.equal(h.storage.get('muse-session'),'new-session');assert.equal(h.app.taskPage(),'jolly');
- assert.equal(h.document.querySelector('#tasks-empty').hidden,false);
+ assert.equal(h.app.taskCalls.size,1);assert.equal(h.app.taskCalls.get(callFixture.id).status,'completed');assert.equal(h.storage.get('muse-session'),'new-session');assert.equal(h.app.taskPage(),'jolly');
+ assert.equal(h.document.querySelector('#tasks-empty').hidden,true);
+});
+
+
+test('cross-device call decisions retain the originating session',async t=>{
+ let requested;
+ const foreign={...callFixture,sessionId:'watch-session'};
+ const h=await harness(async(url,options)=>{requested={url,options};return new Response(JSON.stringify({callAction:{...foreign,status:'queued'}}));});t.after(h.cleanup);
+ h.app.actionView(foreign);
+ await h.app.callCommand('confirm');
+ assert.match(requested.url,/sessions\/watch-session\/calls\/call-1\/decision$/);
+ assert.equal(h.app.background().sessionId,'watch-session');
+ assert.equal(h.storage.get('muse-calls:http://localhost:session:active-session'),'watch-session');
+});
+test('restoring a cross-device tracked call uses its original session',async t=>{
+ let requested;
+ const h=await harness(async url=>{requested=url;return new Response(JSON.stringify({callAction:{...callFixture,sessionId:'watch-session',status:'in_progress'}}));});t.after(h.cleanup);
+ h.storage.set('muse-calls:http://localhost:session:active','call-1');
+ h.storage.set('muse-calls:http://localhost:session:active-session','watch-session');
+ await h.app.restoreSavedAction();
+ assert.match(requested,/sessions\/watch-session\/calls\/call-1$/);
+ assert.equal(h.app.background().sessionId,'watch-session');
+});
+test('cancellation prepares a new call proposal without dialing',async t=>{
+ let requested;
+ const h=await harness(async(url,options)=>{requested={url,body:JSON.parse(options.body)};return new Response(JSON.stringify({callAction:{...callFixture,id:'change-1',operation:'cancel_booking',sourceCallId:'call-1'},speechText:'Review the cancellation call.'}));});t.after(h.cleanup);
+ h.app.actionView({...callFixture,sessionId:'watch-session',status:'completed',outcome:'booked'},true);
+ await h.app.callCommand('change',{operation:'cancel_booking'});
+ assert.match(requested.url,/sessions\/watch-session\/calls\/call-1\/change$/);
+ assert.deepEqual(requested.body,{operation:'cancel_booking'});
+ assert.equal(h.app.pending().id,'change-1');
+ assert.equal(h.document.querySelector('#confirm').textContent,'approve and call');
+ assert.match(h.document.querySelector('#event-title').textContent,/Cancel booking/);
+});
+test('Calendar modification reviews describe the exact operation',async t=>{
+ const h=await harness();t.after(h.cleanup);
+ const event={title:'Haircut',start:'2026-11-01T10:00:00Z',end:'2026-11-01T11:00:00Z',timeZone:'Europe/London'};
+ h.app.actionView({id:'delete',sessionId:'watch-session',status:'pending',event,operation:'delete'});
+ assert.equal(h.document.querySelector('#confirm').textContent,'delete from Calendar');
+ assert.match(h.document.querySelector('#action-note').textContent,/Confirm deletion/);
+ h.app.actionView({id:'update',status:'pending',event,operation:'update'});
+ assert.equal(h.document.querySelector('#confirm').textContent,'update Calendar');
+});
+test('reschedule input rejects missing and past ranges without network writes',async t=>{
+ let writes=0;const h=await harness(async()=>{writes++;return new Response('{}');});t.after(h.cleanup);
+ h.app.actionView({...callFixture,status:'completed',outcome:'booked'},true);
+ h.document.querySelector('#reschedule-start').value='2020-01-01T10:00';
+ h.document.querySelector('#reschedule-end').value='2020-01-01T11:00';
+ h.document.querySelector('#review-reschedule').onclick();
+ assert.equal(writes,0);assert.match(h.document.querySelector('#action-note').textContent,/future start/);
+});
+
+test('task refresh closes a stale approval after another device has approved',async t=>{
+ const h=await harness(async()=>new Response(JSON.stringify({calls:[{...callFixture,status:'in_progress'}]})));t.after(h.cleanup);
+ h.app.actionView(callFixture);
+ await h.app.refreshTasks();
+ assert.equal(h.app.pending().status,'in_progress');
+ assert.equal(h.document.querySelector('#confirm').hidden,true);
+});
+test('an in-flight collection cannot roll back an explicit decision result',async t=>{
+ const stale=deferred();
+ const h=await harness(async(url)=>url.endsWith('/tasks')?stale.promise:new Response(JSON.stringify({callAction:{...callFixture,status:'queued'}})));t.after(h.cleanup);
+ h.app.actionView(callFixture);
+ const oldRead=h.app.refreshTasks();
+ await h.app.callCommand('confirm');
+ stale.resolve(new Response(JSON.stringify({calls:[callFixture]})));await oldRead;
+ assert.equal(h.app.taskCalls.get(callFixture.id).status,'queued');
+});
+
+test('starting a new conversation never deletes the prior session or its shared tasks',async t=>{
+ const requests=[];
+ const h=await harness(async(url,options)=>{requests.push({url,method:options?.method});return new Response(JSON.stringify({id:'new-session'}));});t.after(h.cleanup);
+ await h.document.querySelector('#reset').onclick();
+ assert.deepEqual(requests,[{url:'/api/v1/sessions',method:'POST'}]);
+ assert.equal(h.storage.get('muse-session'),'new-session');
+});
+
+test('routine task polling does not close an unchanged reschedule form',async t=>{
+ const call={...callFixture,status:'completed',outcome:'booked'};
+ const h=await harness(async()=>new Response(JSON.stringify({calls:[call]})));t.after(h.cleanup);
+ h.app.actionView(call,true);
+ h.document.querySelector('#reschedule-call').onclick();
+ h.document.querySelector('#reschedule-start').value='2026-12-01T14:00';
+ await h.app.refreshTasks();
+ assert.equal(h.document.querySelector('#reschedule-fields').hidden,false);
+ assert.equal(h.document.querySelector('#reschedule-start').value,'2026-12-01T14:00');
+});
+
+test('failed change preparation preserves the booking review and reports the error',async t=>{
+ const call={...callFixture,status:'completed',outcome:'booked'};
+ const h=await harness(async(url,options)=>options?.method==='POST'?new Response(JSON.stringify({error:{code:'calls_unavailable',message:'Booking calls are not configured yet.'}}),{status:503}):new Response(JSON.stringify({callAction:call})));t.after(h.cleanup);
+ h.app.actionView(call,true);
+ await h.app.callCommand('change',{operation:'cancel_booking'});
+ assert.equal(h.app.pending().id,call.id);
+ assert.equal(h.document.querySelector('#approval').hidden,false);
+ assert.equal(h.document.querySelector('#confirm').hidden,true);
+ assert.match(h.document.querySelector('#action-note').textContent,/no automatic redial/);
+});
+test('superseded booking has no new change controls',async t=>{
+ const h=await harness();t.after(h.cleanup);
+ h.app.actionView({...callFixture,status:'completed',outcome:'booked',supersededBy:'replacement'},true);
+ assert.equal(h.document.querySelector('#reschedule-call').hidden,true);
+ assert.equal(h.document.querySelector('#cancel-booking').hidden,true);
 });

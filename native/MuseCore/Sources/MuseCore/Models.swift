@@ -57,6 +57,7 @@ public struct Action: Codable, Identifiable, Sendable {
   public let event: CalendarEvent
   public let status: String
   public let expiresAt: Double
+  public let operation: String?
 }
 public struct SearchSource: Decodable, Identifiable, Sendable {
   public let title: String
@@ -119,6 +120,7 @@ public struct DocumentAction: Codable, Identifiable, Sendable {
 public struct BookingWindow: Codable, Sendable {
   public let start: String
   public let end: String
+  public init(start: String, end: String) { self.start = start; self.end = end }
 }
 public struct CallBooking: Codable, Sendable {
   public let destinationName: String
@@ -165,7 +167,18 @@ public struct CallAction: Codable, Identifiable, Sendable {
   public let bookedSlot: BookingWindow?
   public let summary: String?
   public var active: Bool { ["starting", "queued", "in_progress"].contains(status) }
-  public var booked: Bool { status == "completed" && outcome == "booked" }
+  public let operation: String?
+  public let sourceCallId: String?
+  public let supersededBy: String?
+  public let calendarActionId: String?
+  public let originalSlot: BookingWindow?
+  public var booked: Bool { status == "completed" && ["booked", "rescheduled"].contains(outcome ?? "") }
+  public var bookingCancelled: Bool { status == "completed" && outcome == "booking_cancelled" }
+  public var resultTitle: String {
+    if bookingCancelled { return "booking cancelled" }
+    if booked { return outcome == "rescheduled" ? "booking rescheduled" : "booking confirmed" }
+    return "booking update"
+  }
   /// Completion cards show the booked instant in the viewer's current device timezone.
   public func completionDateText(timeZone: TimeZone = .autoupdatingCurrent) -> String? {
     guard let slot = bookedSlot else { return nil }

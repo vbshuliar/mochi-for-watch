@@ -23,7 +23,7 @@ let backgroundCall=null,queuedCompletion=null,savedForeground=null,callRestoreBu
 const taskCalls=new Map();
 let taskPage='jolly',taskRefreshVersion=0,taskTimer=null;
 function rememberTask(call){
- if(!call||call.sessionId!==sessionId)return;
+ if(!call?.id||!call.sessionId)return;
  const previous=taskCalls.get(call.id);
  const observedAt=previous?.observedAt??(previous&&activeCall(previous)&&!activeCall(call)?Date.now():undefined);
  taskCalls.set(call.id,{...call,...(observedAt?{observedAt}:{})});renderTasks();
@@ -62,9 +62,9 @@ async function refreshTasks(){
  const scope=sessionId,version=++taskRefreshVersion;
  clearTimeout(taskTimer);
  try{
-  const result=await api(`/v1/sessions/${scope}/calls`);
+  const result=await api('/v1/tasks');
   if(scope!==sessionId||version!==taskRefreshVersion)return;
-  for(const call of result.calls||[]){const wasActive=activeCall(taskCalls.get(call.id));rememberTask(call);if(backgroundCall?.id===call.id)updateBackgroundCall(call);else if(wasActive&&!activeCall(call))announceCall(call);}
+  for(const call of result.calls||[]){const wasActive=activeCall(taskCalls.get(call.id));rememberTask(call);if(pending?.booking&&pending.id===call.id&&(pending.status!==call.status||pending.outcome!==call.outcome||pending.supersededBy!==call.supersededBy))actionView(call,true);if(backgroundCall?.id===call.id)updateBackgroundCall(call);else if(wasActive&&!activeCall(call))announceCall(call);}
   $('#tasks-error').hidden=true;
  }catch{if(scope===sessionId&&version===taskRefreshVersion)$('#tasks-error').hidden=false;}
  finally{if(scope===sessionId&&version===taskRefreshVersion&&!document.hidden)taskTimer=setTimeout(refreshTasks,10000);}
@@ -104,8 +104,9 @@ function flushCompletion(){
  if(!queuedCompletion||!dialogueIdle())return;
  const call=queuedCompletion;queuedCompletion=null;
  sessionStorage.setItem(`${callScope()}:seen:${call.id}:${call.status}:${call.outcome||''}`,'1');
- const booked=call.status==='completed'&&call.outcome==='booked';
- $('#call-card-title').textContent=booked?'booking confirmed':call.status==='uncertain'?'booking unverified':'call finished';
+ const booked=call.status==='completed'&&['booked','rescheduled'].includes(call.outcome);
+ const cancelledBooking=call.status==='completed'&&call.outcome==='booking_cancelled';
+ $('#call-card-title').textContent=booked?(call.outcome==='rescheduled'?'booking rescheduled':'booking confirmed'):cancelledBooking?'booking cancelled':call.status==='uncertain'?'booking unverified':'call finished';
  $('#call-card-detail').textContent=booked?call.booking.purpose:call.summary||'No booking has been confirmed. Review the call for details.';
  $('#call-card-business').textContent=booked?call.booking.destinationName:'';
  $('#call-card-business').hidden=!booked;
@@ -116,16 +117,17 @@ function flushCompletion(){
  $('#call-card').hidden=false;$('.watch-shell').classList.toggle('has-call-card',true);
  $('#call-card-review').onclick=()=>{ $('#call-card').hidden=true;$('.watch-shell').classList.toggle('has-call-card',false);actionView(call,true);};
  $('#call-card-dismiss').onclick=()=>{$('#call-card').hidden=true;$('.watch-shell').classList.toggle('has-call-card',false);face('idle','tap to talk');};
- face(booked?'happy':'idle',booked?'booking confirmed':'call update');
+ face(booked?'happy':'idle',booked?(call.outcome==='rescheduled'?'booking rescheduled':'booking confirmed'):cancelledBooking?'booking cancelled':'call update');
  clearTimeout(idleTimer);idleTimer=setTimeout(()=>{if(dialogueIdle())face('idle','tap to talk');},2400);
 }
 function updateBackgroundCall(call,notify=false){
- if(call.sessionId!==sessionId)return;
+ if(!call?.id||!call.sessionId)return;
  rememberTask(call);
  if(activeCall(backgroundCall)&&backgroundCall.id!==call.id)return;
  const wasActive=activeCall(backgroundCall)&&backgroundCall.id===call.id;
  backgroundCall=call;
  sessionStorage.setItem(`${callScope()}:active`,call.id);
+ sessionStorage.setItem(`${callScope()}:active-session`,call.sessionId);
  renderCallWidget();
  if(!callDeadline)callDeadline=Date.now()+540000;
  monitorCall();
@@ -138,12 +140,14 @@ async function restoreSavedAction(){
 async function restoreSavedActionInternal(){
  const scope=sessionId;
  const backgroundId=sessionStorage.getItem(`${callScope()}:active`);
- if(backgroundId){try{const result=await api(`/v1/sessions/${sessionId}/calls/${backgroundId}`);if(scope!==sessionId)return;updateBackgroundCall(result.callAction,true);}catch{if(scope!==sessionId)return; $('#call-indicator').hidden=false;$('#call-indicator').textContent='Call status unavailable · retry';$('#call-indicator').onclick=()=>restoreSavedAction();}}
- else{try{const result=await api(`/v1/sessions/${sessionId}/calls`);if(scope!==sessionId)return;for(const call of result.calls||[])rememberTask(call);const active=result.calls?.find(activeCall);if(active)updateBackgroundCall(active);}catch{/* A saved foreground proposal can still be restored. */}}
+ const backgroundSession=sessionStorage.getItem(`${callScope()}:active-session`)||sessionId;
+ if(backgroundId){try{const result=await api(`/v1/sessions/${backgroundSession}/calls/${backgroundId}`);if(scope!==sessionId)return;updateBackgroundCall(result.callAction,true);}catch{if(scope!==sessionId)return; $('#call-indicator').hidden=false;$('#call-indicator').textContent='Call status unavailable · retry';$('#call-indicator').onclick=()=>restoreSavedAction();}}
+ else{try{const result=await api('/v1/tasks');if(scope!==sessionId)return;for(const call of result.calls||[])rememberTask(call);const active=result.calls?.find(activeCall);if(active)updateBackgroundCall(active);}catch{/* A saved foreground proposal can still be restored. */}}
  const actionId=sessionStorage.getItem('muse-action');if(!actionId){callRecoveryPending=false;controls();return;}
  const kind=sessionStorage.getItem('muse-action-kind');
+ const actionSession=sessionStorage.getItem('muse-action-session')||sessionId;
  try{
-  const restored=await api(`/v1/sessions/${sessionId}/${['documents','calls'].includes(kind)?kind:'actions'}/${actionId}`);
+  const restored=await api(`/v1/sessions/${actionSession}/${['documents','calls'].includes(kind)?kind:'actions'}/${actionId}`);
   if(scope!==sessionId)return;callRecoveryPending=false;actionView(restored.callAction||restored.action);
   if(foregroundApproval())face('approval','tap to review');
  }catch(error){
@@ -168,25 +172,33 @@ function monitorCall(){
 }
 window.addEventListener('pagehide',stopCallUpdates);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)stopCallUpdates();else{callDeadline=Date.now()+540000;monitorCall();flushCompletion();}});
-async function callCommand(command){
+async function callCommand(command,change){
  const call=pending?.booking?pending:backgroundCall;
  if(!call||decisionBusy)return;
- if(command==='calendar'&&savedForeground)return;
+ if((command==='calendar'||command==='change')&&savedForeground)return;
  if(command==='confirm'&&(call.status!=='pending'||uncertainCalls.has(call.id)))return;
- if(command==='confirm'||command==='cancel'||command==='calendar'){if(busy||recording||recordingPending)return;stopSpeech();}
+ if(command==='confirm'||command==='cancel'||command==='calendar'||command==='change'){if(busy||recording||recordingPending)return;stopSpeech();}
  stopCallUpdates();decisionBusy=true;controls();
  const path=`/v1/sessions/${call.sessionId}/calls/${call.id}`;
  try{
-  if(command==='refresh')actionView((await api(path)).callAction);
+  if(command==='refresh'){const result=await api(path);taskRefreshVersion++;actionView(result.callAction,true);}
   else{
    if(command==='confirm'){uncertainCalls.add(call.id);sessionStorage.setItem('muse-call-attempt',call.id);}
    const decision=['confirm','cancel'].includes(command);
-   const result=await api(`${path}/${decision?'decision':command}`,{method:'POST',body:decision?{decision:command}:{}});
+   const result=await api(`${path}/${decision?'decision':command}`,{method:'POST',body:decision?{decision:command}:command==='change'?change:{}});
+   taskRefreshVersion++;
    if(command==='stop'){if(result.callAction){updateBackgroundCall(result.callAction);if(pending?.id===result.callAction.id)actionView(result.callAction,true);}}else await renderResult(result);
   }
- }catch(error){try{actionView((await api(path)).callAction);}catch{}$('#action-note').textContent='Couldn’t verify the call update. Refresh its status; no automatic redial will occur.';if(['confirm','cancel','calendar'].includes(command))errorView(error);}
+ }catch(error){try{const recovered=(await api(path)).callAction;if(recovered.status!=='pending')updateBackgroundCall(recovered);actionView(recovered,true);}catch{}$('#action-note').textContent='Couldn’t verify the call update. Refresh its status; no automatic redial will occur.';if(['confirm','cancel','calendar','change'].includes(command))errorView(error);}
  finally{decisionBusy=false;callDeadline=Date.now()+540000;controls();monitorCall();flushCompletion();}
 }
+
+
+$('#review-reschedule').onclick=()=>{
+ const start=new Date($('#reschedule-start').value),end=new Date($('#reschedule-end').value);
+ if(!Number.isFinite(start.getTime())||!Number.isFinite(end.getTime())||start.getTime()<=Date.now()||end<=start){$('#action-note').textContent='Choose a future start and a later end for your new availability.';return;}
+ void callCommand('change',{operation:'reschedule',window:{start:start.toISOString(),end:end.toISOString()}});
+};
 
 let currentView={type:'muse-state',state:'sleep',text:'tap on me to wake up'};
 function send(message){watch.contentWindow?.postMessage(message,location.origin);}
@@ -197,9 +209,9 @@ function controls(){
  serviceViews.setBusy(calendarBusy||busy||recording||recordingPending);
  $('#send').disabled=callRecoveryPending||busy||recording||recordingPending||!connected||foregroundApproval()||!!(pending&&!pending.booking&&pending.status!=='pending');
  $('#reset').disabled=callRecoveryPending||decisionBusy||busy||recording||recordingPending||activeCall(backgroundCall);
- $('#confirm').disabled=!!(pending?.booking&&(pending.status!=='pending'||uncertainCalls.has(pending.id)))||busy||recording||recordingPending||!pending||!!(pending.body&&pending.status!=='pending');
- $('#cancel').disabled=busy||recording||recordingPending||!pending||pending.status!=='pending';
- for(const id of ['stop-call','call-calendar','refresh-call','dismiss-document']){const button=$('#'+id);if(button)button.disabled=id==='stop-call'?decisionBusy:busy||recording||recordingPending||(id==='call-calendar'&&!!savedForeground);}
+ $('#confirm').disabled=decisionBusy||!!(pending?.booking&&(pending.status!=='pending'||uncertainCalls.has(pending.id)))||busy||recording||recordingPending||!pending||!!(pending.body&&pending.status!=='pending');
+ $('#cancel').disabled=decisionBusy||busy||recording||recordingPending||!pending||pending.status!=='pending';
+ for(const id of ['stop-call','call-calendar','refresh-call','dismiss-document','reschedule-call','cancel-booking','review-reschedule']){const button=$('#'+id);if(button)button.disabled=id==='stop-call'?decisionBusy:decisionBusy||busy||recording||recordingPending||(['call-calendar','reschedule-call','cancel-booking','review-reschedule'].includes(id)&&!!savedForeground);}
  $('#stop').hidden=!recording&&!recordingPending;
  $('#stop').textContent=recordingPending?'cancel microphone request':'finish talking';
  $('#connect-calendar').disabled=calendarBusy||busy||recording||recordingPending;
@@ -268,26 +280,32 @@ function actionView(action,review=false){
  if(action?.booking&&sessionStorage.getItem('muse-call-attempt')===action.id)uncertainCalls.add(action.id);
  let dismiss=$('#dismiss-document');if(!dismiss){dismiss=document.createElement('button');dismiss.id='dismiss-document';dismiss.textContent='back to Jolly';dismiss.onclick=()=>{if(!busy){actionView(null);if(dialogueIdle())face('idle','tap to talk');}};$('#approval').append(dismiss);}dismiss.hidden=!((action?.body&&['uncertain','executing'].includes(action.status))||(action?.booking&&(action.status!=='pending'||uncertainCalls.has(action.id))));
  pending=action&&(action.booking||['pending','uncertain','executing'].includes(action.status))?action:null;
- for(const id of ['stop-call','call-calendar','refresh-call']){if($('#'+id))$('#'+id).hidden=true;}
+ for(const id of ['stop-call','call-calendar','refresh-call','reschedule-call','cancel-booking','reschedule-fields']){if($('#'+id))$('#'+id).hidden=true;}
  $('#confirm').hidden=!!pending?.booking&&pending.status!=='pending';
  $('#cancel').hidden=!!pending?.booking&&pending.status!=='pending';
  $('#approval').hidden=!pending;renderTasks();
  if(pending){let row=$('#approval-log-row');if(!row){row=document.createElement('li');row.id='approval-log-row';row.className='log-row';$('#api-log').append(row);}row.append($('#approval'));}
  if(!pending){sessionStorage.removeItem('muse-action');sessionStorage.removeItem('muse-action-kind');controls();return;}
- const persisted=savedForeground||pending;sessionStorage.setItem('muse-action',persisted.id);sessionStorage.setItem('muse-action-kind',persisted.booking?'calls':persisted.body?'documents':'actions');
+ const persisted=savedForeground||pending;sessionStorage.setItem('muse-action',persisted.id);sessionStorage.setItem('muse-action-kind',persisted.booking?'calls':persisted.body?'documents':'actions');sessionStorage.setItem('muse-action-session',persisted.sessionId||sessionId);
  if(pending.booking){
   const booking=pending.booking;
+  const changeLabel=pending.operation==='reschedule'?'Reschedule booking':pending.operation==='cancel_booking'?'Cancel booking':'Call';
   if(sessionStorage.getItem('muse-call-attempt')===pending.id)uncertainCalls.add(pending.id);
   const fmt=new Intl.DateTimeFormat(undefined,{timeZone:booking.timeZone,dateStyle:'medium',timeStyle:'short'});
   const windows=booking.windows??[booking.window];
   const availability=windows.map(window=>`${fmt.format(new Date(window.start))} → ${fmt.format(new Date(window.end))}`).join('\n');
-  $('#event-title').textContent=`Call ${booking.destinationName} · ${booking.phoneNumber}`;
+  $('#event-title').textContent=`${changeLabel} · ${booking.destinationName} · ${booking.phoneNumber}`;
   $('#event-time').style.whiteSpace='pre-wrap';
-  $('#event-time').textContent=`${booking.purpose}\nBooking for: ${booking.customerName}\n${availability}\n${booking.timeZone} · ${booking.durationMinutes} minutes\n${pending.calendarChecked?'Calendar checked for availability.':'Calendar has not been checked. Availability is unverified.'}\nStatus: ${pending.status.replaceAll('_',' ')}${pending.summary?'\n'+pending.summary:''}${pending.status==='completed'&&pending.outcome==='booked'&&pending.bookedSlot?'\nBooked: '+fmt.format(new Date(pending.bookedSlot.start))+' → '+fmt.format(new Date(pending.bookedSlot.end)):''}`;
+  $('#event-time').textContent=`${booking.purpose}\nBooking for: ${booking.customerName}${pending.originalSlot?'\nOriginal appointment: '+fmt.format(new Date(pending.originalSlot.start))+' → '+fmt.format(new Date(pending.originalSlot.end)):''}\n${pending.operation==='reschedule'?'New allowed times:\n':''}${availability}\n${booking.timeZone} · ${booking.durationMinutes} minutes\n${pending.calendarChecked?'Calendar checked for availability.':'Calendar has not been checked. Availability is unverified.'}\nStatus: ${pending.status.replaceAll('_',' ')}${pending.summary?'\n'+pending.summary:''}${pending.status==='completed'&&['booked','rescheduled'].includes(pending.outcome)&&pending.bookedSlot?'\nBooked: '+fmt.format(new Date(pending.bookedSlot.start))+' → '+fmt.format(new Date(pending.bookedSlot.end)):''}`;
   $('#action-note').textContent=pending.status==='pending'&&!uncertainCalls.has(pending.id)?'Jolly will call as your AI assistant and share these booking details only after you approve.':pending.status==='uncertain'||uncertainCalls.has(pending.id)&&pending.status==='pending'?'The result is unverified. Check with the business before another booking. Jolly will not redial automatically.':'Review the call update below. Calendar events are saved only with separate approval.';
   $('#confirm').textContent='approve and call';
-  for(const [id,label,command,visible] of [['stop-call',pending.status==='uncertain'?'try stopping call':'stop call','stop',activeCall(pending)||pending.status==='uncertain'],['call-calendar','review Calendar event','calendar',pending.status==='completed'&&pending.outcome==='booked'],['refresh-call','refresh status','refresh',true]]){
+  for(const [id,label,command,visible] of [['stop-call',pending.status==='uncertain'?'try stopping call':'stop call','stop',activeCall(pending)||pending.status==='uncertain'],['call-calendar',pending.outcome==='booking_cancelled'?'review Calendar deletion':pending.outcome==='rescheduled'?'review Calendar update':'review Calendar event','calendar',pending.status==='completed'&&['booked','rescheduled','booking_cancelled'].includes(pending.outcome)],['refresh-call','refresh status','refresh',true]]){
    let button=$('#'+id);if(!button){button=document.createElement('button');button.id=id;button.textContent=label;button.onclick=()=>callCommand(command);$('#approval').append(button);}button.textContent=label;button.hidden=!visible;
+  }
+  const canChange=pending.status==='completed'&&['booked','rescheduled'].includes(pending.outcome)&&!pending.supersededBy;
+  for(const [id,label,operation] of [['reschedule-call','reschedule booking','reschedule'],['cancel-booking','cancel booking','cancel_booking']]){
+   let button=$('#'+id);if(!button){button=document.createElement('button');button.id=id;$('#approval').append(button);}button.textContent=label;button.hidden=!canChange;
+   button.onclick=()=>{if(operation==='reschedule'){$('#reschedule-fields').hidden=false;$('#reschedule-zone').textContent=`New availability (${Intl.DateTimeFormat().resolvedOptions().timeZone})`;$('#reschedule-start').focus();}else void callCommand('change',{operation});};
   }
   if(!callDeadline)callDeadline=Date.now()+540000;
   controls();return;
@@ -297,8 +315,8 @@ function actionView(action,review=false){
  $('#event-title').textContent=pending.event.title;
  const fmt=new Intl.DateTimeFormat(undefined,{timeZone:pending.event.timeZone,dateStyle:'full',timeStyle:'short'});
  $('#event-time').textContent=`${fmt.format(new Date(pending.event.start))} → ${fmt.format(new Date(pending.event.end))} (${pending.event.timeZone})`;
- $('#action-note').textContent=pending.status==='pending'?'Nothing has been saved. Confirm this exact event to create it.':'The last save is unverified. Retry to check the same event; do not create a new proposal.';
- $('#confirm').textContent=pending.status==='pending'?'add to Calendar':'verify / retry save';controls();
+ $('#action-note').textContent=pending.status==='pending'?(pending.operation==='delete'?'Confirm deletion of this exact Calendar event. The business cancellation is already confirmed.':pending.operation==='update'?'Confirm the new time for this existing Calendar event.':'Nothing has been saved. Confirm this exact event to create it.'):'The last Calendar change is unverified. Retry to check the same event; do not create a new proposal.';
+ $('#confirm').textContent=pending.status==='pending'?(pending.operation==='delete'?'delete from Calendar':pending.operation==='update'?'update Calendar':'add to Calendar'):'verify / retry save';controls();
 }
 function displayData(data){
  if(Array.isArray(data)){for(const event of data.slice(0,12))message('assistant',`${event.title}\n${event.start} → ${event.end}`);if(data.length>12)message('assistant',`${data.length-12} more events; ask for a shorter date range.`);}
@@ -307,7 +325,7 @@ function displayData(data){
 async function renderResult(result,ticket,streamed=false){
  const valid=()=>ticket===undefined||turns.current(ticket);
  if(!valid())return;
- if(result.callAction&&!result.action){actionView(result.callAction);}else if(result.documentAction){const authoritative=await api(`/v1/sessions/${sessionId}/documents/${result.documentAction.id}`);if(!valid())return;actionView(authoritative.action);}else if(result.action){const authoritative=await api(`/v1/sessions/${sessionId}/actions/${result.action.id}`);if(!valid())return;actionView(authoritative.action);}else actionView(null);
+ if(result.callAction&&!result.action){actionView(result.callAction);}else if(result.documentAction){const authoritative=await api(`/v1/sessions/${result.documentAction.sessionId||sessionId}/documents/${result.documentAction.id}`);if(!valid())return;actionView(authoritative.action);}else if(result.action){const authoritative=await api(`/v1/sessions/${result.action.sessionId||sessionId}/actions/${result.action.id}`);if(!valid())return;actionView(authoritative.action);}else actionView(null);
  message('assistant',result.speechText);displayData(result.data);
  if(result.sources?.length){
   const row=document.createElement('li');row.className='log-row';
@@ -440,12 +458,12 @@ $('#replay').onclick=()=>{if(!busy&&!recording&&!recordingPending)speak(lastRepl
 async function decision(value){
  if(pending?.booking){await callCommand(value);return;}
  if(!pending||busy||recording||recordingPending)return;stopSpeech();decisionBusy=true;busy=true;controls();$('#error').textContent='';face('working',value==='confirm'?'saving your event…':'cancelling…');
- try{const result=await api(`/v1/sessions/${sessionId}/${pending.booking?'calls':pending.body?'documents':'actions'}/${pending.id}/decision`,{method:'POST',body:{decision:value}});await renderResult(result);}
- catch(error){try{actionView((await api(`/v1/sessions/${sessionId}/${pending.booking?'calls':pending.body?'documents':'actions'}/${pending.id}`)).action);}catch{}errorView(error);}
+ try{const result=await api(`/v1/sessions/${pending.sessionId||sessionId}/${pending.booking?'calls':pending.body?'documents':'actions'}/${pending.id}/decision`,{method:'POST',body:{decision:value}});await renderResult(result);}
+ catch(error){try{actionView((await api(`/v1/sessions/${pending.sessionId||sessionId}/${pending.booking?'calls':pending.body?'documents':'actions'}/${pending.id}`)).action);}catch{}errorView(error);}
  finally{decisionBusy=false;busy=false;controls();}
 }
 $('#confirm').onclick=()=>decision('confirm');$('#cancel').onclick=()=>decision('cancel');
-$('#reset').onclick=async()=>{if(decisionBusy||busy||recording||recordingPending||activeCall(backgroundCall))return;stopSpeech();busy=true;controls();try{if(sessionId)await api(`/v1/sessions/${sessionId}`,{method:'DELETE'});taskRefreshVersion++;clearTimeout(taskTimer);taskCalls.clear();backgroundCall=null;queuedCompletion=null;savedForeground=null;renderCallWidget();sessionId=null;showTaskPage('jolly');sessionStorage.removeItem('muse-session');actionView(null);lastRequest=null;$('#retry').hidden=true;$('#replay').hidden=true;$('#conversation').replaceChildren();$('#error').textContent='';await session();face('sleep','tap on me to wake up');$('#hint').textContent='A fresh conversation. Tap Jolly to start.';}catch(error){errorView(error);}finally{busy=false;controls();flushCompletion();}};
+$('#reset').onclick=async()=>{if(decisionBusy||busy||recording||recordingPending||activeCall(backgroundCall))return;stopSpeech();busy=true;controls();try{const newSession=await api('/v1/sessions',{method:'POST',body:{timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone}});taskRefreshVersion++;clearTimeout(taskTimer);savedForeground=null;sessionId=newSession.id;sessionStorage.setItem('muse-session',sessionId);if(backgroundCall){sessionStorage.setItem(`${callScope()}:active`,backgroundCall.id);sessionStorage.setItem(`${callScope()}:active-session`,backgroundCall.sessionId);}for(const key of ['muse-action','muse-action-kind','muse-action-session'])sessionStorage.removeItem(key);actionView(null);showTaskPage('jolly');lastRequest=null;$('#retry').hidden=true;$('#replay').hidden=true;$('#conversation').replaceChildren();$('#error').textContent='';face('sleep','tap on me to wake up');$('#hint').textContent='A fresh conversation. Tap Jolly to start.';}catch(error){errorView(error);}finally{busy=false;controls();flushCompletion();}};
 async function calendarOperation(operation){
  if(calendarBusy||busy||recording||recordingPending)return;
  calendarBusy=true;controls();$('#phone-error').hidden=true;

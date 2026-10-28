@@ -27,6 +27,14 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env) {
       TWILIO_ALLOWED_NUMBERS: z.string().default(""),
       TWILIO_FROM_NUMBER: z.string().default(""),
       CALLS_PUBLIC_URL: z.string().default(""),
+      APNS_TEAM_ID: z.string().default(""),
+      APNS_KEY_ID: z.string().default(""),
+      APNS_PRIVATE_KEY: z.string().default(""),
+      APNS_ENVIRONMENT: z.enum(["sandbox", "production"]).default("sandbox"),
+      APNS_TOPIC_IOS: z.string().default("com.museforwatch.app"),
+      APNS_TOPIC_WATCHOS: z
+        .string()
+        .default("com.museforwatch.app.watchkitapp"),
       ELEVENLABS_API_KEY: z.string().default(""),
       ELEVENLABS_VOICE_ID: z
         .string()
