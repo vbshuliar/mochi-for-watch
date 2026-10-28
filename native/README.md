@@ -77,3 +77,17 @@ Apple references: [WatchConnectivity](https://developer.apple.com/documentation/
 ## App icon
 
 The included launcher icon is a static render of the native Jolly component. To regenerate it on a Mac, run `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swift native/scripts/render-icon.swift "$PWD/native"` from the repository root.
+
+## Web-search sources
+
+The deployed backend can answer current-information questions on existing installed clients. Updated native clients also decode source links: iPhone shows them in the conversation activity; tapping a sourced Watch caption opens a source list. These UI additions require rebuilding/installing the updated apps. iPhone and Watch conversation histories are separate; source history does not automatically sync between them.
+
+## Personal memory
+
+The home screen’s **Memory** row opens saved facts shared with the Watch. Add, edit, delete or forget all with confirmation. Memories are stored on the private backend, not only in this client. See [memory behaviour and API](../docs/memory.md). Install an updated iPhone build to access this screen.
+
+## Gmail and Notion
+
+Native connection views support Gmail OAuth, Notion OAuth and destination selection. Document proposals show their full text and destination for confirmation on both phone and Watch. See [setup and limits](../docs/gmail-notion.md). Install updated clients before testing document approvals; installation remains deferred.
+
+Booking reviews on iPhone and Watch show each allowed window for flexible requests. Older single-window proposals still decode. Install an updated build to see the separate windows; app installation remains a manual follow-up.

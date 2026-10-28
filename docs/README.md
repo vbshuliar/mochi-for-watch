@@ -8,6 +8,11 @@ Read [the idea](idea.md), [hackathon requirements](hackathon.md), [MVP scope](mv
 
 | Document | What belongs here |
 |---|---|
+| [Booking calls](booking-calls.md) | Meta-led phone bookings, approvals, provider setup and live acceptance |
+| [Gmail and Notion](gmail-notion.md) | OAuth setup, email-to-document workflows, approvals and limits |
+| [Personal memory](memory.md) | Cross-conversation facts, iPhone controls, API and privacy boundaries |
+| [Web search](web-search.md) | Meta search routing, citations, client behaviour, verification and limits |
+| [Muse Charm opportunities](research/muse-charm-opportunities.md) | Recent consumer features, public API boundaries and recommended integrations |
 | [Private deployment](private-deployment.md) | Current Fly.io setup, operations, device import and retired Render deployment |
 | [Cloud access investigation](meta-cloud-access-issue.md) | Meta diagnostics, evidence and successful Fly.io migration |
 | [Native apps](../native/README.md) | Xcode setup, device pairing, voice implementation and physical-device checks |

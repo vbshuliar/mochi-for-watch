@@ -160,3 +160,38 @@ API references checked on 26 October 2026:
 ## Live browser emulator
 
 With the backend running, run `npm run emulator` in another terminal in this directory. Open http://127.0.0.1:4174/preview/emulator/ . The loopback gateway keeps API credentials server-side and proxies the real backend. See [emulator controls, verification and limitations](../preview/emulator/README.md).
+
+## Current-information answers
+
+Live mode routes current-information questions through Meta Responses with the built-in `web_search` tool, using the existing Meta key. No separate search account is needed. Replies can include `sources: [{title, url}]`; `/v1/status` includes `webSearch`. Search answers are held until the completed response has a successful search call and valid citations or labelled provider-retrieved source links. Ordinary chat still streams immediately. See [web search](../docs/web-search.md) for limits and verification.
+
+## Gmail and Notion workflows
+
+Read-only Gmail retrieval and Notion draft/approval endpoints are implemented. They require OAuth app configuration and user connection; no mailbox or workspace is connected automatically. See [developer setup, endpoints and verification](../docs/gmail-notion.md).
+
+## Outbound booking calls (consented private demo)
+
+Jolly can propose a booking call, with Meta as the only conversational planner. Twilio provides PSTN transport and Gather speech recognition; ElevenLabs generates Jolly’s speech. No ElevenLabs agent, alternate reasoning model, recordings, payments, or general-purpose tools are used in the call.
+
+Calling is disabled until live Meta/ElevenLabs configuration, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`, `CALLS_PUBLIC_URL` (public HTTPS origin), and `TWILIO_ALLOWED_NUMBERS` (comma-separated consented E.164 destinations) are present. Empty allowlists block every destination. `/v1/status` exposes `callsConfigured`. Configure the public origin exactly as Twilio will request it; signature checking deliberately ignores forwarded Host headers.
+
+The `call_booking` plan requires `booking: { destinationName, phoneNumber, purpose, customerName, timeZone, window: { start, end }, durationMinutes }`. Phone numbers must have been supplied in user conversation or current authoritative saved memories; a deleted memory is not a source. Missing fields prompt clarification. When Calendar is connected and enabled, proposals exclude busy intervals and approval rechecks availability; otherwise review explicitly says Calendar was not checked. Only the proposed free slots are disclosed to the call model, with no private Calendar event contents. Candidates use 15-minute increments starting at the requested window start, maximum 100 candidate slots.
+
+`TurnResult.callAction` contains the full review. It expires after ten minutes; ordinary follow-up turns supersede pending proposals. Authenticated, session-bound routes:
+
+- `GET /v1/sessions/:id/calls/:actionId` → `{callAction}`.
+- `POST .../decision` with `{decision:"confirm"|"cancel"}` → TurnResult. Repeated identical decisions never dial again.
+- `POST .../stop` → TurnResult. Stopping cannot undo a booking already agreed with the business.
+- `POST .../calendar` → a separate ordinary Calendar proposal only after a validated booked outcome. Confirming that Calendar action remains a separate user decision.
+
+Call statuses are `pending`, `starting`, `queued`, `in_progress`, `completed`, `failed`, `uncertain`, `cancelled`, `expired`, and `stopped`. `outcome` is optionally `booked` or `not_booked`, with `bookedSlot` only for a validated confirmation. A Twilio completed callback alone never means a booking succeeded. The demo conservatively requires an explicit positive confirmation quote with matching day/month and numeric local start time. Ambiguous wording asks for repetition; unsupported speech formatting may prevent automatic confirmation even when the business believes it booked the appointment. Confirm details with the business when uncertain.
+
+Signed public form callbacks at `/webhooks/calls/:actionId/{voice/:turn,gather/:turn,status}` verify HMAC-SHA1 over the configured canonical URL and sorted form fields, configured AccountSid, associated CallSid, callback sequence, and durable turn progression. Duplicate form fields are rejected. Audio uses opaque 256-bit per-clip tokens at `/call-audio/:token`, expires after six minutes, and never includes the app bearer token. Generated clips are encrypted at rest, pruned on later synthesis and restart; call transcripts persist encrypted until session deletion. These are generated clips, not telephone recordings.
+
+The first spoken prompt discloses that Jolly is an AI calling on the customer’s behalf and asks whether the recipient agrees to speak with an AI. Subsequent replies allow speech barge-in. Webhooks immediately return TwiML while bounded background Meta/TTS work completes; two-second polling stops after 45 seconds. Calls have a five-minute Twilio TimeLimit, a twelve-turn cap, and end on silence. Meta/TTS failure hangs up safely. No automatic external-call creation retry is made after ambiguous responses or restart; inspect Twilio before initiating another call. The current one-process encrypted SQLite runtime is required; pending background work is not a distributed worker queue.
+
+Mock tests cover authentication, session ownership, approval expiry/idempotency, signatures, callback reordering, replay deduplication, slot filtering, structured outcomes, silence/time limits, and separate Calendar approval. Live telephone latency, caller-ID eligibility, account/geographic permissions and actual recipient conversation still require a consented end-to-end test.
+
+Primary references: [Twilio Call resource](https://www.twilio.com/docs/voice/api/call-resource), [Gather](https://www.twilio.com/docs/voice/twiml/gather), and [request signatures](https://www.twilio.com/docs/usage/security).
+
+Call failure diagnostics expose safe `callAction.failure: {stage, category, attempt?}` metadata, distinguishing Meta/network, structured-output, outcome and speech failures. Invalid or truncated structured Meta responses receive one read-only model retry; there are no automatic call-creation or speech retries. Whole fenced JSON and null optional fields are normalized before strict validation. Both Meta attempts and speech synthesis have 12-second deadlines. Natural ordinal dates such as “28th of October” are accepted, while a missing/misheard customer name asks for clarification. Numeric slot enumerations are limited to two approved options. A failed call from the initial live test had lost its original exception under the former catch-all timeout message; a Meta-only replay did not reproduce the failure, so its original cause remains unknown.

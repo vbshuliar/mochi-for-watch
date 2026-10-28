@@ -15,7 +15,7 @@ Updated 27 October 2026. **The owner confirmed Jolly works on Apple Watch after 
 | Configuration | [backend/fly.toml](../backend/fly.toml) and [Dockerfile](../backend/Dockerfile) |
 | AI | Direct Meta API, `muse-spark-1.3`, existing $150 hackathon credits |
 | Voice | ElevenLabs Jessica, existing account |
-| Calendar | Disconnected; Google configuration and live validation deferred |
+| Calendar | Connected; live availability read verified; Calendar write validation pending |
 
 The approved hosting estimate was $4–5/month base, with an approved ceiling of $7.25/month base; tax and usage are separate. This is an estimate, not a billing cap. The account was verified as Good Standing after billing setup. Check actual charges in Fly billing before changing resources.
 
@@ -104,3 +104,19 @@ On 27 October 2026:
 - A courtesy refund or accrued-usage waiver was requested from Render support. **It is pending, not approved.**
 
 Do not use the old Render origin or connection credentials. The retired service records remain for reference; they are not the active deployment.
+
+## Meta web search update — 27 October 2026
+
+The Fly backend now supports [current-information answers with sources](web-search.md), using the same direct Meta API key and credit account. No new service or secret is required. Live streamed news and London-weather requests returned answers with citations. The health/status endpoint remains distinct from a provider smoke test; `webSearch: true` indicates live configuration. Existing installed apps receive the answers; install the updated native build to view sources on-device.
+
+## Booking calls — deployed, live acceptance pending
+
+The [booking-call implementation](booking-calls.md) keeps Meta as the brain, uses ElevenLabs for speech and Twilio for telephony/transcription. `CALLS_PUBLIC_URL` points at the existing Fly origin. The owner approved storing the Twilio credentials in Fly secrets and the ignored local private environment file. The existing caller number and only the selected consenting demo destination are configured. Authenticated status reports `callsConfigured: true`; Twilio credentials and voice capability passed read-only checks. Fresh installs default to an empty allowlist and cannot dial. Do not add secrets to `fly.toml`.
+
+Twilio callbacks use signature verification instead of the app bearer token; short-lived opaque audio links allow Twilio to fetch generated replies. There are no call recordings. Call transcripts, booking instructions and receipts are stored in the existing encrypted database; speech audio is sent to ElevenLabs and recipient speech/approved booking context to Meta. No other saved memories or Calendar event titles are sent to the call model.
+
+Avoid deployments during an active call. After a restart, unresolved calls are treated as uncertain rather than automatically redialed. Check the provider and recipient before starting another booking if the outcome is unknown. Native installation and live phone acceptance remain separate from backend deployment.
+
+### Calendar connection — 27 October 2026
+
+Created the Muse for Watch Google project, web OAuth client with hosted/local Calendar callbacks, private test audience and the two scopes already used by the backend. The owner approved policy/API activation and completed Google consent directly. Client credentials were stored in the ignored private env file and Fly secrets. Calendar API status is enabled and hosted Muse status reports connected; a real availability-only request passed. No Calendar event was created during this check.

@@ -6,6 +6,18 @@ This is the browser integration harness for the Apple Watch SE 2, 44 mm experien
 
 From `backend/`, run `npm start` after `npm run build`. In another terminal in `backend/`, run `npm run emulator`. Open http://127.0.0.1:4174/preview/emulator/ . Both processes must stay running. Configure credentials using the backend setup instructions, never in browser JavaScript.
 
+### Use a deployed backend
+
+The loopback gateway can proxy the same browser UI to your deployed backend. From the repository root, load the private connection environment and start only the gateway:
+
+```sh
+node --env-file=native/Local/fly.env backend/scripts/emulator-server.mjs
+```
+
+Set `EMULATOR_BACKEND_URL=https://your-app.fly.dev` in that process environment (or the private env file), and ensure `API_TOKEN` matches the deployed backend. For example, prefix the command above with `EMULATOR_BACKEND_URL=https://your-app.fly.dev`. No local backend process is needed. Open the same loopback emulator address; both HTTP requests and realtime WebSocket audio use the deployed backend. Authentication stays in the gateway and is never sent to browser JavaScript. OAuth and call webhooks continue using the deployed backend's configured public callback URLs.
+
+`EMULATOR_BACKEND_URL` accepts an HTTPS origin or loopback HTTP origin, with no credentials, path, query or fragment. If omitted, the existing local backend at `http://127.0.0.1:${PORT:-8787}` is used. Keep private env files untracked.
+
 ## Use
 
 - Tap the head, grant microphone permission, speak, then pause for about 0.9–1.7 seconds to send automatically (or tap again to send immediately). Recording ends automatically at 60 seconds. The watch shows listening, then thinking throughout transcription and processing, then the reply.
@@ -60,3 +72,9 @@ See [backend configuration](../../backend/README.md#connect-live-providers) and 
 See [research, timing measurements and regression cases](../../docs/research/conversation-ux.md). An empty recording ends locally after eight seconds; incomplete phrases get more pause time. Interrupted replies cannot take over the current UI. Requests remain serial on the backend; interruption aborts the old turn and waits for cancellation acknowledgement before the next is submitted. It does not undo external actions.
 
 Conversational replies now stream in sentence clips; exact repeat/stop commands skip Meta reasoning. See [streaming design and verification](../../docs/streaming-replies.md).
+
+## Web search
+
+In live mode, current-information questions can use Meta web search. Source links appear in a compact expandable log row. The Web Search connection shows availability through Meta and requires no separate sign-in. See [implementation and verification](../../docs/web-search.md).
+
+Flexible booking approval lists every allowed window separately (including multi-day requests). The date envelope is not a promise of continuous availability; Calendar busy periods further constrain the call.
