@@ -28,8 +28,11 @@ For the current product, start with the [project README](../README.md). To devel
 | [Agents](agents.md) | Jolly’s identity, capabilities and permission boundaries |
 | [Figma UI concept](design/README.md) | Editable Moment-inspired watch screens, linked Milo flow and preview |
 | [Experience design](experience-design.md) | Watch screens, voice interaction, character states and accessibility |
+| [Watch tasks](design/watch-tasks.md) | Swipeable progress, approvals and recent completions |
+| [Watch confirmations](design/watch-confirmation.md) | Native-style booking results and explicit approval controls |
 | [Architecture](architecture.md) | Watch-to-cloud flow, client, backend, approvals, storage, authentication and memory |
-| [Integrations and models](integrations-and-models.md) | Instagram, Facebook Pages, Calendar, research and proposed Meta capabilities |
+| [Integrations and models](integrations-and-models.md) | Implemented six-connector capabilities and live-setup boundaries |
+| [Social connections](social-connections.md) | Instagram/Facebook OAuth setup, account selection and read/draft limits |
 | [MVP and success](mvp-and-success.md) | Foundation, competitive target, stretch scope and acceptance criteria |
 | [Roadmap](roadmap.md) | Tentative build phases and post-hackathon directions |
 | [Quality, security and risks](quality-security-and-risks.md) | Functional/error testing, permissions, data handling, performance and mitigations |

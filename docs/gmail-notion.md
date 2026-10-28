@@ -2,7 +2,7 @@
 
 Implemented 27 October 2026. Provider OAuth credentials and real-account acceptance testing remain required; implementing the adapters does not mean either account is connected.
 
-**Scope update:** account setup paused on 27 October 2026 in favour of the [Calendar + booking-call demo](booking-calls.md). The implementation is retained.
+**Scope update, 28 October 2026:** all six preview connections now have client flows. Gmail and Notion adapters and approval behavior were rechecked; the user chose to configure provider apps and grant access later.
 
 ## End-user experience
 
