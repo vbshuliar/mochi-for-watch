@@ -1,3 +1,15 @@
+# Working in this repository
+
+Read [the agent setup guide](docs/agent-setup.md), [code map](docs/code-map.md), and [release runbook](docs/runbook.md). `docs/agents.md` describes the in-product character, not coding-agent instructions.
+
+- Preserve unrelated working-tree changes. Keep generated build contexts isolated from the user's checkout when deploying.
+- Default to mock mode for development; never switch modes against an existing database. Keep credentials, phone numbers, connection files and database backups private.
+- Preserve explicit approvals, destination allowlists, idempotency and uncertain-outcome recovery. Build/test authorization is not authorization to call a recipient or write to a real provider.
+- Use one-time device pairing; legacy owner-token import is Debug-only. The service is single-owner, not multi-tenant.
+- Keep the haircut demo focused on calls and Calendar. Gmail and Notion are optional integrations outside that demo.
+- Label design fixtures, simulator captures and live evidence accurately. Never claim live/device acceptance from automated checks.
+- Do not choose a permissive software/asset license without an owner decision; character/name permission is pending.
+
 # Required validation
 
 Before committing or pushing changes, and before reporting implementation work complete:

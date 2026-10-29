@@ -1,6 +1,6 @@
 # Gmail and Notion workflows
 
-Implemented 27 October 2026. Provider OAuth credentials and real-account acceptance testing remain required; implementing the adapters does not mean either account is connected.
+Implemented 27 October 2026. New deployments require provider OAuth credentials and account consent; implementing the adapters does not connect an account. The current owner connection status and remaining write-verification limits are recorded below.
 
 **Scope update, 28 October 2026:** all six preview connections now have client flows. Gmail and Notion adapters and approval behavior were rechecked; the user chose to configure provider apps and grant access later.
 
@@ -8,7 +8,7 @@ Implemented 27 October 2026. Provider OAuth credentials and real-account accepta
 
 ## End-user experience
 
-1. Open **Connections → Gmail → Connect with Google** and grant read-only access.
+1. Open **Connections → Gmail → Connect with Google** and grant read access. Enable draft permission explicitly when unsent drafts are wanted; Google groups this with sending permission, but this app implements no sending endpoint.
 2. Open **Connections → Notion → Connect with Notion**, share the pages Muse may access, then choose a destination under **Save pages under**. Page search is by title, with up to 50 results; narrow the query if more are available.
 3. Ask Jolly:
    - “Summarize my unread emails from this week.”
@@ -44,7 +44,7 @@ Fly configuration already contains the two hosted redirect URLs. Install the fou
 
 ## Behaviour and boundaries
 
-- Gmail is read-only: no sending, drafts, mark-read, moving or deletion operations.
+- Gmail is read-only by default. Optional compose permission enables reviewed unsent drafts; sending, mark-read, moving and deletion are not implemented.
 - Each request reads at most ten matching messages. Plain-text MIME bodies are preferred; HTML-only mail falls back to its Gmail snippet. Attachments are ignored. This is a bounded summary, not a complete inbox export or attachment parser.
 - Matching messages are sent to Meta for summarization/document generation. Email contents are untrusted evidence and cannot select tools, permissions or the Notion destination. This generation call has no tools and returns validated text only.
 - Email contents do not become personal memories. The saved draft, conversation context and receipts can contain private content in the encrypted backend store and local activity views.
@@ -67,6 +67,14 @@ Fly configuration already contains the two hosted redirect URLs. Install the fou
 
 ## Verification
 
-Automated coverage includes separate grants, OAuth replay and disconnect races, MIME attachment filtering, draft-before-write, cross-session denial, confirmation idempotency, cancel/expiry/destination changes, uncertain-write retries and superseding stale drafts. Native compile checks and existing browser tests also run. Live Meta routing and synthetic document generation can be checked without granting Gmail/Notion access or creating external pages. Real OAuth, mailbox reading and Notion writes remain pending until app credentials and user consent are configured.
+Automated coverage includes separate grants, OAuth replay and disconnect races, MIME attachment filtering, draft-before-write, cross-session denial, confirmation idempotency, cancel/expiry/destination changes, uncertain-write retries and superseding stale drafts. Native compile checks and existing browser tests also run. Live Meta routing and synthetic document generation can be checked without granting Gmail/Notion access or creating external pages. For new installations, configure app credentials and user consent before real OAuth, mailbox reading or Notion writes. The current owner has completed OAuth and Notion destination validation; live document writes remain unverified.
 
 Primary references: [Gmail scopes](https://developers.google.com/workspace/gmail/api/auth/scopes), [Gmail message retrieval](https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages/get), [Notion authorization](https://developers.notion.com/guides/get-started/authorization), [Notion page creation](https://developers.notion.com/reference/post-page), [Notion title search](https://developers.notion.com/reference/post-search).
+
+## Setup lessons verified 29 October 2026
+
+Calendar and Gmail need separate registered callback paths even when they share a Google client. A missing Gmail callback produces `redirect_uri_mismatch`. Complete the actual permission selection and wait for the backend callback to say Connected; an earlier Continue screen alone is not success. OAuth state expires after ten minutes, so restart an expired flow.
+
+Notion can open developer tools before workspace onboarding is complete. If no workspace is listed and Create connection stays disabled, open Notion itself, finish personal workspace onboarding, then refresh developer tools. Create the OAuth connection, record credentials privately, disable Update content and user-information access, and retain only Read content and Insert content. Grant a dedicated private parent page and select it as the backend destination. Creating the connection accepts Notion Developer Terms; page access is a separate consent step.
+
+The current owner's Gmail read/draft connection and Notion connection were verified through authenticated backend status. Notion page search and destination validation succeeded for a dedicated private notes page. No email was sent and no test document was written through the integration. Both remain outside the haircut demo.

@@ -1,0 +1,17 @@
+name: Feature request
+description: Describe a user problem and a small verifiable outcome.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: User problem
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Proposed behavior and acceptance criteria
+      description: Include approvals and failure recovery for external actions.
+    validations:
+      required: true

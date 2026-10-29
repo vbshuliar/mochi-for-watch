@@ -2,9 +2,13 @@
 
 Updated 29 October 2026. **The owner confirmed Jolly works on Apple Watch after importing the Fly connection. The Mac no longer needs to stay on.** This is a private single-user deployment, not a public release. The latest backend release and remaining client/provisioning gates are recorded below.
 
+## Current operator guidance
+
+Use the [release runbook](runbook.md) for current validation, isolated-source builds, exact revision stamping and verification. The dated release records below are historical snapshots. On 29 October, the usual demo booking profile was saved and Gmail read/draft and Notion access were connected; Notion destination validation succeeded. Live call/Calendar-write acceptance, latest client device acceptance and APNs provisioning remain pending. Gmail and Notion are excluded from the haircut demo.
+
 ## Booking-first private release deployed — 29 October 2026
 
-Current running source: `f833b5e2ab1581e14d993b292c43d6a8ece3e94c`. Image: `registry.fly.io/muse-for-watch-vlad:deployment-01M62P84MTNVPWEQR3082XE6MM`. Built from an isolated committed snapshot, with public website assets staged, and deployed to the existing single London machine/volume. The unrelated local website and research changes were excluded. This release includes the preceding daily briefing, reminders and reviewed Gmail drafts implementation.
+Source at this recorded release: `f833b5e2ab1581e14d993b292c43d6a8ece3e94c`. Image: `registry.fly.io/muse-for-watch-vlad:deployment-01M62P84MTNVPWEQR3082XE6MM`. Built from an isolated committed snapshot, with public website assets staged, and deployed to the existing single London machine/volume. The unrelated local website and research changes were excluded. This release includes the preceding daily briefing, reminders and reviewed Gmail drafts implementation.
 
 - All 348 automated tests passed locally (196 backend, 94 browser, 58 native), plus animation checks. Debug and Release native simulator SDK builds passed. Both [GitHub jobs](https://github.com/vbshuliar/muse-for-watch/actions/runs/40803845273) passed.
 - Read-only preflight found zero active/uncertain calls. Fly created volume snapshot `vs_KXBjnNvQKYpSB9mGY2` before deployment.
@@ -70,35 +74,15 @@ Keep one writable Machine. A second independently mounted SQLite volume is not a
 
 ## Deploy an update
 
-These commands update the existing app and volume; they do not provision a fresh account or storage:
+Follow the [release runbook](runbook.md). It requires the complete shared checks, exact pushed-commit CI, a read-only active-call check, backup/snapshot, isolated committed build context and `BUILD_REVISION` stamping. Keep `--ha=false` and one writable machine. Pushing Git alone does not deploy Fly.
 
-```sh
-cd backend
-npm ci
-npm test
-npm run build
-npm run website:stage
-fly config validate
-fly deploy --remote-only --ha=false --strategy immediate
-fly status
-fly checks list
-```
-
-The config uses the Dockerfile, port 8787, `/health`, forced HTTPS and disabled automatic stopping. Keep `--ha=false` to avoid adding another Machine. A single-Machine deployment can briefly interrupt an active conversation. Pushing Git alone does not deploy Fly; run the deployment separately.
-
-For a fresh installation, choose an app name, configure billing, create one 1 GB volume in the selected region, initialize its permissions, supply secrets, and update the app name and Google redirect origin in `fly.toml` before deploying. Do not reuse the owner's app token for another user.
+For a fresh installation, use your own app name, create one volume, initialize `/data/muse` for UID/GID 1000 with mode 0700, configure secrets and update all hosted callback origins before deployment. Never reuse this owner's credentials.
 
 ## Connect iPhone and Apple Watch
 
-1. Install the signed Debug apps using the [native setup guide](../native/README.md).
-2. Privately transfer the existing `native/Local/connection.json` to iPhone Files. `fly-connection.json` is its local backup. Both are ignored by Git and contain the **Fly** origin and deployment app token.
-3. Open Muse on iPhone and tap the top-right **Connection** link button, then **Import connection file**. Select the file in Files.
-4. Open both apps. Import stores the connection in Keychain and initiates WatchConnectivity sync. Use **Sync with Apple Watch** to retry delivery if necessary.
-5. Tap Jolly on the Watch and speak. Test with the Mac backend stopped.
+Use the [native pairing guide](../native/README.md#connect-iphone-and-watch) for Debug and Release. Generate an expiring one-time code with the intended backend's owner credentials loaded privately. Enter the HTTPS origin and code on iPhone, then sync the Watch. Legacy owner-token JSON import is Debug-only and is retained for controlled development; it is not the recommended device onboarding path.
 
-The local `native/scripts/connection.mjs` helper reads `backend/.env`; passing a Fly URL does **not** make it read Fly credentials. Do not overwrite the working hosted connection with a local token. For a new hosted connection, securely create JSON with `baseURL` and `token` matching that deployment.
-
-The Watch still needs internet access. The initial setup requires the paired iPhone, but the backend runs on Fly. The latest build supports private one-time code pairing in Release as well as Debug. Legacy owner-token import remains Debug-only. This remains a single-owner service, not public multi-user sign-in. Development signing remains separate from hosting and can require renewal through Xcode.
+An older physical-device pilot worked, but that does not establish acceptance for subsequent client changes. Signing, microphone routes, background behavior and push still need checks on the updated devices.
 
 ## Recorded checks — 27 October 2026
 

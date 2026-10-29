@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Setup and troubleshooting
+    url: https://github.com/vbshuliar/muse-for-watch/blob/main/docs/troubleshooting.md
+    about: Start here for local development and provider setup.
+  - name: Security reporting
+    url: https://github.com/vbshuliar/muse-for-watch/blob/main/SECURITY.md
+    about: Keep vulnerabilities and private data out of public issues.

@@ -14,23 +14,21 @@ Open `MuseForWatch.xcodeproj` in Xcode. The generated project is committed; Xcod
 - Choose your Apple development team in both targets for physical-device signing. Change both bundle IDs and the Watch’s `WKCompanionAppBundleIdentifier` together if your team needs unique identifiers.
 - Install the iOS and watchOS simulator runtimes in Xcode Settings → Components before running simulators.
 
-## Connect your development build
+## Connect iPhone and Watch
 
-Provider keys stay on the backend: in local `backend/.env` for development or Fly secrets for the hosted service. Neither app contains Meta, ElevenLabs or Google client secrets. The app access token is a separate credential for this **single-user** backend. Both apps store their connection in device-only Keychain entries; WatchConnectivity copies setup from the paired iPhone.
+Use one-time pairing for new devices in both Debug and Release. Provider keys remain on the backend; the phone receives a revocable device credential, stored in Keychain and synced to the paired Watch.
 
-For the existing hosted installation, follow [private deployment and import](../docs/private-deployment.md#connect-iphone-and-apple-watch). The helper below reads the **local** backend token; do not use it to overwrite the hosted connection file.
+1. Build/install the MusePhone scheme with your development team, or run paired simulators. Device installation requires the owner's availability and authorization.
+2. On a trusted administrator machine load the intended backend's owner environment privately and set `BACKEND_URL` to its reachable HTTPS origin.
+3. Run `node backend/scripts/pairing.mjs issue My iPhone and Watch` from the repository root. Enter the resulting code privately within five minutes; it can be redeemed only once.
+4. Open **Connection** on iPhone, enter the backend address and pairing code, then open both apps. Use **Sync with Apple Watch** if delivery needs retrying.
+5. Test microphone, speaker route and task recovery on physical hardware separately. Passing simulator builds does not prove those behaviors.
 
-1. Start the backend using its normal documented setup. Use `APP_MODE=live` for Meta and Jessica.
-2. For **simulators on your Mac**, generate a private connection file:
-   ```sh
-   node native/scripts/connection.mjs http://127.0.0.1:8787
-   ```
-3. For **physical devices**, expose your backend at a reachable HTTPS origin and pass that origin to the same script. `localhost` on a Watch means the Watch, not your Mac. Arbitrary insecure remote HTTP URLs are rejected.
-4. In the Debug iPhone app, tap the top-right **Connection** (link) button to open **Demo connection → Import connection file** and select `native/Local/connection.json`. Move it to your phone privately if needed. Do not publish or commit this file. If the simulator Files picker cannot access your Mac file, the same hidden screen accepts the backend origin and `API_TOKEN` manually; use the app access token, not a provider API key.
-5. Open both apps; setup syncs automatically. **Sync with Apple Watch** in that same hidden Debug screen retries delivery if needed. WatchConnectivity delivery is asynchronous and requires real pairing; independent simulator installs may need a simulator pair to exercise it.
-6. Tap Jolly to start talking, then pause or tap again to finish. Tap during a reply to interrupt and start a new turn.
+For local simulators the backend may use `http://127.0.0.1:8787`. On physical devices localhost means the device itself; use reachable HTTPS. The deployment is one owner's assistant, not separate accounts for unrelated people.
 
-The setup toolbar button exists only in Debug builds and does not add developer rows to the normal iPhone interface. A public Release distribution needs a real user sign-in/device-pairing service before it is ready to ship; the existing backend has one Calendar connection and one shared app token. Do not give this demo token to unrelated users.
+### Legacy Debug connection import
+
+Debug builds retain the old owner-token import for controlled development only. `node native/scripts/connection.mjs ORIGIN` reads **local** `backend/.env`, even when ORIGIN points to Fly. Do not overwrite a hosted connection with a local token. Do not distribute an owner-token JSON file as ordinary setup. Prefer pairing above; see [private deployment](../docs/private-deployment.md).
 
 ## What is native
 
@@ -38,7 +36,7 @@ The setup toolbar button exists only in Debug builds and does not add developer 
 - `Shared/ConversationModel.swift`: tap-to-talk flow, context-bearing sessions, bounded activity log, streamed sentence scheduling, interruption ownership, local repeat/stop commands, Calendar proposal review, and minimum one-second captions.
 - `Shared/AudioController.swift`: native audio session, 24 kHz mono PCM conversion, input-driven head scale, Jessica MP3 playback. Microphone permission is requested only when the user taps to talk.
 - `Shared/RealtimeTranscriber.swift`: authenticated WebSocket transcription while speaking. Partial text never executes an action. Recorded WAV is an in-memory fallback if final live transcription fails. No microphone recordings are written to disk.
-- `iPhone/`: native inset-grouped Lists, NavigationStack, actual connector logos, Calendar switch, Google browser sign-in, reconnect/disconnect. Unimplemented connectors remain visible and explain their availability on the detail screen.
+- `iPhone/`: native inset-grouped Lists, NavigationStack, actual connector logos, Calendar switch, Google browser sign-in, reconnect/disconnect. Each connector displays its actual authorization and setup state.
 - `Watch/`: one head and one caption. Calendar proposals open a separate review sheet with title, start/end, timezone and explicit confirmation.
 - `MuseCore/`: Foundation-only models, API client, endpoint detector, sentence splitter, reaction rules, WAV encoder and motion math with unit tests.
 

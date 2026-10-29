@@ -1,6 +1,19 @@
 # Project knowledge base
 
-Updated: 28 October 2026.
+Updated: 29 October 2026.
+
+## Engineering handbook
+
+| Guide | Start here when… |
+| --- | --- |
+| [Agent setup](agent-setup.md) | A coding agent or developer joins the repository |
+| [Configuration](configuration.md) | Setting up environments and provider credentials |
+| [Code map](code-map.md) | Tracing modules and cross-client contracts |
+| [Runbook](runbook.md) | Releasing, verifying or recovering a deployment |
+| [Troubleshooting](troubleshooting.md) | Setup or a provider flow fails |
+| [Contributing](../CONTRIBUTING.md) | Preparing a change for review |
+| [Security](../SECURITY.md) | Reporting vulnerabilities and understanding boundaries |
+| [License status](../LICENSE.md) | Checking reuse rights before distribution |
 
 ## Start here
 

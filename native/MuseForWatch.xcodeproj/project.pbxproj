@@ -22,6 +22,7 @@
 		47D5A184D1B249E7E36A9CBE /* ConversationModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BCFB686159F3D28E0EB5610 /* ConversationModel.swift */; };
 		4BF9AFA17E195E28D1F3FDF5 /* TasksView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B27B4601DFA6332CF1EC843 /* TasksView.swift */; };
 		54CC2999B4AA91683E37A5F8 /* AudioController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 068B4FF030B2512BBDB5CA18 /* AudioController.swift */; };
+		5BA42E04C7195D6B559DBFC4 /* PhoneModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AB07E80F695993EE0667A1E /* PhoneModelTests.swift */; };
 		5E3B22CB4CE13A01DCD32394 /* VoiceInterfaces.swift in Sources */ = {isa = PBXBuildFile; fileRef = 800501A57C9213A35045E0E1 /* VoiceInterfaces.swift */; };
 		5F6BAD941814877E7CFD07F8 /* MuseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 4AC30B9F3E8914F95A35B4F8 /* MuseCore */; };
 		61D4123EDA7E4BDFF4FCD84F /* AudioController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 068B4FF030B2512BBDB5CA18 /* AudioController.swift */; };
@@ -81,6 +82,7 @@
 
 /* Begin PBXFileReference section */
 		068B4FF030B2512BBDB5CA18 /* AudioController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioController.swift; sourceTree = "<group>"; };
+		0AB07E80F695993EE0667A1E /* PhoneModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneModelTests.swift; sourceTree = "<group>"; };
 		18FFFDB037B1DB5BBDE7C1BB /* PhoneWatchBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneWatchBridge.swift; sourceTree = "<group>"; };
 		197C39D0BDD0E49ABDA5FFC0 /* MuseWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MuseWatchApp.swift; sourceTree = "<group>"; };
 		26B79FCB9B908C4C257BFE66 /* DemoSetup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoSetup.swift; sourceTree = "<group>"; };
@@ -157,6 +159,7 @@
 			isa = PBXGroup;
 			children = (
 				B57EB68D65F91537C5CBF05A /* NativeConversationTests.swift */,
+				0AB07E80F695993EE0667A1E /* PhoneModelTests.swift */,
 			);
 			path = Tests;
 			sourceTree = "<group>";
@@ -382,6 +385,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				B4997002F25DD3A49DF55319 /* NativeConversationTests.swift in Sources */,
+				5BA42E04C7195D6B559DBFC4 /* PhoneModelTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

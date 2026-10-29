@@ -113,7 +113,7 @@ struct PhoneHome: View {
       .listStyle(.insetGrouped).navigationTitle("your companion")
       .refreshable { await model.refresh() }
       .task { notifications.configure(store.connection); await model.refresh(); conversation.resumeCalls(); if notifications.openedTaskID != nil || notifications.openedReminderID != nil { showingTasks = true } }
-      .onChange(of: store.connection) { _, _ in conversation.connectionChanged(); notifications.configure(store.connection); conversation.resumeCalls() }
+      .onChange(of: store.connection) { _, _ in model.connectionChanged(); conversation.connectionChanged(); notifications.configure(store.connection); conversation.resumeCalls(); Task { await model.refresh() } }
       .onChange(of: notifications.openedReminderID) { _, id in if id != nil { showingTasks = true } }
       .onChange(of: notifications.openedTaskID) { _, id in if id != nil { showingTasks = true } }
       .navigationDestination(isPresented: $showingTasks) { PhoneTasksView(model: conversation) }

@@ -1,0 +1,29 @@
+name: Bug report
+description: Report reproducible behavior using sanitized or synthetic data.
+labels: [bug]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Include expected and actual behavior. Do not include credentials or personal data.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Revision, platform and mode
+      placeholder: commit SHA, browser or iOS/watchOS version, mock or live
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Sanitized evidence
+      description: Never attach environment files, connection JSON, raw OAuth URLs or database backups.

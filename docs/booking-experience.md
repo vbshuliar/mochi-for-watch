@@ -32,7 +32,7 @@ Tokens are stored hashed on the server, pairing tickets are encrypted and only h
 
 - Save/confirm actual booking preferences and any new allowed destination.
 - Sign/install updated clients and enter a newly issued private pairing code.
-- Grant Gmail draft access or other desired connector permissions.
+- Grant desired connector permissions for each new deployment (the current owner's Gmail drafts and Notion connection are configured).
 - Configure Apple push credentials and approve notification permission if wanted.
 - Authorize a consenting live booking acceptance call and later device testing.
 - Resolve the existing character/name permission question before public submission.

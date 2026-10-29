@@ -36,7 +36,7 @@ Google OAuth credentials and the user's consent are required to connect Calendar
 
 The conversation sidebar is a debugging aid, not the final watch screen. The watch itself contains only the character and status line. Native microphone capture, audio routing, networking, background behavior and rendering still need testing on the physical watch.
 
-## Verification — 26 October 2026
+## Recorded verification — 26 October 2026
 
 - Live browser request reached Meta and rendered a spoken reply, then returned to idle.
 - Live lunch proposal displayed exact event details; cancellation returned “nothing changed.” No event was saved.
@@ -49,7 +49,7 @@ Run `node --test preview/emulator/audio.test.mjs` and `node preview/animation/ch
 
 ## iPhone companion preview
 
-Scroll the left device column below the watch to reach Jolly’s iPhone setup screen. There is one companion, no bot picker or additional-buddies placeholder. Connections add capabilities to Jolly; unavailable services remain placeholders. Calendar status is read from the same backend as the watch. Connect requests a Google consent link; check connection refreshes status; disconnect appears when an actual Google connection exists. These actions are recorded in the right-hand activity stream. Missing OAuth configuration shows a simple temporary-unavailability message; developer instructions never appear in the phone. This remains a single-user browser preview, not a native iPhone app or multi-user pairing flow.
+Scroll the left device column below the watch to reach Jolly’s iPhone setup screen. There is one companion, no bot picker or additional-buddies placeholder. Connections add capabilities to Jolly; Calendar, Gmail, Notion, managed Instagram/Facebook and web search have implemented flows with provider-specific setup requirements. Calendar status is read from the same backend as the watch. Connect requests a Google consent link; check connection refreshes status; disconnect appears when an actual Google connection exists. These actions are recorded in the right-hand activity stream. Missing OAuth configuration shows a simple temporary-unavailability message; developer instructions never appear in the phone. This remains a single-user browser preview, not a native iPhone app or multi-user pairing flow.
 
 ### Calendar connection experience
 
