@@ -25,6 +25,7 @@ struct WatchHome: View {
   @State private var showingSources = false
   @State private var selectedTaskID: String?
   @State private var page = 0
+  @State private var showingDaily = false
   @State private var notificationSettings = false
   private let notifications = TaskNotifications.shared
   var body: some View {
@@ -34,6 +35,8 @@ struct WatchHome: View {
     }
     .tabViewStyle(.page(indexDisplayMode: .always))
     .background(.black)
+    .sheet(isPresented: $showingDaily) { DailySupportView(model: model.daily) }
+    .onChange(of: notifications.openedReminderID) { _, id in if id != nil { showingDaily = true; notifications.openedReminderID = nil } }
     .sheet(isPresented: $notificationSettings) {
       ScrollView {
         VStack(spacing: 12) {
@@ -58,7 +61,10 @@ struct WatchHome: View {
       }
     }
     .sheet(isPresented: $reviewing) {
-      if model.action == nil, model.documentAction == nil, let call = model.callAction { CallReview(model: model, call: call) }
+      if model.action == nil, model.documentAction == nil, model.gmailDraftAction == nil, let call = model.callAction { CallReview(model: model, call: call) }
+        if let draft = model.gmailDraftAction {
+          GmailDraftReview(action: draft, busy: model.deciding, decide: { model.decide($0) }, close: { model.dismissGmailDraft() })
+        }
         if let document = model.documentAction {
           DocumentReview(dismiss: { model.dismissDocument() }, action: document, busy: model.deciding) { model.decide($0) }
         }
@@ -82,6 +88,7 @@ struct WatchHome: View {
     .onChange(of: phase) { _, new in if new != .active { model.suspend() } else { model.resumeCalls(); Task { await notifications.refresh() } } }
   }
   private func openNotificationTask() {
+    if notifications.openedReminderID != nil { showingDaily = true; notifications.openedReminderID = nil }
     guard let id = notifications.openedTaskID else { return }
     selectedTaskID = id
     notifications.openedTaskID = nil
@@ -141,9 +148,10 @@ struct WatchHome: View {
         VStack(alignment: .leading, spacing: 12) {
           Text("Tasks").font(.title3.bold())
           Button("Refresh tasks") { model.resumeCalls(); Task { await notifications.refresh() } }.font(.caption)
+          Button("Today") { showingDaily = true }.font(.caption)
           Button("Notifications") { notificationSettings = true }.font(.caption)
           taskSection("In progress", calls: active)
-          if !attention.isEmpty || model.action != nil || model.documentAction != nil {
+          if !attention.isEmpty || model.action != nil || model.documentAction != nil || model.gmailDraftAction != nil {
             Text("Needs you").font(.caption2).foregroundStyle(.secondary)
             ForEach(attention) { call in taskRow(call) }
             if let action = model.action {
@@ -151,6 +159,7 @@ struct WatchHome: View {
                 taskLabel(action.event.title, detail: "Review Calendar event", icon: "calendar")
               }.buttonStyle(.plain)
             }
+            if let draft = model.gmailDraftAction { Button(draft.subject) { reviewing = true } }
             if let document = model.documentAction {
               Button { reviewing = true } label: {
                 taskLabel(document.title, detail: "Review Notion page", icon: "doc.text")

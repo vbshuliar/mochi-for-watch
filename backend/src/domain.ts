@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  reminderInputSchema,
+  reminderUpdateSchema,
+} from "./reminder-schema.ts";
+import { gmailDraftInputSchema } from "./gmail-draft-schema.ts";
 export class AppError extends Error {
   status: number;
   code: string;
@@ -77,6 +82,12 @@ export type PlanOptions = {
   signal?: AbortSignal;
   onText?: (text: string) => void;
   memories?: Memory[];
+  reminders?: Array<{
+    id: string;
+    title: string;
+    dueAt: string;
+    status: string;
+  }>;
   latestCall?: {
     id?: string;
     status: string;
@@ -150,6 +161,24 @@ export const bookingChangeSchema = z
 export type BookingChange = z.infer<typeof bookingChangeSchema>;
 export const planSchema = z.discriminatedUnion("kind", [
   workflowPlan,
+  z.object({ kind: z.literal("daily_briefing") }).strict(),
+  z.object({ kind: z.literal("list_reminders") }).strict(),
+  z
+    .object({
+      kind: z.literal("create_reminder"),
+      reminder: reminderInputSchema.omit({ id: true }),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("update_reminder"),
+      id: z.uuid(),
+      changes: reminderUpdateSchema,
+    })
+    .strict(),
+  z
+    .object({ kind: z.literal("gmail_draft"), draft: gmailDraftInputSchema })
+    .strict(),
   z
     .object({
       kind: z.literal("social_task"),
@@ -235,6 +264,7 @@ export type TurnResult = {
   action?: Action;
   callAction?: import("./calls.ts").PublicCallAction;
   documentAction?: import("./workflows.ts").DocumentAction;
+  gmailDraftAction?: import("./gmail-drafts.ts").GmailDraftAction;
   data?: unknown;
   sources?: SearchSource[];
 };

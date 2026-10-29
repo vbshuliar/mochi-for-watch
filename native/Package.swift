@@ -12,10 +12,10 @@ let package = Package(
     .target(
       name: "MuseConversation", dependencies: ["MuseCore"], path: "Shared",
       exclude: [
-        "ActionReview.swift", "AudioController.swift", "JollyView.swift", "PhoneWatchBridge.swift",
+        "DailySupportView.swift", "ActionReview.swift", "AudioController.swift", "JollyView.swift", "PhoneWatchBridge.swift",
         "RealtimeTranscriber.swift", "PlatformBootstrap.swift", "TaskNotifications.swift",
       ],
-      sources: ["ConnectionStore.swift", "ConversationModel.swift", "VoiceInterfaces.swift", "SerialRegistrationQueue.swift"]),
+      sources: ["DailySupportModel.swift", "ConnectionStore.swift", "ConversationModel.swift", "VoiceInterfaces.swift", "SerialRegistrationQueue.swift"]),
     .testTarget(
       name: "MuseCoreTests", dependencies: ["MuseCore"], path: "MuseCore/Tests/MuseCoreTests"),
     .testTarget(

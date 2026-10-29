@@ -16,6 +16,9 @@ import type { Calls, CallAction } from "./calls.ts";
 import type { Workflows } from "./workflows.ts";
 import type { SocialWorkflow } from "./social-workflow.ts";
 import { Store } from "./store.ts";
+import type { Reminders } from "./reminders.ts";
+import type { Briefing } from "./briefing.ts";
+import type { GmailDrafts, GmailDraftAction } from "./gmail-drafts.ts";
 type CachedTurn = {
   hash: string;
   status: "processing" | "done" | "failed" | "cancelled";
@@ -52,6 +55,11 @@ export class Service {
     private workflows?: Workflows,
     private calls?: Calls,
     private social?: SocialWorkflow,
+    private daily?: {
+      reminders: Reminders;
+      briefing: Briefing;
+      drafts: GmailDrafts;
+    },
   ) {
     for (const { id, value } of store.list<Action>("action"))
       if (value.status === "executing")
@@ -252,6 +260,15 @@ export class Service {
                 signal,
                 onText: options.onText,
                 memories,
+                reminders: this.daily?.reminders
+                  .list()
+                  .slice(0, 50)
+                  .map(({ id, title, dueAt, status }) => ({
+                    id,
+                    title,
+                    dueAt,
+                    status,
+                  })),
                 latestCall: latestCall
                   ? {
                       id: latestCall.id,
@@ -279,7 +296,101 @@ export class Service {
                 status: "cancelled",
               });
         };
-        if (plan.kind === "call_status") {
+        if (plan.kind === "daily_briefing") {
+          if (!this.daily)
+            throw new AppError(
+              503,
+              "unavailable",
+              "Daily briefing is unavailable.",
+            );
+          const briefing = await this.daily.briefing.get(
+            session.timeZone,
+            signal,
+          );
+          check();
+          result = this.result(id, "speak", "your day", {
+            speechText: briefing.summary,
+            data: briefing,
+          });
+        } else if (plan.kind === "list_reminders") {
+          if (!this.daily)
+            throw new AppError(
+              503,
+              "unavailable",
+              "Reminders are unavailable.",
+            );
+          const reminders = this.daily.reminders
+            .list()
+            .filter((r) => r.status === "pending");
+          result = this.result(
+            id,
+            "speak",
+            reminders.length
+              ? `${reminders.length} reminders`
+              : "No pending reminders.",
+            {
+              speechText: reminders.length
+                ? reminders
+                    .slice(0, 3)
+                    .map(
+                      (r) =>
+                        `${r.title}, ${new Intl.DateTimeFormat("en-GB", { timeZone: r.timeZone, dateStyle: "medium", timeStyle: "short" }).format(new Date(r.dueAt))}`,
+                    )
+                    .join(". ")
+                : "You have no pending reminders.",
+              data: { reminders },
+            },
+          );
+        } else if (plan.kind === "create_reminder") {
+          if (!this.daily)
+            throw new AppError(
+              503,
+              "unavailable",
+              "Reminders are unavailable.",
+            );
+          if (
+            plan.reminder.sourceCallId &&
+            !this.calls
+              ?.listAll()
+              .some((c) => c.id === plan.reminder.sourceCallId)
+          )
+            throw new AppError(404, "not_found", "Booking not found.");
+          const reminder = this.daily.reminders.create({
+            ...plan.reminder,
+            id: requestId,
+          });
+          result = this.result(
+            id,
+            "happy",
+            `Reminder saved: ${reminder.title}`,
+            { data: { reminder }, returnTo: { state: "idle", afterMs: 2400 } },
+          );
+        } else if (plan.kind === "update_reminder") {
+          if (!this.daily)
+            throw new AppError(
+              503,
+              "unavailable",
+              "Reminders are unavailable.",
+            );
+          const reminder = this.daily.reminders.update(plan.id, plan.changes);
+          result = this.result(
+            id,
+            "happy",
+            reminder.status === "completed"
+              ? `Completed: ${reminder.title}`
+              : `Reminder updated: ${reminder.title}`,
+            { data: { reminder }, returnTo: { state: "idle", afterMs: 2400 } },
+          );
+        } else if (plan.kind === "gmail_draft") {
+          if (!this.daily)
+            throw new AppError(
+              503,
+              "unavailable",
+              "Gmail drafts are unavailable.",
+            );
+          const action = this.daily.drafts.prepare(id, plan.draft);
+          result = this.draftResult(id, action);
+        } else if (plan.kind === "call_status") {
           result =
             this.calls?.statusReply(id) ??
             this.result(id, "speak", "No booking call has been started.");
@@ -469,6 +580,43 @@ export class Service {
     if (!a || a.sessionId !== sessionId)
       throw new AppError(404, "not_found", "action not found");
     return a;
+  }
+  draftResult(sessionId: string, action: GmailDraftAction): TurnResult {
+    const completed = action.status === "completed",
+      cancelled = action.status === "cancelled";
+    return this.result(
+      sessionId,
+      completed ? "happy" : cancelled ? "idle" : "approval",
+      completed
+        ? "Draft saved in Gmail · not sent"
+        : cancelled
+          ? "Draft cancelled"
+          : action.status === "uncertain"
+            ? "Draft save unverified · review to check"
+            : "Review email draft",
+      {
+        gmailDraftAction: action,
+        speechText: completed
+          ? "The draft is saved in Gmail. It has not been sent."
+          : cancelled
+            ? "Draft cancelled. Nothing was sent."
+            : `Review the draft to ${action.to} before saving it to Gmail. Nothing will be sent.`,
+      },
+    );
+  }
+  async decideDraft(
+    sessionId: string,
+    id: string,
+    decision: "confirm" | "cancel",
+  ) {
+    this.session(sessionId);
+    if (!this.daily)
+      throw new AppError(503, "unavailable", "Gmail drafts are unavailable.");
+    return this.locked(sessionId, async () => {
+      this.session(sessionId);
+      const action = await this.daily!.drafts.decide(sessionId, id, decision);
+      return this.draftResult(sessionId, action);
+    });
   }
   private rememberAction(action: Action) {
     const session = this.session(action.sessionId);
@@ -664,9 +812,11 @@ export class Service {
           "unresolved_action",
           "resolve the unverified save before deleting its receipt",
         );
+      this.daily?.drafts.assertDeletable(id);
       this.workflows?.assertDeletable(id);
       this.calls?.assertDeletable(id);
       this.store.transaction(() => {
+        this.daily?.drafts.deleteSession(id);
         this.workflows?.deleteSession(id);
         this.calls?.deleteSession(id);
         for (const { id: key, value } of this.store.list<Action>("action"))

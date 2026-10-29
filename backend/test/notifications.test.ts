@@ -276,3 +276,80 @@ test("notification readiness is platform-specific and old outcomes are not repla
   );
   await partial.close();
 });
+
+test("reminder alerts persist once per occurrence and keep private titles off lock screen", async (t) => {
+  const { Reminders } = await import("../src/reminders.ts");
+  const payloads: PushPayload[] = [];
+  const f = fixture(async (_device, payload) => {
+    payloads.push(payload);
+    return { status: 200 };
+  });
+  t.after(async () => {
+    await f.notifications.close();
+    f.store.close();
+  });
+  f.notifications.register(device());
+  let now = Date.now();
+  const reminders = new Reminders(
+    f.store,
+    (occurrence) => {
+      f.notifications.enqueueReminder(occurrence);
+      f.notifications.enqueueReminder(occurrence);
+    },
+    () => now,
+  );
+  const reminder = reminders.create({
+    title: "Private medical appointment",
+    dueAt: new Date(now + 60000).toISOString(),
+    timeZone: "UTC",
+  });
+  now += 60001;
+  reminders.tick();
+  reminders.tick();
+  assert.equal(f.store.list("push-delivery").length, 1);
+  await f.notifications.flush();
+  await f.notifications.flush();
+  assert.equal(payloads.length, 1);
+  assert.equal(payloads[0]?.reminderId, reminder.id);
+  assert.equal(payloads[0]?.aps.alert.title, "Jolly has a reminder");
+  assert.equal(JSON.stringify(payloads).includes("medical"), false);
+});
+
+test("completed, snoozed and deleted reminders suppress queued alerts", async (t) => {
+  const { Reminders } = await import("../src/reminders.ts");
+  const payloads: PushPayload[] = [];
+  const f = fixture(async (_device, payload) => {
+    payloads.push(payload);
+    return { status: 200 };
+  });
+  t.after(async () => {
+    await f.notifications.close();
+    f.store.close();
+  });
+  f.notifications.register(device());
+  let now = Date.now();
+  const reminders = new Reminders(
+    f.store,
+    (occurrence) => f.notifications.enqueueReminder(occurrence),
+    () => now,
+  );
+  const ids = Array.from(
+    { length: 3 },
+    () =>
+      reminders.create({
+        title: "Review booking",
+        dueAt: new Date(now + 60000).toISOString(),
+        timeZone: "UTC",
+        recurrence: "daily",
+      }).id,
+  );
+  now += 60001;
+  reminders.tick();
+  assert.equal(f.store.list("push-delivery").length, 3);
+  reminders.update(ids[0]!, { status: "completed" });
+  reminders.update(ids[1]!, { dueAt: new Date(now + 60000).toISOString() });
+  reminders.remove(ids[2]!);
+  await f.notifications.flush();
+  assert.equal(payloads.length, 0);
+  assert.equal(f.store.list("push-delivery").length, 0);
+});

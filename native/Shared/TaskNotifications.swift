@@ -15,6 +15,7 @@ import WatchKit
   private(set) var enabled = false
   private(set) var busy = false
   var openedTaskID: String?
+  var openedReminderID: String?
   private var connection: Connection?
   private var deviceToken: String?
   private var registrationConnection: Connection?
@@ -157,19 +158,21 @@ import WatchKit
         let result = try JSONDecoder().decode(Registration.self, from: data)
         registrationConnection = connection
         enabled = result.configured
-        status = result.configured ? "Booking updates are enabled" : "Server push setup is required"
+        status = result.configured ? "Task updates are enabled" : "Server push setup is required"
       } catch {
         guard ticket == generation else { return }
         enabled = false
-        status = "Couldn’t register booking notifications. Try again."
+        status = "Couldn’t register task notifications. Try again."
       }
     }.value
   }
   nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
     let id = response.notification.request.content.userInfo["taskId"] as? String
+    let reminderID = response.notification.request.content.userInfo["reminderId"] as? String
     Task { @MainActor in
       // A push only opens a task. It never authorizes a call or Calendar write.
-      if let id, UUID(uuidString: id) != nil { self.openedTaskID = id }
+      if let reminderID, UUID(uuidString: reminderID) != nil { self.openedReminderID = reminderID }
+      else if let id, UUID(uuidString: id) != nil { self.openedTaskID = id }
       completionHandler()
     }
   }

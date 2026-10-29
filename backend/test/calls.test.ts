@@ -973,7 +973,12 @@ test("booking planner receives authoritative saved preferences with current-requ
       /The current request overrides saved preferences/,
     );
     assert.match(instructions, /Never guess missing fields/);
-    assert.match(instructions, /user must explicitly request a call/);
+    assert.match(instructions, /book me a haircut/);
+    assert.match(instructions, /a separate approval remains required/);
+    assert.match(
+      instructions,
+      /do not substitute an email draft, reminder or Calendar event/,
+    );
     assert.match(instructions, /Never include excluded periods in windows/);
     assert.match(request.messages.at(-1).content, /Thursday/);
     return Response.json({

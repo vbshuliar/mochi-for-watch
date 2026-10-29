@@ -21,6 +21,13 @@ import { SocialConnections } from "./social.ts";
 import { SocialWorkflow } from "./social-workflow.ts";
 import { Calls } from "./calls.ts";
 import { Notifications } from "./notifications.ts";
+import { Briefing } from "./briefing.ts";
+import {
+  Reminders,
+  reminderInputSchema,
+  reminderUpdateSchema,
+} from "./reminders.ts";
+import { GmailDrafts, gmailDraftInputSchema } from "./gmail-drafts.ts";
 import { Service } from "./service.ts";
 import { synthesizeSpeech } from "./speech.ts";
 const sessionParams = z.object({ id: z.uuid() });
@@ -54,6 +61,31 @@ export async function buildApp(
       store.get<boolean>("integration", "calendar-enabled") !== false,
     (call) => notifications.enqueue(call),
   );
+  const reminders = new Reminders(store, (occurrence) =>
+    notifications.enqueueReminder(occurrence),
+  );
+  const drafts = new GmailDrafts(config, store, workflows.gmail);
+  const briefing = new Briefing({
+    calendar,
+    calls,
+    reminders,
+    mail: (query, signal) => workflows.mail(query, signal),
+    calendarStatus: () =>
+      store.get<boolean>("integration", "calendar-enabled") === false
+        ? "disabled"
+        : config.APP_MODE === "mock"
+          ? "simulated"
+          : google.connected()
+            ? "connected"
+            : "disconnected",
+    gmailStatus: () =>
+      config.APP_MODE === "mock"
+        ? "simulated"
+        : workflows.gmail.connected()
+          ? "connected"
+          : "disconnected",
+    simulated: config.APP_MODE === "mock",
+  });
   const service = new Service(
     store,
     overrides.planner ||
@@ -65,6 +97,7 @@ export async function buildApp(
     workflows,
     calls,
     new SocialWorkflow(config, social),
+    { reminders, briefing, drafts },
   );
   const app = Fastify({
     bodyLimit: 6 * 1024 * 1024,
@@ -183,10 +216,57 @@ export async function buildApp(
   });
   registerWebsite(app);
   app.get("/health", async () => ({ ok: true }));
+  app.get("/v1/briefing", async (req) => {
+    const query = z.object({ timeZone: timezone }).strict().parse(req.query);
+    return briefing.get(query.timeZone);
+  });
+  app.get("/v1/reminders", async () => ({ reminders: reminders.list() }));
+  app.post("/v1/reminders", async (req) => {
+    const input = reminderInputSchema.parse(req.body);
+    if (
+      input.sourceCallId &&
+      !calls.listAll().some((call) => call.id === input.sourceCallId)
+    )
+      throw new AppError(404, "not_found", "Booking not found.");
+    return { reminder: reminders.create(input) };
+  });
+  app.patch("/v1/reminders/:id", async (req) => ({
+    reminder: reminders.update(
+      sessionParams.parse(req.params).id,
+      reminderUpdateSchema.parse(req.body),
+    ),
+  }));
+  app.delete("/v1/reminders/:id", async (req, reply) => {
+    reminders.remove(sessionParams.parse(req.params).id);
+    return reply.code(204).send();
+  });
+  app.get("/v1/drafts", async () => ({ drafts: drafts.list() }));
+  app.post("/v1/sessions/:id/drafts", async (req) => {
+    const { id } = sessionParams.parse(req.params);
+    service.session(id);
+    return service.draftResult(
+      id,
+      drafts.prepare(id, gmailDraftInputSchema.parse(req.body)),
+    );
+  });
+  app.get("/v1/sessions/:id/drafts/:actionId", async (req) => {
+    const { id, actionId } = actionParams.parse(req.params);
+    service.session(id);
+    return { action: drafts.get(id, actionId) };
+  });
+  app.post("/v1/sessions/:id/drafts/:actionId/decision", async (req) => {
+    const { id, actionId } = actionParams.parse(req.params);
+    const { decision } = z
+      .object({ decision: z.enum(["confirm", "cancel"]) })
+      .strict()
+      .parse(req.body);
+    return service.decideDraft(id, actionId, decision);
+  });
   app.get("/v1/status", async () => ({
     mode: config.APP_MODE,
     callsConfigured: calls.configured(),
     ...workflows.status(),
+    gmailDraftsEnabled: workflows.gmail.canDraft(),
     ...social.status(),
     webSearch: config.APP_MODE === "live",
     calendar:
@@ -509,14 +589,18 @@ export async function buildApp(
   }
   for (const provider of ["gmail", "notion"] as const) {
     const connection = workflows[provider];
-    app.post(`/v1/integrations/${provider}/connect`, async () => {
+    app.post(`/v1/integrations/${provider}/connect`, async (req) => {
       if (config.APP_MODE !== "live")
         throw new AppError(
           409,
           "mock_mode",
           "use live mode to connect a real account",
         );
-      return { url: connection.authorize() };
+      const options = z
+        .object({ drafts: z.boolean().optional() })
+        .strict()
+        .parse(req.body ?? {});
+      return { url: connection.authorize(options) };
     });
     app.delete(`/v1/integrations/${provider}`, async () => {
       connection.disconnect();
@@ -671,6 +755,7 @@ export async function buildApp(
     return reply.type("audio/mpeg").send(calls.audio(token));
   });
   app.addHook("onClose", async () => {
+    reminders.close();
     await calls.close();
     await notifications.close();
     store.close();
@@ -678,7 +763,17 @@ export async function buildApp(
   app.addHook("onReady", async () => {
     // Recover an alert if the process stopped after persisting a call outcome.
     for (const call of calls.listAll()) notifications.enqueue(call);
+    reminders.start();
     notifications.start();
   });
-  return { app, service, store, calls, notifications };
+  return {
+    app,
+    service,
+    store,
+    calls,
+    notifications,
+    reminders,
+    briefing,
+    drafts,
+  };
 }

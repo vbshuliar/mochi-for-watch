@@ -20,6 +20,8 @@ struct Activity: Identifiable {
   var sources: [SearchSource] = []
   var action: Action?
   var documentAction: DocumentAction?
+  var gmailDraftAction: GmailDraftAction?
+  let daily: DailySupportModel
   private var callProposal: CallAction?
   private(set) var taskCalls: [CallAction] = []
   var tasksLoadFailed = false
@@ -79,8 +81,8 @@ struct Activity: Identifiable {
   }
   var callConfirmationUnknown = false
   private var callPoll: Task<Void, Never>?
-  var hasProposal: Bool { action != nil || documentAction != nil || callProposal != nil }
-  var proposalID: String? { action?.id ?? documentAction?.id ?? callProposal?.id }
+  var hasProposal: Bool { action != nil || documentAction != nil || gmailDraftAction != nil || callProposal != nil }
+  var proposalID: String? { action?.id ?? documentAction?.id ?? gmailDraftAction?.id ?? callProposal?.id }
   var activities: [Activity] = []
   var failure: String?
   var deciding = false
@@ -113,6 +115,7 @@ struct Activity: Identifiable {
     defaults: UserDefaults = .standard,
     makeClient: @escaping (Connection) -> APIClient = { APIClient(connection: $0) }
   ) {
+    self.daily = DailySupportModel(store: store, makeClient: makeClient)
     self.defaults = defaults
     self.store = store
     self.audio = audio
@@ -387,6 +390,7 @@ struct Activity: Identifiable {
       ["pending", "uncertain", "executing"].contains($0.status) ? $0 : nil
     }
     documentAction = result.documentAction.flatMap { ["pending", "uncertain", "executing"].contains($0.status) ? $0 : nil }
+    gmailDraftAction = result.gmailDraftAction.flatMap { $0.needsReview ? $0 : nil }
     if let call = result.callAction {
       if callAction?.id != call.id { callConfirmationUnknown = false }
       receiveCall(call)
@@ -418,9 +422,11 @@ struct Activity: Identifiable {
     guard hasProposal, !deciding, let connection = store.connection else { return }
     let calendarProposal = action
     let documentProposal = documentAction
+    let draftProposal = gmailDraftAction
     let path: String
     if let action { path = "v1/sessions/\(action.sessionId)/actions/\(action.id)/decision" }
     else if let documentAction { path = "v1/sessions/\(documentAction.sessionId)/documents/\(documentAction.id)/decision" }
+    else if let draft = gmailDraftAction { path = "v1/sessions/\(draft.sessionId)/drafts/\(draft.id)/decision" }
     else { return }
     deciding = true
     task?.cancel()
@@ -440,6 +446,9 @@ struct Activity: Identifiable {
         } else if let proposal = documentProposal {
           guard documentAction?.id == proposal.id, documentAction?.sessionId == proposal.sessionId else { return }
         }
+        if let proposal = draftProposal {
+          guard gmailDraftAction?.id == proposal.id, gmailDraftAction?.sessionId == proposal.sessionId else { return }
+        }
         speechTail = nil
         queue(result.speechText, client: client, ticket: ticket)
         try await complete(result, input: "", ticket: ticket)
@@ -456,6 +465,12 @@ struct Activity: Identifiable {
           if let current = try? await makeClient(connection).get("v1/sessions/\(document.sessionId)/documents/\(document.id)", as: Envelope.self) {
             guard generation == ticket, store.connection == connection, documentAction?.id == document.id, documentAction?.sessionId == document.sessionId else { return }
             documentAction = ["pending", "executing", "uncertain"].contains(current.action.status) ? current.action : nil
+          }
+        }
+        if let draft = draftProposal {
+          struct Envelope: Decodable, Sendable { let action: GmailDraftAction }
+          if let current = try? await makeClient(connection).get("v1/sessions/\(draft.sessionId)/drafts/\(draft.id)", as: Envelope.self), generation == ticket, store.connection == connection {
+            gmailDraftAction = current.action.needsReview ? current.action : nil
           }
         }
         guard generation == ticket, store.connection == connection else { return }
@@ -641,7 +656,14 @@ struct Activity: Identifiable {
     documentAction = nil
     show(.idle, "tap to talk")
   }
+  func dismissGmailDraft() {
+    guard !deciding else { return }
+    gmailDraftAction = nil
+    show(.idle, "tap to talk")
+  }
   func connectionChanged() {
+    daily.reset()
+    gmailDraftAction = nil
     callGeneration = UUID()
     callTask?.cancel()
     callUpdating = false

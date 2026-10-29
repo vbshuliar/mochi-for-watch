@@ -2,6 +2,7 @@ import { createPrivateKey, sign, type KeyObject } from "node:crypto";
 import { connect } from "node:http2";
 import { z } from "zod";
 import { AppError } from "./domain.ts";
+import type { Reminder, ReminderOccurrence } from "./reminders.ts";
 import type { Config } from "./config.ts";
 import type { PublicCallAction } from "./calls.ts";
 import { Store } from "./store.ts";
@@ -20,6 +21,8 @@ export const deviceSchema = z
 type Device = z.infer<typeof deviceSchema> & { registeredAt: number };
 type Delivery = {
   deviceId: string;
+  reminderId?: string;
+  occurrenceDueAt?: string;
   taskId: string;
   sessionId: string;
   createdAt: number;
@@ -35,6 +38,7 @@ export type PushPayload = {
   };
   taskId: string;
   sessionId: string;
+  reminderId?: string;
 };
 export type PushTransport = (
   device: Device,
@@ -165,6 +169,28 @@ export class Notifications {
         } satisfies Delivery);
     }
   }
+  enqueueReminder(occurrence: ReminderOccurrence) {
+    if (!this.configured()) return;
+    const now = Date.now();
+    for (const { id: deviceId, value: device } of this.store.list<Device>(
+      "push-device",
+    )) {
+      if (!this.configured(device.platform)) continue;
+      const id = `${deviceId}:reminder:${occurrence.id}`;
+      if (!this.store.get("push-delivery", id))
+        this.store.put("push-delivery", id, {
+          deviceId,
+          taskId: occurrence.reminder.id,
+          sessionId: "",
+          reminderId: occurrence.reminder.id,
+          occurrenceDueAt: occurrence.dueAt,
+          createdAt: now,
+          attempts: 0,
+          nextAttemptAt: now,
+          status: "pending",
+        } satisfies Delivery);
+    }
+  }
   start() {
     if (this.timer || this.stopped) return;
     this.timer = setInterval(() => {
@@ -207,17 +233,38 @@ export class Notifications {
         this.store.put("push-delivery", id, { ...delivery, status: "failed" });
         continue;
       }
+      if (delivery.reminderId) {
+        const reminder = this.store.get<Reminder>(
+          "reminder",
+          delivery.reminderId,
+        );
+        // Recurrence advances dueAt after enqueue. lastDueAt ties this alert to
+        // the durable occurrence; completing, snoozing or deleting invalidates it.
+        if (
+          !reminder ||
+          reminder.status !== "pending" ||
+          reminder.lastDueAt !== delivery.occurrenceDueAt
+        ) {
+          this.store.delete("push-delivery", id);
+          continue;
+        }
+      }
       const payload: PushPayload = {
         aps: {
           alert: {
-            title: "Jolly has a task update",
-            body: "Open Jolly to review the result or next step.",
+            title: delivery.reminderId
+              ? "Jolly has a reminder"
+              : "Jolly has a task update",
+            body: delivery.reminderId
+              ? "Open Jolly to review your reminder."
+              : "Open Jolly to review the result or next step.",
           },
           sound: "default",
           "thread-id": delivery.taskId,
         },
         taskId: delivery.taskId,
         sessionId: delivery.sessionId,
+        ...(delivery.reminderId ? { reminderId: delivery.reminderId } : {}),
       };
       let response: { status: number; reason?: string };
       try {

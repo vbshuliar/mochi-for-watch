@@ -162,3 +162,13 @@ main{height:100dvh;max-width:none;padding:0;gap:0;grid-template-columns:minmax(2
 #service-detail .service-page-search{margin-top:12px}
 #service-detail .service-page-search input{box-sizing:border-box;width:100%;min-height:44px;margin:0;padding:12px 14px;border:1px solid var(--phone-rule);border-radius:12px;background:#fff;color:var(--phone-ink);font-size:12px}
 #service-detail .service-feedback{margin:12px;font-size:11px;line-height:1.5;color:var(--phone-secondary)}
+
+.daily-support{margin:24px 0 12px;border-top:1px solid #deded8;padding-top:16px;color:#292c25}
+.daily-support>summary{font-size:21px;font-weight:650;cursor:pointer;padding:8px 0}
+.daily-content{padding-top:6px;font-size:13px;line-height:1.5}
+.daily-content h2{font-size:17px;margin-top:24px}.daily-content form{display:grid;gap:7px;margin:14px 0}
+.daily-content input,.daily-content textarea,.daily-content select{box-sizing:border-box;width:100%;min-width:0;border:1px solid #c9cdc2;border-radius:9px;padding:9px;background:#fff;font:inherit;color:inherit}
+.daily-content textarea{min-height:110px;resize:vertical}.daily-content label{font-weight:600}
+.daily-content button{margin:4px 5px 4px 0;font:inherit;cursor:pointer}.daily-content button:disabled{cursor:default;opacity:.5}
+.daily-row{padding:10px 0;border-bottom:1px solid #ddd;overflow-wrap:anywhere}.daily-row p{margin:5px 0}
+.daily-source-status{font-size:11px;color:#60665b;white-space:pre-wrap}.daily-error{color:#a12d24}

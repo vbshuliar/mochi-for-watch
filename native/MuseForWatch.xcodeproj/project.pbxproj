@@ -10,10 +10,13 @@
 		02826161BD7D7F873D7851CC /* MuseWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 606D6C67A3457BFC9B4232BE /* MuseWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		0A0FCDD93F79238FDA9E7095 /* VoiceInterfaces.swift in Sources */ = {isa = PBXBuildFile; fileRef = 800501A57C9213A35045E0E1 /* VoiceInterfaces.swift */; };
 		0E9795A23B44E7625376368B /* PhoneModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0EC6906F20CDCEAF74A4A55 /* PhoneModel.swift */; };
+		13E266343EABC41085805360 /* DailySupportModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0C24F25296E34641642FE9C /* DailySupportModel.swift */; };
 		18B89D8FF5AA40858FF385DF /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8CFFCAEDB4762BF8D29A2F24 /* Assets.xcassets */; };
+		23D5CE365C0D3C9A769D0052 /* DailySupportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 390250C7FAB85F08587CB5E0 /* DailySupportView.swift */; };
 		25C9935A39592A2649681C07 /* TaskNotifications.swift in Sources */ = {isa = PBXBuildFile; fileRef = 790878D28D5CD904E1060F9B /* TaskNotifications.swift */; };
 		29D6092940EBF8917028EF3E /* MuseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 26FA3D6F69D857DBE705B263 /* MuseCore */; };
 		2E8D6A9399E2A5FF503A640C /* ConversationModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BCFB686159F3D28E0EB5610 /* ConversationModel.swift */; };
+		35A949DC1752A4C8AD585CE0 /* DailySupportModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0C24F25296E34641642FE9C /* DailySupportModel.swift */; };
 		382688F283A96BB37257016D /* RealtimeTranscriber.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29A4F5ACAD59FA67859ADE1F /* RealtimeTranscriber.swift */; };
 		435E732BCA09286F1EB61468 /* PhoneWatchBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18FFFDB037B1DB5BBDE7C1BB /* PhoneWatchBridge.swift */; };
 		47D5A184D1B249E7E36A9CBE /* ConversationModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BCFB686159F3D28E0EB5610 /* ConversationModel.swift */; };
@@ -28,6 +31,7 @@
 		8667C4998F34DBC29A48E03B /* SerialRegistrationQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86B5EC8DA1935E4E96F31F32 /* SerialRegistrationQueue.swift */; };
 		9A984059D6CFF38CEC640F9C /* ConnectionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7CC661164AD274C5B266CA3 /* ConnectionStore.swift */; };
 		9C780E3463BA6225887DD99A /* ActionReview.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFB8C50B9AAF82E6ECFBEC5B /* ActionReview.swift */; };
+		9F75DB33BCB1F3014F16F447 /* DailySupportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 390250C7FAB85F08587CB5E0 /* DailySupportView.swift */; };
 		AB276E98A45F22813C4723F3 /* SerialRegistrationQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86B5EC8DA1935E4E96F31F32 /* SerialRegistrationQueue.swift */; };
 		AFFC2AA9EF4DD9E09A2AE999 /* DemoSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26B79FCB9B908C4C257BFE66 /* DemoSetup.swift */; };
 		B4997002F25DD3A49DF55319 /* NativeConversationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B57EB68D65F91537C5CBF05A /* NativeConversationTests.swift */; };
@@ -82,6 +86,7 @@
 		26B79FCB9B908C4C257BFE66 /* DemoSetup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoSetup.swift; sourceTree = "<group>"; };
 		29A4F5ACAD59FA67859ADE1F /* RealtimeTranscriber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealtimeTranscriber.swift; sourceTree = "<group>"; };
 		2B27B4601DFA6332CF1EC843 /* TasksView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TasksView.swift; sourceTree = "<group>"; };
+		390250C7FAB85F08587CB5E0 /* DailySupportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailySupportView.swift; sourceTree = "<group>"; };
 		3BCFB686159F3D28E0EB5610 /* ConversationModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationModel.swift; sourceTree = "<group>"; };
 		3EED1919B1C4AAA54A12D188 /* MuseNativeTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MuseNativeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		591449F0493C3108F29868AF /* MemoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryView.swift; sourceTree = "<group>"; };
@@ -90,6 +95,7 @@
 		800501A57C9213A35045E0E1 /* VoiceInterfaces.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceInterfaces.swift; sourceTree = "<group>"; };
 		86B5EC8DA1935E4E96F31F32 /* SerialRegistrationQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SerialRegistrationQueue.swift; sourceTree = "<group>"; };
 		8CFFCAEDB4762BF8D29A2F24 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		B0C24F25296E34641642FE9C /* DailySupportModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailySupportModel.swift; sourceTree = "<group>"; };
 		B57EB68D65F91537C5CBF05A /* NativeConversationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeConversationTests.swift; sourceTree = "<group>"; };
 		BFB8C50B9AAF82E6ECFBEC5B /* ActionReview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionReview.swift; sourceTree = "<group>"; };
 		D0833E711F93D580A24FCCDF /* JollyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JollyView.swift; sourceTree = "<group>"; };
@@ -182,6 +188,8 @@
 				068B4FF030B2512BBDB5CA18 /* AudioController.swift */,
 				E7CC661164AD274C5B266CA3 /* ConnectionStore.swift */,
 				3BCFB686159F3D28E0EB5610 /* ConversationModel.swift */,
+				B0C24F25296E34641642FE9C /* DailySupportModel.swift */,
+				390250C7FAB85F08587CB5E0 /* DailySupportView.swift */,
 				D0833E711F93D580A24FCCDF /* JollyView.swift */,
 				18FFFDB037B1DB5BBDE7C1BB /* PhoneWatchBridge.swift */,
 				E567D8744F192CCB3C54B999 /* PlatformBootstrap.swift */,
@@ -352,6 +360,8 @@
 				54CC2999B4AA91683E37A5F8 /* AudioController.swift in Sources */,
 				622C7760AF501D34D21997A7 /* ConnectionStore.swift in Sources */,
 				47D5A184D1B249E7E36A9CBE /* ConversationModel.swift in Sources */,
+				35A949DC1752A4C8AD585CE0 /* DailySupportModel.swift in Sources */,
+				23D5CE365C0D3C9A769D0052 /* DailySupportView.swift in Sources */,
 				AFFC2AA9EF4DD9E09A2AE999 /* DemoSetup.swift in Sources */,
 				C04A4055AD8A073250EE4AB4 /* JollyView.swift in Sources */,
 				D6A1E6F7718DB44EE4AF3375 /* MemoryView.swift in Sources */,
@@ -383,6 +393,8 @@
 				61D4123EDA7E4BDFF4FCD84F /* AudioController.swift in Sources */,
 				9A984059D6CFF38CEC640F9C /* ConnectionStore.swift in Sources */,
 				2E8D6A9399E2A5FF503A640C /* ConversationModel.swift in Sources */,
+				13E266343EABC41085805360 /* DailySupportModel.swift in Sources */,
+				9F75DB33BCB1F3014F16F447 /* DailySupportView.swift in Sources */,
 				D9E034DF7B54E1FB6DF21DC9 /* JollyView.swift in Sources */,
 				BEB10525BD2D8040D1C87AA8 /* MuseWatchApp.swift in Sources */,
 				435E732BCA09286F1EB61468 /* PhoneWatchBridge.swift in Sources */,

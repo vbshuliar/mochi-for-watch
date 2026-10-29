@@ -6,11 +6,14 @@ import type { Store } from "./store.ts";
 import { externalFetch, externalJson } from "./http.ts";
 export type Provider = "gmail" | "notion";
 const gmailScope = "https://www.googleapis.com/auth/gmail.readonly";
+const gmailComposeScope = "https://www.googleapis.com/auth/gmail.compose";
 type Tokens = {
   access: string;
   refresh?: string;
   expiresAt: number;
   epoch: string;
+  scopes?: string[];
+  draftsEnabled?: boolean;
 };
 const tokenSchema = z.object({
   access_token: z.string().min(1),
@@ -52,13 +55,26 @@ export class Connection {
   connected() {
     return !!this.epoch();
   }
+  canDraft() {
+    if (this.provider !== "gmail") return false;
+    const tokens = this.store.get<Tokens>("secret", "gmail");
+    return Boolean(
+      tokens?.draftsEnabled && tokens.scopes?.includes(gmailComposeScope),
+    );
+  }
   disconnect() {
     this.store.delete("secret", this.provider);
     this.store.delete("oauth", this.provider);
     if (this.provider === "notion")
       this.store.delete("integration", "notion-parent");
   }
-  authorize() {
+  authorize(options: { drafts?: boolean } = {}) {
+    if (options.drafts && this.provider !== "gmail")
+      throw new AppError(
+        400,
+        "invalid_capability",
+        "Draft permission applies only to Gmail.",
+      );
     if (!this.configured())
       throw new AppError(
         503,
@@ -73,6 +89,7 @@ export class Connection {
       state,
       verifier,
       generation,
+      drafts: options.drafts === true,
       expiresAt: Date.now() + 600000,
     });
     const params = new URLSearchParams({
@@ -82,7 +99,10 @@ export class Connection {
       state,
     });
     if (this.provider === "gmail") {
-      params.set("scope", gmailScope);
+      params.set(
+        "scope",
+        options.drafts ? `${gmailScope} ${gmailComposeScope}` : gmailScope,
+      );
       params.set("access_type", "offline");
       params.set("prompt", "consent");
       params.set(
@@ -100,6 +120,7 @@ export class Connection {
       generation: string;
       expiresAt: number;
       consumed?: boolean;
+      drafts?: boolean;
     }>("oauth", this.provider);
     if (
       !pending ||
@@ -129,12 +150,17 @@ export class Connection {
       });
       if (
         this.provider === "gmail" &&
-        (!data.scope?.split(" ").includes(gmailScope) || !data.refresh_token)
+        (!data.scope?.split(" ").includes(gmailScope) ||
+          (pending.drafts &&
+            !data.scope?.split(" ").includes(gmailComposeScope)) ||
+          !data.refresh_token)
       )
         throw new AppError(
           400,
           "missing_gmail_permission",
-          "allow read-only Gmail access, then reconnect",
+          pending.drafts
+            ? "Allow Gmail reading and draft access, then reconnect. Jolly never sends email."
+            : "allow read-only Gmail access, then reconnect",
         );
       const current = this.store.get<{ generation: string }>(
         "oauth",
@@ -153,6 +179,12 @@ export class Connection {
           ? Date.now() + data.expires_in * 1000
           : Number.MAX_SAFE_INTEGER,
         epoch: randomUUID(),
+        ...(this.provider === "gmail"
+          ? {
+              scopes: data.scope?.split(" ").filter(Boolean) ?? [],
+              draftsEnabled: pending.drafts === true,
+            }
+          : {}),
       });
       if (this.provider === "notion")
         this.store.delete("integration", "notion-parent");
@@ -224,6 +256,8 @@ export class Connection {
             ? Date.now() + data.expires_in * 1000
             : Number.MAX_SAFE_INTEGER,
           epoch: old.epoch,
+          scopes: data.scope?.split(" ").filter(Boolean) ?? old.scopes,
+          draftsEnabled: old.draftsEnabled,
         });
         return data.access_token;
       })().finally(() => {
@@ -232,6 +266,23 @@ export class Connection {
     return this.refreshing;
   }
   async request(path: string, init: RequestInit = {}) {
+    const method = (init.method ?? "GET").toUpperCase();
+    // gmail.compose also permits sending at Google. Our transport deliberately
+    // exposes only reads and creation of unsent drafts, never send/update/delete.
+    if (this.provider === "gmail" && method !== "GET") {
+      if (method !== "POST" || path !== "drafts")
+        throw new AppError(
+          403,
+          "gmail_operation_forbidden",
+          "Jolly can save drafts, but cannot send or modify email.",
+        );
+      if (!this.canDraft())
+        throw new AppError(
+          409,
+          "gmail_draft_permission_required",
+          "Enable Gmail draft access on your iPhone before saving a draft.",
+        );
+    }
     const epoch = this.epoch();
     const root =
       this.provider === "gmail"
@@ -239,13 +290,19 @@ export class Connection {
         : "https://api.notion.com/v1/";
     const send = async (force = false) => {
       const token = await this.token(force);
+      if (this.provider === "gmail" && method !== "GET" && !this.canDraft())
+        throw new AppError(
+          409,
+          "gmail_draft_permission_required",
+          "Gmail draft access is no longer available. Reconnect Gmail.",
+        );
       if (this.epoch() !== epoch)
         throw new AppError(
           409,
           "connection_changed",
           "connection changed; try again",
         );
-      return externalFetch(root + path, {
+      const response = await externalFetch(root + path, {
         ...init,
         headers: {
           Authorization: `Bearer ${token}`,
@@ -255,8 +312,19 @@ export class Connection {
             : {}),
         },
       });
+      if (this.epoch() !== epoch)
+        throw new AppError(
+          409,
+          "connection_changed",
+          "connection changed; try again",
+        );
+      return response;
     };
     const response = await send();
-    return response.status === 401 ? send(true) : response;
+    // A Gmail mutation is never automatically replayed, even after an auth error.
+    return response.status === 401 &&
+      (this.provider !== "gmail" || method === "GET")
+      ? send(true)
+      : response;
   }
 }

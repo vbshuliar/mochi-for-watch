@@ -588,3 +588,106 @@ extension NativeConversationTests {
     XCTAssertEqual(model.action?.sessionId, linked.sessionId)
   }
 }
+
+@MainActor final class DailySupportTests: XCTestCase {
+  func testDisconnectedReminderSaveReportsFailureInsteadOfClosingAsSuccessful() async {
+    let model = DailySupportModel(store: ConnectionStore(connection: nil))
+    model.beginReminder()
+    await model.createReminder(title: "Check booking", due: Date().addingTimeInterval(3600), recurrence: "none")
+    XCTAssertEqual(model.error, "Connect to Jolly before saving changes.")
+    XCTAssertTrue(model.reminders.isEmpty)
+    await model.refresh()
+    XCTAssertEqual(model.error, "Connect to Jolly to load your day.")
+  }
+  func testSuccessfulReminderSaveKeepsRetryIDWhenFollowingRefreshFails() async throws {
+    ReminderRefreshFailureFixture.log.reset()
+    let connection = try Connection(baseURL: URL(string: "https://reminder.fixture")!, token: String(repeating: "x", count: 32))
+    let configuration = URLSessionConfiguration.ephemeral
+    configuration.protocolClasses = [ReminderRefreshFailureFixture.self]
+    let session = URLSession(configuration: configuration)
+    defer { session.invalidateAndCancel() }
+    let model = DailySupportModel(store: ConnectionStore(connection: connection), makeClient: { APIClient(connection: $0, session: session) })
+    let due = Date().addingTimeInterval(3600)
+    model.beginReminder()
+    await model.createReminder(title: "Check booking", due: due, recurrence: "none")
+    XCTAssertNotNil(model.error, "A failed refresh keeps the existing form available for retry")
+    await model.createReminder(title: "Check booking", due: due, recurrence: "none")
+    let retries = ReminderRefreshFailureFixture.log.snapshot()
+    XCTAssertEqual(retries.count, 2)
+    XCTAssertFalse(retries[0].isEmpty)
+    XCTAssertEqual(retries[0], retries[1], "Retrying after the successful save must not create another reminder")
+    model.beginReminder()
+    await model.createReminder(title: "Check booking", due: due, recurrence: "none")
+    let newForm = ReminderRefreshFailureFixture.log.snapshot()
+    XCTAssertEqual(newForm.count, 3)
+    XCTAssertNotEqual(newForm[1], newForm[2], "Explicitly starting a new form gets a new request ID")
+  }
+  func testBriefingQueryPreservesTimezoneAndKeepsTokenOutOfURL() throws {
+    let connection = try Connection(baseURL: URL(string: "https://example.com")!, token: String(repeating: "x", count: 32))
+    let request = APIClient(connection: connection).request("v1/briefing", query: [URLQueryItem(name: "timeZone", value: "Europe/London")])
+    XCTAssertEqual(request.url?.path, "/v1/briefing")
+    XCTAssertEqual(URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems?.first?.value, "Europe/London")
+    XCTAssertFalse(request.url!.absoluteString.contains(connection.token))
+    XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer \(connection.token)")
+  }
+  func testGmailReviewPreservesExactContentAndOnlyRecoverableStatusesNeedReview() throws {
+    for status in ["pending", "executing", "uncertain", "completed", "cancelled", "expired"] {
+      let bytes = try JSONSerialization.data(withJSONObject: ["id": "draft-1", "sessionId": "source-session", "to": "person@example.com", "subject": "Exact subject", "body": "First line\nSecond line", "status": status, "expiresAt": 123456789])
+      let draft = try JSONDecoder().decode(GmailDraftAction.self, from: bytes)
+      XCTAssertEqual(draft.body, "First line\nSecond line")
+      XCTAssertEqual(draft.to, "person@example.com")
+      XCTAssertEqual(draft.sessionId, "source-session")
+      XCTAssertEqual(draft.needsReview, ["pending", "executing", "uncertain"].contains(status))
+    }
+  }
+  func testDailyResetClearsPrivateAccountDataAndErrors() throws {
+    let connection = try Connection(baseURL: URL(string: "https://example.com")!, token: String(repeating: "x", count: 32))
+    let model = DailySupportModel(store: ConnectionStore(connection: connection))
+    model.briefing = try JSONDecoder().decode(DailyBriefing.self, from: Data(#"{"summary":"Private meeting","date":"2026-10-29","timeZone":"Europe/London","simulated":false,"sources":{"calendar":"available","gmail":"unavailable"}}"#.utf8))
+    model.reminders = [try JSONDecoder().decode(JollyReminder.self, from: Data(#"{"id":"1","title":"Private reminder","dueAt":"2026-10-30T10:00:00Z","timeZone":"Europe/London","status":"pending","recurrence":"daily"}"#.utf8))]
+    model.error = "Old account error"
+    model.busy = true
+    model.reset()
+    XCTAssertNil(model.briefing)
+    XCTAssertTrue(model.reminders.isEmpty)
+    XCTAssertTrue(model.drafts.isEmpty)
+    XCTAssertNil(model.error)
+    XCTAssertFalse(model.busy)
+  }
+}
+
+private final class ReminderRequestLog: @unchecked Sendable {
+  private let lock = NSLock()
+  private var ids: [String] = []
+  func reset() { lock.lock(); defer { lock.unlock() }; ids = [] }
+  func append(_ id: String) { lock.lock(); defer { lock.unlock() }; ids.append(id) }
+  func snapshot() -> [String] { lock.lock(); defer { lock.unlock() }; return ids }
+}
+private final class ReminderRefreshFailureFixture: URLProtocol, @unchecked Sendable {
+  static let log = ReminderRequestLog()
+  override class func canInit(with request: URLRequest) -> Bool { true }
+  override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+  override func startLoading() {
+    let isSave = request.httpMethod == "POST" && request.url?.path == "/v1/reminders"
+    if isSave {
+      var body = request.httpBody ?? Data()
+      if let stream = request.httpBodyStream {
+        stream.open()
+        defer { stream.close() }
+        var buffer = [UInt8](repeating: 0, count: 1024)
+        while true {
+          let count = stream.read(&buffer, maxLength: buffer.count)
+          if count <= 0 { break }
+          body.append(contentsOf: buffer.prefix(count))
+        }
+      }
+      let payload = (try? JSONSerialization.jsonObject(with: body)) as? [String: String]
+      Self.log.append(payload?["id"] ?? "")
+    }
+    let body = isSave ? "{}" : #"{"error":{"message":"Refresh unavailable"}}"#
+    client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: isSave ? 200 : 503, httpVersion: "HTTP/1.1", headerFields: nil)!, cacheStoragePolicy: .notAllowed)
+    client?.urlProtocol(self, didLoad: Data(body.utf8))
+    client?.urlProtocolDidFinishLoading(self)
+  }
+  override func stopLoading() {}
+}

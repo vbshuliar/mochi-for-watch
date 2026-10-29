@@ -18,14 +18,14 @@ async function harness(callHandler,viewerTimeZone){
  class Recorder{constructor(onLevel){microphone=onLevel;}cancel(){} async start(){return true;}}
  class Transcriber{cancel(){}}
  const ctx={taskGroups,taskLabel,installTaskSwipe,reactionFor,reactionPresentation,localIntent,streamReply:async(id,request,{signal})=>{const r=await ctx.fetch(`/api/v1/sessions/${id}/turns`,{signal});return r.json();},SentenceSpeaker:class{},document,window:{addEventListener(){},speechSynthesis:{cancel(){},getVoices(){return [];},addEventListener(){}}},location:{origin:'http://localhost'},sessionStorage:{getItem(key){return storage.get(key)||null;},setItem(key,value){storage.set(key,value);},removeItem(key){storage.delete(key);}},setupServices:()=>({setBusy(){},update(){}}),summarizeLog:()=>'',SpeechPlayer:Player,VoiceRecorder:Recorder,RealtimeTranscriber:Transcriber,EndOfSpeech,TurnCoordinator,Option:class{},Blob,AbortSignal,AbortController,URL,performance:{now:()=>now},Intl:viewerTimeZone?{DateTimeFormat:class extends Intl.DateTimeFormat{constructor(locale,options={}){super(locale,{timeZone:viewerTimeZone,...options});}}}:Intl,Date,crypto:globalThis.crypto,setTimeout(fn,ms){const id=setTimeout(fn,ms);timers.add(id);return id;},clearTimeout(id){clearTimeout(id);timers.delete(id);},fetch:async (url,options)=>{
-  if((url.includes('/calls/')||url.endsWith('/calls')||url.endsWith('/tasks')||options?.method==='DELETE'||url.endsWith('/sessions'))&&callHandler)return callHandler(url,options);
+  if((url.includes('/drafts')||url.includes('/calls/')||url.endsWith('/calls')||url.endsWith('/tasks')||options?.method==='DELETE'||url.endsWith('/sessions'))&&callHandler)return callHandler(url,options);
   if(url.endsWith('/cancel'))return new Response('{"cancelled":true}');
   if(url.endsWith('/status'))return new Response(JSON.stringify({mode:'live',speechOutput:'elevenlabs',calendar:'disconnected'}));
   if(url.endsWith('/turns'))return inFlight.promise;
   throw new Error('Unexpected test endpoint '+url);
  }};
  const source=(await readFile(new URL('./emulator.mjs',import.meta.url),'utf8')).replace(/^import .*;\n/gm,'').split('try{\n await status();')[0];
- const app=await vm.runInNewContext('(async()=>{'+source+';await status();return {submit,tap,discardRecording,actionView,callCommand,apiLog,startRecording,restoreSavedAction,announceCall,flushCompletion,taskCalls,renderTasks,showTaskPage,refreshTasks,taskPage:()=>taskPage,background:()=>backgroundCall,pending:()=>pending,view:()=>currentView,busy:()=>busy,recording:()=>recording};})()',ctx);
+ const app=await vm.runInNewContext('(async()=>{'+source+';await status();return {submit,tap,discardRecording,actionView,callCommand,decision,apiLog,startRecording,restoreSavedAction,announceCall,flushCompletion,taskCalls,renderTasks,showTaskPage,refreshTasks,taskPage:()=>taskPage,background:()=>backgroundCall,pending:()=>pending,view:()=>currentView,busy:()=>busy,recording:()=>recording};})()',ctx);
  return {app,document,storage,played,states,finishSpeech(){playbackEnd();},sample(level,at){now=at;microphone(level);},setRequest(){inFlight=deferred();return inFlight;},cleanup(){for(const id of timers)clearTimeout(id);}};
 }
 const reply=text=>new Response(JSON.stringify({state:'speak',speechText:text}));
@@ -384,4 +384,34 @@ test('superseded booking has no new change controls',async t=>{
  h.app.actionView({...callFixture,status:'completed',outcome:'booked',supersededBy:'replacement'},true);
  assert.equal(h.document.querySelector('#reschedule-call').hidden,true);
  assert.equal(h.document.querySelector('#cancel-booking').hidden,true);
+});
+
+const emailFixture={id:'email-1',sessionId:'watch-session',to:'friend@example.test',subject:'Exact subject',body:'Hello,\nExact message.',status:'pending'};
+test('Gmail review distinguishes exact email content from a Notion document',async t=>{
+ const h=await harness();t.after(h.cleanup);h.app.actionView(emailFixture,true);
+ assert.equal(h.document.querySelector('#confirm').textContent,'save draft to Gmail');
+ assert.equal(h.document.querySelector('#event-time').textContent,`To: ${emailFixture.to}\nSubject: ${emailFixture.subject}\n\n${emailFixture.body}`);
+ assert.equal(h.storage.get('muse-action-kind'),'drafts');assert.equal(h.storage.get('muse-action-session'),'watch-session');
+});
+test('uncertain Gmail draft offers verification, never a new save or cancellation',async t=>{
+ const requests=[];const action={...emailFixture,status:'uncertain'};
+ const h=await harness(async(url,options)=>{requests.push({url,options});return new Response(JSON.stringify(options?.method==='POST'?{gmailDraftAction:action,speechText:'Still unverified'}:{action}));});t.after(h.cleanup);
+ h.app.actionView(action);assert.equal(h.document.querySelector('#confirm').textContent,'verify saved draft');assert.equal(h.document.querySelector('#confirm').disabled,false);assert.equal(h.document.querySelector('#cancel').hidden,true);
+ await h.app.decision('confirm');
+ assert.match(requests[0].url,/sessions\/watch-session\/drafts\/email-1\/decision$/);assert.deepEqual(JSON.parse(requests[0].options.body),{decision:'confirm'});assert.equal(requests.filter(r=>r.options?.method==='POST').length,1);
+});
+test('Gmail proposal restoration preserves source session and draft route',async t=>{
+ const requests=[];const h=await harness(async url=>{requests.push(url);return new Response(JSON.stringify(url.endsWith('/tasks')?{calls:[]}:{action:emailFixture}));});t.after(h.cleanup);
+ h.storage.set('muse-action','email-1');h.storage.set('muse-action-kind','drafts');h.storage.set('muse-action-session','watch-session');await h.app.restoreSavedAction();
+ assert.ok(requests.includes('/api/v1/sessions/watch-session/drafts/email-1'));assert.equal(h.app.pending().to,emailFixture.to);
+});
+test('a completed Gmail draft review cannot save or cancel it again',async t=>{
+ const h=await harness();t.after(h.cleanup);h.app.actionView({...emailFixture,status:'completed'});
+ assert.equal(h.document.querySelector('#confirm').hidden,true);assert.equal(h.document.querySelector('#cancel').hidden,true);assert.match(h.document.querySelector('#action-note').textContent,/Nothing was sent/);
+});
+
+test('transient email draft restoration failure retains the proposal for verification',async t=>{
+ const h=await harness(async url=>{if(url.endsWith('/tasks'))return new Response('{"calls":[]}');throw Error('temporary outage');});t.after(h.cleanup);
+ h.storage.set('muse-action','email-1');h.storage.set('muse-action-kind','drafts');h.storage.set('muse-action-session','watch-session');
+ await assert.rejects(h.app.restoreSavedAction(),/Reload/);assert.equal(h.storage.get('muse-action'),'email-1');assert.equal(h.document.querySelector('#send').disabled,true);
 });

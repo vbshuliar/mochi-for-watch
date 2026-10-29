@@ -18,7 +18,7 @@ let speechOutput=null,affectionActive=false;
 let liveTranscript=null;
 let sessionId=sessionStorage.getItem('muse-session'),pending=null,busy=false,recording=false,recordingPending=false,connected=false,lastRequest=null,lastReply='',speechVersion=0,idleTimer,pollTimer,polling=false,recordVersion=0;
 const serviceViews=setupServices(enabled=>calendarOperation(async()=>{await api('/v1/integrations/google',{method:'PATCH',body:{enabled}});await status();log(`Calendar ${enabled?'enabled':'disabled'}`);}),{api,refresh:status});
-let calendarBusy=false,callRecoveryPending=sessionStorage.getItem('muse-action-kind')==='calls'&&!!sessionStorage.getItem('muse-action');
+let calendarBusy=false,callRecoveryPending=['calls','drafts'].includes(sessionStorage.getItem('muse-action-kind'))&&!!sessionStorage.getItem('muse-action');
 let backgroundCall=null,queuedCompletion=null,savedForeground=null,callRestoreBusy=false;
 const taskCalls=new Map();
 let taskPage='jolly',taskRefreshVersion=0,taskTimer=null;
@@ -147,12 +147,12 @@ async function restoreSavedActionInternal(){
  const kind=sessionStorage.getItem('muse-action-kind');
  const actionSession=sessionStorage.getItem('muse-action-session')||sessionId;
  try{
-  const restored=await api(`/v1/sessions/${actionSession}/${['documents','calls'].includes(kind)?kind:'actions'}/${actionId}`);
+  const restored=await api(`/v1/sessions/${actionSession}/${['documents','calls','drafts'].includes(kind)?kind:'actions'}/${actionId}`);
   if(scope!==sessionId)return;callRecoveryPending=false;actionView(restored.callAction||restored.action);
   if(foregroundApproval())face('approval','tap to review');
  }catch(error){
   if(scope!==sessionId)return;
-  if(kind==='calls'&&error.status!==404){callRecoveryPending=true;controls();throw new Error('Couldn’t restore your call status. Reload to check again before starting another conversation.');}
+  if(['calls','drafts'].includes(kind)&&error.status!==404){callRecoveryPending=true;controls();throw new Error('Couldn’t restore your action status. Reload to check again before starting another conversation.');}
   callRecoveryPending=false;sessionStorage.removeItem('muse-action');
  }
 }
@@ -209,7 +209,7 @@ function controls(){
  serviceViews.setBusy(calendarBusy||busy||recording||recordingPending);
  $('#send').disabled=callRecoveryPending||busy||recording||recordingPending||!connected||foregroundApproval()||!!(pending&&!pending.booking&&pending.status!=='pending');
  $('#reset').disabled=callRecoveryPending||decisionBusy||busy||recording||recordingPending||activeCall(backgroundCall);
- $('#confirm').disabled=decisionBusy||!!(pending?.booking&&(pending.status!=='pending'||uncertainCalls.has(pending.id)))||busy||recording||recordingPending||!pending||!!(pending.body&&pending.status!=='pending');
+ $('#confirm').disabled=decisionBusy||!!(pending?.booking&&(pending.status!=='pending'||uncertainCalls.has(pending.id)))||busy||recording||recordingPending||!pending||!!(pending.body&&!pending.to&&pending.status!=='pending')||!!(pending.to&&!['pending','uncertain','executing'].includes(pending.status));
  $('#cancel').disabled=decisionBusy||busy||recording||recordingPending||!pending||pending.status!=='pending';
  for(const id of ['stop-call','call-calendar','refresh-call','dismiss-document','reschedule-call','cancel-booking','review-reschedule']){const button=$('#'+id);if(button)button.disabled=id==='stop-call'?decisionBusy:decisionBusy||busy||recording||recordingPending||(['call-calendar','reschedule-call','cancel-booking','review-reschedule'].includes(id)&&!!savedForeground);}
  $('#stop').hidden=!recording&&!recordingPending;
@@ -278,15 +278,15 @@ function actionView(action,review=false){
  if(!action&&savedForeground){action=savedForeground;savedForeground=null;}
  if(action?.booking&&action.status!=='pending'){if(!review)updateBackgroundCall(action);if(!review){if(sessionStorage.getItem('muse-action')===action.id){sessionStorage.removeItem('muse-action');sessionStorage.removeItem('muse-action-kind');}if(pending?.booking)pending=null;$('#approval').hidden=!pending;controls();return;}}
  if(action?.booking&&sessionStorage.getItem('muse-call-attempt')===action.id)uncertainCalls.add(action.id);
- let dismiss=$('#dismiss-document');if(!dismiss){dismiss=document.createElement('button');dismiss.id='dismiss-document';dismiss.textContent='back to Jolly';dismiss.onclick=()=>{if(!busy){actionView(null);if(dialogueIdle())face('idle','tap to talk');}};$('#approval').append(dismiss);}dismiss.hidden=!((action?.body&&['uncertain','executing'].includes(action.status))||(action?.booking&&(action.status!=='pending'||uncertainCalls.has(action.id))));
- pending=action&&(action.booking||['pending','uncertain','executing'].includes(action.status))?action:null;
+ let dismiss=$('#dismiss-document');if(!dismiss){dismiss=document.createElement('button');dismiss.id='dismiss-document';dismiss.textContent='back to Jolly';dismiss.onclick=()=>{if(!busy){actionView(null);if(dialogueIdle())face('idle','tap to talk');}};$('#approval').append(dismiss);}dismiss.hidden=!((action?.to&&action.status!=='pending')||(action?.body&&['uncertain','executing'].includes(action.status))||(action?.booking&&(action.status!=='pending'||uncertainCalls.has(action.id))));
+ pending=action&&(action.booking||action.to||['pending','uncertain','executing'].includes(action.status))?action:null;
  for(const id of ['stop-call','call-calendar','refresh-call','reschedule-call','cancel-booking','reschedule-fields']){if($('#'+id))$('#'+id).hidden=true;}
- $('#confirm').hidden=!!pending?.booking&&pending.status!=='pending';
- $('#cancel').hidden=!!pending?.booking&&pending.status!=='pending';
+ $('#confirm').hidden=!!pending?.booking&&pending.status!=='pending'||!!pending?.to&&!['pending','uncertain','executing'].includes(pending.status);
+ $('#cancel').hidden=!!(pending?.booking||pending?.to)&&pending.status!=='pending';
  $('#approval').hidden=!pending;renderTasks();
  if(pending){let row=$('#approval-log-row');if(!row){row=document.createElement('li');row.id='approval-log-row';row.className='log-row';$('#api-log').append(row);}row.append($('#approval'));}
  if(!pending){sessionStorage.removeItem('muse-action');sessionStorage.removeItem('muse-action-kind');controls();return;}
- const persisted=savedForeground||pending;sessionStorage.setItem('muse-action',persisted.id);sessionStorage.setItem('muse-action-kind',persisted.booking?'calls':persisted.body?'documents':'actions');sessionStorage.setItem('muse-action-session',persisted.sessionId||sessionId);
+ const persisted=savedForeground||pending;sessionStorage.setItem('muse-action',persisted.id);sessionStorage.setItem('muse-action-kind',persisted.booking?'calls':persisted.to?'drafts':persisted.body?'documents':'actions');sessionStorage.setItem('muse-action-session',persisted.sessionId||sessionId);
  if(pending.booking){
   const booking=pending.booking;
   const changeLabel=pending.operation==='reschedule'?'Reschedule booking':pending.operation==='cancel_booking'?'Cancel booking':'Call';
@@ -310,6 +310,11 @@ function actionView(action,review=false){
   if(!callDeadline)callDeadline=Date.now()+540000;
   controls();return;
  }
+ if(pending.to){
+  $('#event-title').textContent=pending.subject;$('#event-time').style.whiteSpace='pre-wrap';$('#event-time').textContent=`To: ${pending.to}\nSubject: ${pending.subject}\n\n${pending.body}`;
+  $('#action-note').textContent=pending.status==='pending'?'Save this exact email as a Gmail draft? Nothing will be sent.':pending.status==='completed'?'Verified draft saved in Gmail. Nothing was sent.':['uncertain','executing'].includes(pending.status)?'The save is unverified. Verification only checks Gmail for this exact draft; it never creates another copy. Check Gmail before making another draft.':`Draft ${pending.status}. Nothing was sent.`;
+  $('#confirm').textContent=pending.status==='pending'?'save draft to Gmail':'verify saved draft';controls();return;
+ }
  if(pending.body){$('#event-title').textContent=pending.title;$('#event-time').textContent=`Save under: ${pending.parentTitle}\n\n${pending.body}`;$('#event-time').style.whiteSpace='pre-wrap';$('#action-note').textContent=pending.status==='pending'?'Review the full page before saving.':'The save is unverified. Check Notion; automatic retries are disabled.';$('#confirm').textContent='save to Notion';controls();return;}
  $('#event-time').style.whiteSpace='';
  $('#event-title').textContent=pending.event.title;
@@ -325,7 +330,7 @@ function displayData(data){
 async function renderResult(result,ticket,streamed=false){
  const valid=()=>ticket===undefined||turns.current(ticket);
  if(!valid())return;
- if(result.callAction&&!result.action){actionView(result.callAction);}else if(result.documentAction){const authoritative=await api(`/v1/sessions/${result.documentAction.sessionId||sessionId}/documents/${result.documentAction.id}`);if(!valid())return;actionView(authoritative.action);}else if(result.action){const authoritative=await api(`/v1/sessions/${result.action.sessionId||sessionId}/actions/${result.action.id}`);if(!valid())return;actionView(authoritative.action);}else actionView(null);
+ if(result.callAction&&!result.action){actionView(result.callAction);}else if(result.gmailDraftAction){const authoritative=await api(`/v1/sessions/${result.gmailDraftAction.sessionId||sessionId}/drafts/${result.gmailDraftAction.id}`);if(!valid())return;actionView(authoritative.action);}else if(result.documentAction){const authoritative=await api(`/v1/sessions/${result.documentAction.sessionId||sessionId}/documents/${result.documentAction.id}`);if(!valid())return;actionView(authoritative.action);}else if(result.action){const authoritative=await api(`/v1/sessions/${result.action.sessionId||sessionId}/actions/${result.action.id}`);if(!valid())return;actionView(authoritative.action);}else actionView(null);
  message('assistant',result.speechText);displayData(result.data);
  if(result.sources?.length){
   const row=document.createElement('li');row.className='log-row';
@@ -447,7 +452,7 @@ async function tap(){
  if(streamSpeaker?.blocked){await streamSpeaker.resume();return;}
  if(speechPlayer.current?.blocked){await speechPlayer.resume();return;}
  if(busy||speechPlayer.current||streamSpeaker){interruptConversation();await startRecording();return;}
- if(foregroundApproval()&&(currentView.state==='approval'||pending.status!=='pending')){if(pending.body){speak(`Your draft ${pending.title} is ready. Review the full page beside the watch before saving.`,{state:'approval'});return;}speak(`${pending.event.title}, from ${pending.event.start} until ${pending.event.end}, ${pending.event.timeZone}. Review the event beside the watch to approve.`,{state:'approval'});return;}
+ if(foregroundApproval()&&(currentView.state==='approval'||pending.status!=='pending')){if(pending.to){speak(`Your email draft to ${pending.to}, subject ${pending.subject}, is ready for review. Saving a draft does not send it.`,{state:'approval'});return;}if(pending.body){speak(`Your draft ${pending.title} is ready. Review the full page beside the watch before saving.`,{state:'approval'});return;}speak(`${pending.event.title}, from ${pending.event.start} until ${pending.event.end}, ${pending.event.timeZone}. Review the event beside the watch to approve.`,{state:'approval'});return;}
  await startRecording();
 }
 window.addEventListener('message',event=>{if(event.source!==watch.contentWindow||event.origin!==location.origin)return;if(event.data?.type==='muse-ready')send(currentView);if(event.data?.type==='muse-tap')void tap();});
@@ -457,9 +462,9 @@ $('#retry').onclick=()=>{if(lastRequest)void submit(lastRequest);};
 $('#replay').onclick=()=>{if(!busy&&!recording&&!recordingPending)speak(lastReply,{state:pending?'approval':'idle'});};
 async function decision(value){
  if(pending?.booking){await callCommand(value);return;}
- if(!pending||busy||recording||recordingPending)return;stopSpeech();decisionBusy=true;busy=true;controls();$('#error').textContent='';face('working',value==='confirm'?'saving your event…':'cancelling…');
- try{const result=await api(`/v1/sessions/${pending.sessionId||sessionId}/${pending.booking?'calls':pending.body?'documents':'actions'}/${pending.id}/decision`,{method:'POST',body:{decision:value}});await renderResult(result);}
- catch(error){try{actionView((await api(`/v1/sessions/${pending.sessionId||sessionId}/${pending.booking?'calls':pending.body?'documents':'actions'}/${pending.id}`)).action);}catch{}errorView(error);}
+ if(!pending||busy||recording||recordingPending)return;stopSpeech();decisionBusy=true;busy=true;controls();$('#error').textContent='';face('working',value==='confirm'?(pending.to?(pending.status==='pending'?'saving your draft…':'verifying your draft…'):'saving your event…'):'cancelling…');
+ try{const result=await api(`/v1/sessions/${pending.sessionId||sessionId}/${pending.booking?'calls':pending.to?'drafts':pending.body?'documents':'actions'}/${pending.id}/decision`,{method:'POST',body:{decision:value}});await renderResult(result);}
+ catch(error){try{actionView((await api(`/v1/sessions/${pending.sessionId||sessionId}/${pending.booking?'calls':pending.to?'drafts':pending.body?'documents':'actions'}/${pending.id}`)).action);}catch{}errorView(error);}
  finally{decisionBusy=false;busy=false;controls();}
 }
 $('#confirm').onclick=()=>decision('confirm');$('#cancel').onclick=()=>decision('cancel');
@@ -514,5 +519,7 @@ try{
  await status();
  if(sessionId){try{await api(`/v1/sessions/${sessionId}/events`);}catch(error){if(error.status!==404)throw error;sessionId=null;sessionStorage.removeItem('muse-session');sessionStorage.removeItem('muse-action');}}
  await session();await restoreSavedAction();void refreshTasks();
+ const {setupDailySupport}=await import('./daily-support.mjs');
+ setupDailySupport({api,getSession:session,canReview:()=>!busy&&!decisionBusy&&!recording&&!recordingPending&&!foregroundApproval(),onDraft:action=>{actionView(action,true);$('#approval').scrollIntoView({block:'nearest',behavior:'smooth'});}});
  $('#hint').textContent=pending?'A previous proposal is ready for review.':'Tap Jolly to start a real conversation.';log('backend connected');
 }catch(error){connected=false;$('#connection').textContent='○ backend unavailable';errorView(error);controls();}

@@ -65,12 +65,13 @@ import Observation
       return memoryError == nil
     } catch { memoryError = error.localizedDescription; return false }
   }
-  func connectWorkspace(_ provider: String) async -> URL? {
+  func connectWorkspace(_ provider: String, drafts: Bool = false) async -> URL? {
     guard !busy, ["gmail", "notion", "instagram", "facebook"].contains(provider) else { return nil }
     busy = true; defer { busy = false }
     do {
       struct Link: Decodable { let url: URL }
-      let bytes = try await client().json("v1/integrations/\(provider)/connect", values: [:])
+      let body = try JSONEncoder().encode(provider == "gmail" && drafts ? ["drafts": true] : [:])
+      let bytes = try await client().data("v1/integrations/\(provider)/connect", method: "POST", body: body)
       let url = try JSONDecoder().decode(Link.self, from: bytes).url
       guard IntegrationSignIn.isAllowed(url, provider: provider) else { throw MuseError.message("Invalid sign-in link.") }
       error = nil; return url

@@ -70,7 +70,8 @@ export function setupServices(onToggle,{api,refresh}={}){
   $('#service-status').textContent=provider==='search'?(webSearch?'available through Meta':'unavailable'):isCalendar?(mode==='mock'?'just a practice calendar':linked?(enabled?'connected · enabled':'connected · disabled'):calendar==='unknown'?'let me check…':'not connected'):linked?'connected':'not connected';
   $('#service-status').classList.toggle('is-connected',linked||(provider==='search'&&webSearch));
   $('#service-description').textContent=entry.description;
-  $('#service-access').replaceChildren(...entry.access.map(text=>{const li=document.createElement('li');li.textContent=text;return li;}));
+  const access=provider==='gmail'&&workspace.gmailDraftsEnabled?['Find and summarise emails','Save exact email drafts after your approval','No email sending']:entry.access;
+  $('#service-access').replaceChildren(...access.map(text=>{const li=document.createElement('li');li.textContent=text;return li;}));
   $('#service-availability').textContent=provider==='search'?(webSearch?'Ask Jolly for current information. No extra sign-in needed.':'Web search is unavailable right now.'):isCalendar?'Disconnect anytime. Your events stay unchanged.':isSocial?'Choose an account after signing in. Disconnect anytime.': 'Disconnect anytime. Existing email and pages stay unchanged.';
   $('#calendar-detail-controls').hidden=!isCalendar;$('#planned-controls').hidden=true;controls.hidden=!isProvider;
   if(isProvider){

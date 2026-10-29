@@ -4,6 +4,8 @@ Implemented 27 October 2026. Provider OAuth credentials and real-account accepta
 
 **Scope update, 28 October 2026:** all six preview connections now have client flows. Gmail and Notion adapters and approval behavior were rechecked; the user chose to configure provider apps and grant access later.
 
+**Draft support, 29 October 2026:** optional explicit Gmail draft permission now supports reviewed, unsent drafts. See [daily support](daily-support.md) for setup, review and uncertain-save recovery. Existing read-only connections remain read-only until upgraded.
+
 ## End-user experience
 
 1. Open **Connections → Gmail → Connect with Google** and grant read-only access.

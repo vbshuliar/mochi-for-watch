@@ -9,10 +9,11 @@ public struct APIClient: Sendable {
   }
   public func request(
     _ path: String, method: String = "GET", body: Data? = nil,
-    contentType: String = "application/json", requestID: String? = nil
+    contentType: String = "application/json", requestID: String? = nil, query: [URLQueryItem] = []
   ) -> URLRequest {
-    var request = URLRequest(
-      url: connection.baseURL.appendingPathComponent(path), timeoutInterval: 95)
+    var components = URLComponents(url: connection.baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false)!
+    if !query.isEmpty { components.queryItems = query }
+    var request = URLRequest(url: components.url!, timeoutInterval: 95)
     request.httpMethod = method
     request.httpBody = body
     request.setValue("Bearer \(connection.token)", forHTTPHeaderField: "Authorization")
@@ -22,16 +23,16 @@ public struct APIClient: Sendable {
   }
   public func data(
     _ path: String, method: String = "GET", body: Data? = nil,
-    contentType: String = "application/json", requestID: String? = nil
+    contentType: String = "application/json", requestID: String? = nil, query: [URLQueryItem] = []
   ) async throws -> Data {
     let (data, response) = try await session.data(
-      for: request(path, method: method, body: body, contentType: contentType, requestID: requestID)
+      for: request(path, method: method, body: body, contentType: contentType, requestID: requestID, query: query)
     )
     try Self.validate(response, data: data)
     return data
   }
-  public func get<T: Decodable & Sendable>(_ path: String, as: T.Type) async throws -> T {
-    try JSONDecoder().decode(T.self, from: await data(path))
+  public func get<T: Decodable & Sendable>(_ path: String, as: T.Type, query: [URLQueryItem] = []) async throws -> T {
+    try JSONDecoder().decode(T.self, from: await data(path, query: query))
   }
   public func json(_ path: String, method: String = "POST", values: [String: String]) async throws
     -> Data

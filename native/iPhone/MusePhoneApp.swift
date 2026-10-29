@@ -112,8 +112,9 @@ struct PhoneHome: View {
       }
       .listStyle(.insetGrouped).navigationTitle("your companion")
       .refreshable { await model.refresh() }
-      .task { notifications.configure(store.connection); await model.refresh(); conversation.resumeCalls(); if notifications.openedTaskID != nil { showingTasks = true } }
+      .task { notifications.configure(store.connection); await model.refresh(); conversation.resumeCalls(); if notifications.openedTaskID != nil || notifications.openedReminderID != nil { showingTasks = true } }
       .onChange(of: store.connection) { _, _ in conversation.connectionChanged(); notifications.configure(store.connection); conversation.resumeCalls() }
+      .onChange(of: notifications.openedReminderID) { _, id in if id != nil { showingTasks = true } }
       .onChange(of: notifications.openedTaskID) { _, id in if id != nil { showingTasks = true } }
       .navigationDestination(isPresented: $showingTasks) { PhoneTasksView(model: conversation) }
       .onChange(of: phase) { _, new in
@@ -258,7 +259,10 @@ struct PhoneConversation: View {
     }.animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: model.completionCall?.id)
       .navigationTitle("Jolly").navigationBarTitleDisplayMode(.inline)
       .sheet(isPresented: $review) {
-        if model.action == nil, model.documentAction == nil, let call = model.callAction { CallReview(model: model, call: call) }
+        if model.action == nil, model.documentAction == nil, model.gmailDraftAction == nil, let call = model.callAction { CallReview(model: model, call: call) }
+        if let draft = model.gmailDraftAction {
+          GmailDraftReview(action: draft, busy: model.deciding, decide: { model.decide($0) }, close: { model.dismissGmailDraft() })
+        }
         if let document = model.documentAction {
           DocumentReview(dismiss: { model.dismissDocument() }, action: document, busy: model.deciding) { model.decide($0) }
         }
@@ -289,12 +293,19 @@ struct WorkspaceConnectionView: View {
   var body: some View {
     Form {
       Section {
-        Text(provider == "gmail" ? "Let Jolly find and summarize your email. It can’t send, change or delete messages." : "Let Jolly turn ideas and email summaries into pages. Review every draft before saving.")
+        Text(provider == "gmail" ? "Let Jolly find and summarize your email. Enable drafts separately to save reviewed, unsent drafts. Jolly never sends email." : "Let Jolly turn ideas and email summaries into pages. Review every draft before saving.")
         if connected { Label("Connected", systemImage: "checkmark.circle.fill").foregroundStyle(.green) }
         Button(connected ? "Reconnect" : (provider == "gmail" ? "Connect with Google" : "Connect with Notion")) {
           Task { if let url = await model.connectWorkspace(provider) { openURL(url) } }
         }.disabled(model.busy)
         if connected { Button("Disconnect", role: .destructive) { disconnecting = true }.disabled(model.busy) }
+      }
+      if provider == "gmail", connected {
+        Section("Email drafts") {
+          if model.status?.gmailDraftsEnabled == true { Label("Draft saving enabled", systemImage: "checkmark.circle") }
+          else { Button("Enable Gmail drafts") { Task { if let url = await model.connectWorkspace("gmail", drafts: true) { openURL(url) } } }.disabled(model.busy) }
+          Text("Every draft requires your review before saving to Gmail.").font(.footnote)
+        }
       }
       if provider == "notion", connected {
         Section {

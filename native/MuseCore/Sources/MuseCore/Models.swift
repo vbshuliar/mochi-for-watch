@@ -37,6 +37,7 @@ public struct ServerStatus: Decodable, Sendable {
   public let calendarConfigured: Bool
   public let webSearch: Bool?
   public let gmail: String?
+  public let gmailDraftsEnabled: Bool?
   public let notion: String?
   public let notionParent: NotionPage?
   public let instagram: String?
@@ -75,6 +76,7 @@ public struct TurnResult: Decodable, Sendable {
   public let simulated: Bool
   public let action: Action?
   public let documentAction: DocumentAction?
+  public let gmailDraftAction: GmailDraftAction?
   public let callAction: CallAction?
   public let sources: [SearchSource]?
 }
@@ -214,4 +216,42 @@ public enum IntegrationSignIn {
     return url.scheme == "https" && url.host == host && url.user == nil && url.password == nil
       && (url.port == nil || url.port == 443)
   }
+}
+
+public struct GmailDraftAction: Decodable, Identifiable, Sendable {
+  public let id: String
+  public let sessionId: String
+  public let to: String
+  public let subject: String
+  public let body: String
+  public let status: String
+  public let expiresAt: Double
+  public var needsReview: Bool { ["pending", "executing", "uncertain"].contains(status) }
+}
+public struct JollyReminder: Decodable, Identifiable, Sendable {
+  public let id: String
+  public let title: String
+  public let dueAt: String
+  public let timeZone: String
+  public let status: String
+  public let recurrence: String
+  public var formattedDueAt: String {
+    let parser = ISO8601DateFormatter()
+    parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    var date = parser.date(from: dueAt)
+    if date == nil { parser.formatOptions = [.withInternetDateTime]; date = parser.date(from: dueAt) }
+    guard let date else { return dueAt }
+    let formatter = DateFormatter()
+    formatter.dateStyle = .medium
+    formatter.timeStyle = .short
+    formatter.timeZone = TimeZone(identifier: timeZone) ?? .current
+    return formatter.string(from: date)
+  }
+}
+public struct DailyBriefing: Decodable, Sendable {
+  public let summary: String
+  public let date: String
+  public let timeZone: String
+  public let simulated: Bool
+  public let sources: [String: String]
 }
