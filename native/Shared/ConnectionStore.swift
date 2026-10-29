@@ -45,3 +45,32 @@ import Security
     error = nil
   }
 }
+
+@MainActor @Observable final class PairingModel {
+  private let store: ConnectionStore
+  private let redeem: (URL, String) async throws -> Connection
+  private var generation = UUID()
+  var busy = false
+  var error: String?
+  init(store: ConnectionStore, redeem: @escaping (URL, String) async throws -> Connection = { try await APIClient.redeemPairing(baseURL: $0, code: $1) }) {
+    self.store = store; self.redeem = redeem
+  }
+  func cancel() { generation = UUID(); busy = false }
+  func pair(address: String, code: String) async -> Bool {
+    guard !busy else { return false }
+    let ticket = UUID(); generation = ticket
+    let original = store.connection
+    busy = true; error = nil
+    defer { if generation == ticket { busy = false } }
+    do {
+      guard let url = URL(string: address.trimmingCharacters(in: .whitespacesAndNewlines)) else { throw MuseError.message("Enter your backend HTTPS address.") }
+      let connection = try await redeem(url, code)
+      guard generation == ticket, !Task.isCancelled, store.connection == original else { return false }
+      try store.save(connection)
+      return true
+    } catch {
+      guard generation == ticket, !Task.isCancelled, store.connection == original else { return false }
+      self.error = error.localizedDescription; return false
+    }
+  }
+}

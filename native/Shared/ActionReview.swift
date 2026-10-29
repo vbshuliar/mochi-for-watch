@@ -79,6 +79,12 @@ struct CallReview: View {
   let model: ConversationModel
   let call: CallAction
   @State private var changingTime = false
+  @State private var retrying = false
+  @State private var addingReminder = false
+  @State private var reminderDate = Date().addingTimeInterval(3600)
+  @State private var reminderID = UUID().uuidString
+  @State private var reminderKey = ""
+  @State private var reminderSaved = false
   @State private var cancellingBooking = false
   @State private var windowStart = Date().addingTimeInterval(86400)
   @State private var windowEnd = Date().addingTimeInterval(90000)
@@ -122,6 +128,8 @@ struct CallReview: View {
         if let slot = call.bookedSlot {
           ReviewDetail("Booked", value: "\(date(slot.start)) until \(date(slot.end))")
         }
+        if let followUp = call.followUp { Text(followUp.message).font(.footnote) }
+        if reminderSaved { Label("Reminder saved in Jolly", systemImage: "checkmark.circle").font(.footnote) }
         if let failure = model.failure { Text(failure).font(.footnote) }
         if call.status == "pending", !model.confirmationUnknown(for: call) {
           Text("Jolly will call this number as your AI assistant and share these booking details only after you approve.")
@@ -150,6 +158,12 @@ struct CallReview: View {
               ReviewButton("Reschedule booking") { changingTime = true }.disabled(model.hasProposal)
               ReviewButton("Cancel booking", role: .destructive) { cancellingBooking = true }.disabled(model.hasProposal)
             }
+            if call.followUp?.canAddReminder == true {
+              ReviewButton(call.booked ? "Remind me before my appointment" : "Remind me to follow up") { addingReminder = true }
+            }
+            if call.followUp?.canRetry == true {
+              ReviewButton("Choose times and try again") { retrying = true }.disabled(model.hasProposal)
+            }
             ReviewButton("Refresh status") { model.callCommand("refresh", callID: call.id) }
             ReviewButton("Back to Jolly") { model.dismissCallCompletion(); close() }
           }
@@ -172,6 +186,35 @@ struct CallReview: View {
             }.disabled(windowEnd <= windowStart || windowStart <= Date())
           }.environment(\.timeZone, TimeZone(identifier: call.booking.timeZone) ?? .current)
             .navigationTitle("Reschedule")
+        }
+      }
+      .sheet(isPresented: $retrying) {
+        NavigationStack {
+          Form {
+            DatePicker("Earliest start", selection: $windowStart, in: Date()...)
+            DatePicker("Available until", selection: $windowEnd, in: windowStart...)
+            Text("Choose when the appointment may take place. This prepares a new call for review; it does not dial automatically.").font(.footnote)
+            Button("Review another call") {
+              model.prepareBookingRetry(call, start: windowStart, end: windowEnd); retrying = false
+            }.disabled(windowEnd <= windowStart || windowStart <= Date() || model.hasProposal)
+          }.environment(\.timeZone, TimeZone(identifier: call.booking.timeZone) ?? .current)
+            .navigationTitle("Try again")
+        }
+      }
+      .sheet(isPresented: $addingReminder) {
+        NavigationStack {
+          Form {
+            DatePicker("Remind me at", selection: $reminderDate, in: Date()...)
+            Text("Choose your reminder time in \(call.booking.timeZone). Travel time is not calculated.").font(.footnote)
+            Button("Save reminder") {
+              let key = "\(call.id):\(reminderDate.timeIntervalSince1970)"
+              if key != reminderKey { reminderKey = key; reminderID = UUID().uuidString }
+              Task { if await model.daily.remindForBooking(call, id: reminderID, due: reminderDate) { reminderSaved = true; addingReminder = false } }
+            }.disabled(model.daily.busy || reminderDate <= Date())
+            if let error = model.daily.error { Text(error).foregroundStyle(.red) }
+            Button("Cancel") { addingReminder = false }
+          }.environment(\.timeZone, TimeZone(identifier: call.booking.timeZone) ?? .current)
+            .navigationTitle("Booking reminder")
         }
       }
       .confirmationDialog("Prepare a cancellation call?", isPresented: $cancellingBooking, titleVisibility: .visible) {

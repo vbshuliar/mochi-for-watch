@@ -640,6 +640,35 @@ struct Activity: Identifiable {
     }
   }
 
+  func prepareBookingRetry(_ call: CallAction, start: Date, end: Date) {
+    guard !callUpdating, !deciding, !hasProposal, let connection = store.connection,
+      call.followUp?.canRetry == true else { return }
+    guard start > Date(), end > start else { failure = "Choose a future booking window."; return }
+    struct Retry: Encodable { let window: BookingWindow }
+    let scope = callGeneration
+    let conversationGeneration = generation
+    callUpdating = true
+    callTask = Task {
+      defer { if scope == callGeneration { callUpdating = false; monitorCall() } }
+      do {
+        let result = try JSONDecoder().decode(TurnResult.self, from: await makeClient(connection).data(
+          "v1/sessions/\(call.sessionId)/calls/\(call.id)/retry", method: "POST",
+          body: JSONEncoder().encode(Retry(window: BookingWindow(start: ISO8601DateFormatter().string(from: start), end: ISO8601DateFormatter().string(from: end))))))
+        guard scope == callGeneration, store.connection == connection else { return }
+        let foregroundChanged = conversationGeneration != generation || hasProposal || recording || deciding || ![.idle, .sleep, .error].contains(mood)
+        if let proposal = result.callAction { receiveCall(proposal, track: !foregroundChanged) }
+        if foregroundChanged {
+          log("call", "Your retry proposal is saved in Tasks. Finish your current conversation or review, then open it there.")
+        } else {
+          failure = nil; log("call", result.speechText); show(.approval, "tap to review")
+        }
+      } catch {
+        guard scope == callGeneration, store.connection == connection else { return }
+        failure = error.localizedDescription
+      }
+    }
+  }
+
   func dismissCallCompletion() {
     guard let call = backgroundCall, !call.active else { return }
     dismissedCalls.insert(call.id)

@@ -11,7 +11,12 @@ private final class FixtureProtocol: URLProtocol, @unchecked Sendable {
       #"{"sessionId":"session","state":"speak","statusText":"speaking…","speechText":"Hello. Nice to see you!","simulated":true}"#
     let body: String
     let status: Int
-    if path.contains("unauthorized") {
+    if path == "/v1/pairing/redeem" {
+      XCTAssertNil(request.value(forHTTPHeaderField: "Authorization"))
+      XCTAssertEqual(request.httpMethod, "POST")
+      status = 200
+      body = "{\"token\":\"\(String(repeating: "p", count: 40))\",\"deviceId\":\"demo-device\",\"expiresAt\":4102444800000}"
+    } else if path.contains("unauthorized") {
       status = 401
       body = #"{"error":{"message":"Please reconnect."}}"#
     } else if path.contains("truncated") {
@@ -48,6 +53,23 @@ final class APIClientTests: XCTestCase, @unchecked Sendable {
       connection: try Connection(
         baseURL: URL(string: "https://fixture.example")!, token: String(repeating: "t", count: 32)),
       session: URLSession(configuration: config))
+  }
+  func testPairingUsesUnauthenticatedCodeExchangeAndValidatedConnection() async throws {
+    let config = URLSessionConfiguration.ephemeral
+    config.protocolClasses = [FixtureProtocol.self]
+    let session = URLSession(configuration: config)
+    defer { session.invalidateAndCancel() }
+    let connection = try await APIClient.redeemPairing(baseURL: URL(string: "https://fixture.example")!, code: "abcd-efgh-jklm-2389", session: session)
+    XCTAssertEqual(connection.token, String(repeating: "p", count: 40))
+    XCTAssertEqual(connection.baseURL.absoluteString, "https://fixture.example")
+    do {
+      _ = try await APIClient.redeemPairing(baseURL: URL(string: "http://remote.example")!, code: "ABCDEFGHJKLM2389", session: session)
+      XCTFail("Unsafe backend must not receive a code")
+    } catch {}
+    do {
+      _ = try await APIClient.redeemPairing(baseURL: URL(string: "https://fixture.example")!, code: "short", session: session)
+      XCTFail("Invalid code must not be sent")
+    } catch {}
   }
   func testStreamDeliversPartialAndFinalAcrossByteBoundaries() async throws {
     let collector = TextCollector()

@@ -9,6 +9,7 @@ import {
   AppError,
   bookingSchema,
   bookingChangeSchema,
+  windowSchema,
   type BookingChange,
   type BookingInput,
   type Calendar,
@@ -44,6 +45,17 @@ export type CallAction = {
   booking: BookingInput;
   operation?: "reschedule" | "cancel_booking";
   sourceCallId?: string;
+  retryOfCallId?: string;
+  retriedBy?: string;
+  endReason?:
+    | "busy"
+    | "no-answer"
+    | "provider_failed"
+    | "canceled"
+    | "silence"
+    | "turn_limit"
+    | "payment_required"
+    | "not_booked";
   originalSlot?: Window;
   supersededBy?: string;
   status:
@@ -78,12 +90,29 @@ export type CallAction = {
     text: string;
   };
 };
-export type PublicCallAction = Omit<CallAction, "slots"> & { slots: [] };
+export type BookingFollowUp = {
+  canRetry: boolean;
+  canChange: boolean;
+  canAddReminder: boolean;
+  needsVerification: boolean;
+  message: string;
+};
+export type PublicCallAction = Omit<CallAction, "slots"> & {
+  slots: [];
+  followUp?: BookingFollowUp;
+};
+export const bookingRetrySchema = z
+  .object({
+    window: windowSchema,
+    windows: z.array(windowSchema).min(1).max(14).optional(),
+  })
+  .strict();
 
 type VoiceTurn = {
   status: "pending" | "ready" | "failed";
   createdAt: number;
   speech: string;
+  endReason?: CallAction["endReason"];
   audioToken?: string;
   finish?: boolean;
   outcome?: "booked" | "not_booked" | "rescheduled" | "booking_cancelled";
@@ -139,6 +168,9 @@ export class Calls {
     private connected: () => boolean,
     private onChange?: (call: PublicCallAction) => void,
   ) {
+    for (const { id, value } of store.list<CallAction>("call"))
+      if (value.startedAt !== undefined && !store.get("call-attempt", id))
+        store.put("call-attempt", id, { startedAt: value.startedAt });
     for (const { id } of store.list("call-audio"))
       store.delete("call-audio", id);
     for (const { id, value } of store.list<CallAction>("call"))
@@ -172,6 +204,37 @@ export class Calls {
       this.config.ELEVENLABS_API_KEY &&
       this.allowedNumbers().length,
     );
+  }
+  dailyUsage() {
+    const now = new Date();
+    const dayStart = Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+    );
+    const attempts = this.store
+      .list<{ startedAt: number }>("call-attempt")
+      .filter(
+        ({ value }) =>
+          value.startedAt >= dayStart && value.startedAt < dayStart + 86400000,
+      ).length;
+    return {
+      day: now.toISOString().slice(0, 10),
+      attempts,
+      limit: this.config.DAILY_CALL_LIMIT,
+    };
+  }
+  private assertCallBudget() {
+    const usage = this.dailyUsage();
+    if (usage.attempts >= usage.limit)
+      throw new AppError(
+        429,
+        "daily_call_limit",
+        "The daily call limit has been reached. Try again tomorrow.",
+      );
+  }
+  destinationAllowed(number: string) {
+    return this.allowedNumbers().includes(number);
   }
   private allowedNumbers() {
     return this.config.TWILIO_ALLOWED_NUMBERS.split(",")
@@ -294,11 +357,80 @@ export class Calls {
       Date.now() - a.startedAt > 6 * 60000
     );
   }
+  private retryable(a: CallAction) {
+    if (
+      a.operation ||
+      a.sourceCallId ||
+      a.bookedSlot ||
+      a.supersededBy ||
+      ["booked", "rescheduled", "booking_cancelled"].includes(a.outcome ?? "")
+    )
+      return false;
+    if (a.status === "failed" && !a.startedAt) return true;
+    if (
+      a.status === "failed" &&
+      ["busy", "no-answer"].includes(a.endReason ?? "")
+    )
+      return true;
+    return (
+      a.status === "completed" &&
+      a.outcome === "not_booked" &&
+      a.endReason === "not_booked"
+    );
+  }
+  private followUp(a: CallAction): BookingFollowUp {
+    const active = this.store
+      .list<CallAction>("call")
+      .some(({ value }) =>
+        ["starting", "queued", "in_progress", "uncertain"].includes(
+          value.status,
+        ),
+      );
+    const retry = a.retriedBy
+      ? this.store.get<CallAction>("call", a.retriedBy)
+      : undefined;
+    const priorRetryOpen =
+      retry && !["cancelled", "expired"].includes(retry.status);
+    const confirmed =
+      a.status === "completed" &&
+      ["booked", "rescheduled"].includes(a.outcome ?? "") &&
+      !!a.bookedSlot &&
+      !a.supersededBy &&
+      Date.parse(a.bookedSlot.start) > Date.now();
+    const needsVerification =
+      a.status === "uncertain" ||
+      (!!a.startedAt &&
+        terminal.has(a.status) &&
+        !a.outcome &&
+        !["busy", "no-answer"].includes(a.endReason ?? "")) ||
+      ["silence", "turn_limit"].includes(a.endReason ?? "");
+    const canRetry = this.retryable(a) && !active && !priorRetryOpen;
+    return {
+      canRetry,
+      canChange: confirmed && !active,
+      canAddReminder: confirmed && !active,
+      needsVerification,
+      message: a.supersededBy
+        ? "This booking has been changed. Open its latest result."
+        : priorRetryOpen
+          ? "A later attempt already exists. Open it to continue."
+          : needsVerification
+            ? "Check the outcome with the business before another attempt. Jolly will not redial automatically."
+            : a.endReason === "payment_required"
+              ? "The business requested payment or a deposit. Contact it directly to finish."
+              : confirmed
+                ? "Review Calendar, add a reminder, or change this booking."
+                : canRetry
+                  ? "Choose new allowed times and review a fresh call proposal, or set yourself a reminder to try later."
+                  : "Review the call result before choosing another action.",
+    };
+  }
   publicAction(a: CallAction): PublicCallAction {
     const { slots: _slots, ...result } = a;
     // Keep the legacy field decodable without sending internal candidates.
     return {
       ...result,
+      followUp: this.followUp(a),
       summary: ["booked", "rescheduled", "booking_cancelled"].includes(
         a.outcome || "",
       )
@@ -454,6 +586,69 @@ export class Calls {
     };
     this.save(a);
     return this.result(a);
+  }
+  async prepareRetry(
+    sessionId: string,
+    sourceId: string,
+    input: z.infer<typeof bookingRetrySchema>,
+    signal?: AbortSignal,
+  ) {
+    const request = bookingRetrySchema.parse(input);
+    if (this.changeLocks.has(sourceId))
+      throw new AppError(
+        409,
+        "retry_pending",
+        "A retry proposal is already being prepared.",
+      );
+    this.changeLocks.add(sourceId);
+    try {
+      const source = this.get(sessionId, sourceId);
+      if (!this.retryable(source))
+        throw new AppError(
+          409,
+          "call_not_retryable",
+          "Check this call's outcome before making another booking. Confirmed bookings must use reschedule or cancel.",
+        );
+      const booking = bookingSchema.parse({
+        ...source.booking,
+        window: request.window,
+        windows: request.windows,
+      });
+      const previous = source.retriedBy
+        ? this.get(sessionId, source.retriedBy)
+        : undefined;
+      if (previous && !["cancelled", "expired"].includes(previous.status)) {
+        if (JSON.stringify(previous.booking) === JSON.stringify(booking))
+          return this.result(previous);
+        throw new AppError(
+          409,
+          "retry_pending",
+          "A later attempt already exists. Open it before choosing another window.",
+        );
+      }
+      const result = await this.prepare(sessionId, booking, signal);
+      const freshSource = this.get(sessionId, sourceId);
+      if (!this.retryable(freshSource)) {
+        const pending = this.get(sessionId, result.callAction!.id);
+        pending.status = "cancelled";
+        this.save(pending);
+        throw new AppError(
+          409,
+          "call_changed",
+          "The original call changed. Review its result before trying again.",
+        );
+      }
+      const pending = this.get(sessionId, result.callAction!.id);
+      pending.retryOfCallId = sourceId;
+      freshSource.retriedBy = pending.id;
+      this.store.transaction(() => {
+        this.save(pending);
+        this.save(freshSource);
+      });
+      return this.result(pending);
+    } finally {
+      this.changeLocks.delete(sourceId);
+    }
   }
   async prepareChange(
     sessionId: string,
@@ -645,6 +840,7 @@ export class Calls {
           "The original booking or Calendar save changed; review it again.",
         );
     }
+    this.assertCallBudget();
     a.decision = decision;
     a.status = "starting";
     a.progress = {
@@ -695,8 +891,12 @@ export class Calls {
     a = this.get(sessionId, id);
     if (a.status !== "starting") return this.result(a);
     // Durable claim precedes the external side effect. Never automatically retry creation.
+    this.assertCallBudget();
     a.startedAt = Date.now();
-    this.save(a);
+    this.store.transaction(() => {
+      this.store.put("call-attempt", a.id, { startedAt: a.startedAt });
+      this.save(a);
+    });
     try {
       const response = z
         .object({ sid: z.string().regex(/^CA[a-f0-9]{32}$/i) })
@@ -807,6 +1007,10 @@ export class Calls {
     a.sequence = sequence;
     if (["busy", "failed", "no-answer", "canceled"].includes(body.CallStatus)) {
       a.status = "failed";
+      a.endReason =
+        body.CallStatus === "failed"
+          ? "provider_failed"
+          : (body.CallStatus as "busy" | "no-answer" | "canceled");
       a.summary = `Call ended: ${body.CallStatus}. No booking confirmed.`;
     } else if (body.CallStatus === "completed") {
       a.status = "completed";
@@ -885,6 +1089,7 @@ export class Calls {
     const play = `<Play>${xml(this.url(`/call-audio/${t.audioToken}`))}</Play>`;
     if (t.finish) {
       a.outcome = t.outcome;
+      a.endReason = t.endReason;
       if (
         a.sourceCallId &&
         ["rescheduled", "booking_cancelled"].includes(t.outcome || "")
@@ -892,6 +1097,20 @@ export class Calls {
         const source = this.store.get<CallAction>("call", a.sourceCallId);
         if (source) {
           source.supersededBy = a.id;
+          // A reminder for the original time becomes obsolete after a verified change.
+          for (const row of this.store.list<{
+            sourceCallId?: string;
+            status: string;
+          }>("reminder"))
+            if (
+              row.value.sourceCallId === source.id &&
+              row.value.status === "pending"
+            )
+              this.store.put("reminder", row.id, {
+                ...row.value,
+                status: "completed",
+                updatedAt: Date.now(),
+              });
           const oldAction = source.calendarActionId
             ? this.store.get<Action>("action", source.calendarActionId)
             : undefined;
@@ -979,6 +1198,7 @@ export class Calls {
           : "I need to end the call now. Thank you, goodbye.",
         finish: true,
         outcome: "not_booked",
+        endReason: !t.speech ? "silence" : "turn_limit",
       });
       return;
     }
@@ -995,6 +1215,7 @@ export class Calls {
         text: "I’m not authorized to make payments or agree to charges. I’ll ask the customer to contact you directly. Thank you, goodbye.",
         finish: true,
         outcome: "not_booked",
+        endReason: "payment_required",
       });
       return;
     }
@@ -1178,6 +1399,7 @@ export class Calls {
       ...t,
       text: r.text,
       finish: r.outcome !== "continue",
+      endReason: r.outcome === "not_booked" ? "not_booked" : undefined,
       outcome: r.outcome === "continue" ? undefined : r.outcome,
       bookedSlot: ["booked", "rescheduled"].includes(r.outcome)
         ? a.slots[r.slotIndex!]

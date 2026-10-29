@@ -1,3 +1,4 @@
+import type { BookingProfiles } from "./booking-profile.ts";
 import { randomUUID, createHash } from "node:crypto";
 import {
   AppError,
@@ -59,6 +60,7 @@ export class Service {
       reminders: Reminders;
       briefing: Briefing;
       drafts: GmailDrafts;
+      profiles?: BookingProfiles;
     },
   ) {
     for (const { id, value } of store.list<Action>("action"))
@@ -260,6 +262,7 @@ export class Service {
                 signal,
                 onText: options.onText,
                 memories,
+                bookingProfile: this.daily?.profiles?.get() ?? null,
                 reminders: this.daily?.reminders
                   .list()
                   .slice(0, 50)
@@ -422,6 +425,7 @@ export class Service {
               "Booking calls are not configured yet.",
             );
           const phoneSources = [
+            this.daily?.profiles?.get()?.phoneNumber ?? "",
             ...messages.filter((m) => m.role === "user").map((m) => m.content),
             ...memories.map((memory) => `${memory.title} ${memory.text}`),
           ];

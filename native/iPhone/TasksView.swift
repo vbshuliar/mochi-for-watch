@@ -5,6 +5,8 @@ struct PhoneTasksView: View {
   let model: ConversationModel
   @State private var selectedID: String?
   @State private var showingDaily = false
+  @State private var showingProfile = false
+  @State private var showingReadiness = false
   @State private var reviewCall = false
   @State private var reviewProposal = false
   private let notifications = TaskNotifications.shared
@@ -33,7 +35,11 @@ struct PhoneTasksView: View {
         Button("Refresh tasks") { model.resumeCalls(); Task { await notifications.refresh() } }
         if model.hasProposal { Button("Review proposal") { reviewProposal = true } }
       }
-      Section { Button("Today · briefing, reminders & drafts") { showingDaily = true } }
+      Section {
+        Button("Demo readiness") { showingReadiness = true }
+        Button("My usual haircut") { showingProfile = true }
+        Button("Today · briefing, reminders & drafts") { showingDaily = true }
+      }
       Section("Notifications") {
         Text(notifications.status).font(.footnote).foregroundStyle(.secondary)
         Button(notifications.optedIn ? "Turn off task notifications" : "Enable task notifications") {
@@ -43,6 +49,8 @@ struct PhoneTasksView: View {
     }.navigationTitle("Tasks")
       .task { model.resumeCalls(); await notifications.refresh(); openNotificationTask() }
       .onChange(of: notifications.openedTaskID) { _, _ in openNotificationTask() }
+      .sheet(isPresented: $showingReadiness) { DemoReadinessView(model: model.daily) }
+      .sheet(isPresented: $showingProfile) { BookingProfileView(model: model.daily) }
       .sheet(isPresented: $showingDaily) { DailySupportView(model: model.daily) }
       .onChange(of: notifications.openedReminderID) { _, id in if id != nil { showingDaily = true; notifications.openedReminderID = nil } }
       .sheet(isPresented: $reviewCall, onDismiss: { if model.hasProposal { reviewProposal = true } }) {

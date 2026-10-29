@@ -128,3 +128,17 @@ The owner requested builds now and physical-device testing later. No device inst
 - Repeat after losing connectivity; confirm the app offers a clear retry and never retries a call automatically.
 - Inspect the iPhone conversation activity entry `First audio: … ms after input finished`. This uses monotonic time from completing input capture (or submitting text) to the first actual playback callback, once per turn. It is client-observed latency, not a provider estimate or a timing guarantee. Record at least ten real Watch turns and report median and slowest values, including endpointing separately.
 - Compare battery consumption and animation smoothness over a real session, including inactive periods and Reduce Motion. Automated checks cannot verify physical battery impact, microphone quality or wrist-down routing.
+
+## Booking setup and follow-through
+
+Tasks now includes **My usual haircut**: save the business, international phone number, booking name, service, duration, timezone and preferred weekdays/hours. Saving preferences does not authorize a call or add a number to the server's calling allowlist. Each actual call still has a review step.
+
+The shared iPhone/Watch call review shows the server's next-step guidance. Verified bookings offer the existing Calendar, reschedule and cancellation reviews plus a Jolly reminder at an explicitly selected time. Eligible unsuccessful calls offer a new appointment window and prepare another call for approval; uncertain outcomes do not offer automatic redial. Reminder retries retain the same request ID until the chosen time changes.
+
+**Demo readiness** on iPhone displays the backend revision, configuration checks and call-attempt allowance. A configured service is not proof of live provider or device acceptance.
+
+## Private device pairing
+
+The Connection screen is available in Release builds. Enter your private backend HTTPS origin and its short-lived one-time pairing code; the backend issues a revocable device token that is saved in Keychain and synced to your paired Watch. Pairing rejects unsafe origins and never follows redirects with the code. Obtain codes through the backend's authenticated administrator tooling. Legacy connection-file and root-token import remain Debug-only. No credentials are embedded in the app.
+
+Pairing, APNs delivery and physical-device behavior still require owner acceptance. Unsigned SDK builds do not install or provision either device.

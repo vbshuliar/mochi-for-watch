@@ -7,6 +7,23 @@ public struct APIClient: Sendable {
     self.connection = connection
     self.session = session
   }
+  public static func redeemPairing(baseURL: URL, code: String, session: URLSession = .shared) async throws -> Connection {
+    _ = try Connection(baseURL: baseURL, token: String(repeating: "x", count: 32))
+    let normalized = code.uppercased().filter { !$0.isWhitespace && $0 != "-" }
+    guard normalized.count == 16, normalized.allSatisfy({ "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".contains($0) }) else {
+      throw MuseError.message("Enter the 16-character pairing code from your backend.")
+    }
+    var request = URLRequest(url: baseURL.appendingPathComponent("v1/pairing/redeem"), timeoutInterval: 30)
+    request.httpMethod = "POST"
+    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    request.httpBody = try JSONEncoder().encode(["code": normalized])
+    let (data, response) = try await session.data(for: request, delegate: PairingRedirectPolicy())
+    try validate(response, data: data)
+    struct Pairing: Decodable { let token: String; let deviceId: String; let expiresAt: Double }
+    let pairing = try JSONDecoder().decode(Pairing.self, from: data)
+    guard pairing.expiresAt > Date().timeIntervalSince1970 * 1000 else { throw MuseError.message("This connection has expired. Request a new pairing code.") }
+    return try Connection(baseURL: baseURL, token: pairing.token)
+  }
   public func request(
     _ path: String, method: String = "GET", body: Data? = nil,
     contentType: String = "application/json", requestID: String? = nil, query: [URLQueryItem] = []
@@ -92,5 +109,12 @@ public struct APIClient: Sendable {
       }
       throw MuseError.message("Couldn’t reach Jolly. Check your connection and try again.")
     }
+  }
+}
+
+// A pairing code is authority to issue a device token. Never forward it to a redirect target.
+private final class PairingRedirectPolicy: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
+  func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest, completionHandler: @escaping @Sendable (URLRequest?) -> Void) {
+    completionHandler(nil)
   }
 }

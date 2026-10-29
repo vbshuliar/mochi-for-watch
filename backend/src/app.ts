@@ -1,8 +1,8 @@
 import { isWebsiteRequest, registerWebsite } from "./website.ts";
 import { PassThrough } from "node:stream";
-import Fastify from "fastify";
+import Fastify, { type FastifyRequest } from "fastify";
 import rateLimit from "@fastify/rate-limit";
-import { timingSafeEqual } from "node:crypto";
+import { Pairing } from "./pairing.ts";
 import { z } from "zod";
 import type { Config } from "./config.ts";
 import {
@@ -19,7 +19,10 @@ import { GoogleCalendar, MockCalendar } from "./calendar.ts";
 import { Workflows } from "./workflows.ts";
 import { SocialConnections } from "./social.ts";
 import { SocialWorkflow } from "./social-workflow.ts";
-import { Calls } from "./calls.ts";
+import { Calls, bookingRetrySchema } from "./calls.ts";
+import { BookingProfiles } from "./booking-profile.ts";
+import { BookingSupport } from "./booking-support.ts";
+import { buildReadiness } from "./readiness.ts";
 import { Notifications } from "./notifications.ts";
 import { Briefing } from "./briefing.ts";
 import {
@@ -51,7 +54,12 @@ export async function buildApp(
       (config.APP_MODE === "mock" ? new MockCalendar(store) : google);
   const workflows = new Workflows(config, store);
   const social = new SocialConnections(config, store);
+  const pairing = new Pairing(store, config.API_TOKEN);
   const notifications = new Notifications(config, store);
+  let pairingTimer: ReturnType<typeof setInterval> | undefined;
+  const expirePairings = () => {
+    for (const pushId of pairing.expiredPushes()) notifications.remove(pushId);
+  };
   const calls = new Calls(
     config,
     store,
@@ -64,6 +72,8 @@ export async function buildApp(
   const reminders = new Reminders(store, (occurrence) =>
     notifications.enqueueReminder(occurrence),
   );
+  const profiles = new BookingProfiles(store);
+  const bookingSupport = new BookingSupport(calls, reminders);
   const drafts = new GmailDrafts(config, store, workflows.gmail);
   const briefing = new Briefing({
     calendar,
@@ -97,7 +107,7 @@ export async function buildApp(
     workflows,
     calls,
     new SocialWorkflow(config, social),
-    { reminders, briefing, drafts },
+    { reminders, briefing, drafts, profiles },
   );
   const app = Fastify({
     bodyLimit: 6 * 1024 * 1024,
@@ -148,15 +158,16 @@ export async function buildApp(
       ].includes(path)
     )
       return;
-    const provided = Buffer.from(
-        req.headers.authorization?.replace(/^Bearer /, "") || "",
-      ),
-      expected = Buffer.from(config.API_TOKEN);
-    if (
-      provided.length !== expected.length ||
-      !timingSafeEqual(provided, expected)
-    )
+    if (path === "/v1/pairing/redeem" && req.method === "POST") return;
+    const token = req.headers.authorization?.replace(/^Bearer /, "") || "";
+    if (!pairing.authorized(token))
       throw new AppError(401, "unauthorized", "authentication required");
+    if (path.startsWith("/v1/pairing/") && !pairing.isOwner(token))
+      throw new AppError(
+        403,
+        "owner_required",
+        "Device management requires the owner's administration token.",
+      );
   });
   // Structured metadata only: never log URL queries, tokens, audio, transcripts or Calendar content.
   app.addHook("onResponse", async (req, reply) => {
@@ -215,7 +226,60 @@ export async function buildApp(
     });
   });
   registerWebsite(app);
-  app.get("/health", async () => ({ ok: true }));
+  app.get("/health", async () => ({
+    ok: true,
+    revision: config.BUILD_REVISION,
+  }));
+  const ownerOnly = async (req: FastifyRequest) => {
+    if (
+      !pairing.isOwner(req.headers.authorization?.replace(/^Bearer /, "") || "")
+    )
+      throw new AppError(
+        403,
+        "owner_required",
+        "Device management requires the owner's administration token.",
+      );
+  };
+  app.post("/v1/pairing/codes", { preHandler: ownerOnly }, async (req) =>
+    pairing.issue(req.body),
+  );
+  app.post(
+    "/v1/pairing/redeem",
+    { config: { rateLimit: { max: 5, timeWindow: "1 minute" } } },
+    async (req) => pairing.redeem(req.body),
+  );
+  app.get("/v1/pairing/devices", { preHandler: ownerOnly }, async () => ({
+    devices: pairing.list(),
+  }));
+  app.delete(
+    "/v1/pairing/devices/:id",
+    { preHandler: ownerOnly },
+    async (req, reply) => {
+      for (const pushId of pairing.revoke(sessionParams.parse(req.params).id))
+        notifications.remove(pushId);
+      return reply.code(204).send();
+    },
+  );
+  app.get("/v1/booking-profile", async () => ({ profile: profiles.get() }));
+  app.put("/v1/booking-profile", async (req) => ({
+    profile: profiles.save(req.body),
+  }));
+  app.delete("/v1/booking-profile", async (_req, reply) => {
+    profiles.remove();
+    return reply.code(204).send();
+  });
+  app.get("/v1/readiness", async () =>
+    buildReadiness({
+      config,
+      store,
+      calendarConnected: google.connected(),
+      calendarEnabled:
+        store.get<boolean>("integration", "calendar-enabled") !== false,
+      callsConfigured: calls.configured(),
+      pushConfigured: notifications.configured(),
+      profilePhoneNumber: profiles.get()?.phoneNumber,
+    }),
+  );
   app.get("/v1/briefing", async (req) => {
     const query = z.object({ timeZone: timezone }).strict().parse(req.query);
     return briefing.get(query.timeZone);
@@ -264,6 +328,7 @@ export async function buildApp(
   });
   app.get("/v1/status", async () => ({
     mode: config.APP_MODE,
+    revision: config.BUILD_REVISION,
     callsConfigured: calls.configured(),
     ...workflows.status(),
     gmailDraftsEnabled: workflows.gmail.canDraft(),
@@ -677,9 +742,14 @@ export async function buildApp(
     simulated: service.simulated,
   }));
   app.get("/v1/notifications/status", async () => notifications.status());
-  app.post("/v1/notifications/devices", async (req) =>
-    notifications.register(req.body),
-  );
+  app.post("/v1/notifications/devices", async (req) => {
+    const device = notifications.register(req.body);
+    pairing.bindPush(
+      req.headers.authorization?.replace(/^Bearer /, "") || "",
+      device.id,
+    );
+    return device;
+  });
   app.delete("/v1/notifications/devices/:id", async (req, reply) => {
     notifications.remove(sessionParams.parse(req.params).id);
     return reply.code(204).send();
@@ -716,6 +786,16 @@ export async function buildApp(
       actionId,
       bookingChangeSchema.parse(req.body),
     );
+  });
+  app.post("/v1/sessions/:id/calls/:actionId/retry", async (req) => {
+    const { id, actionId } = actionParams.parse(req.params);
+    service.session(id);
+    return calls.prepareRetry(id, actionId, bookingRetrySchema.parse(req.body));
+  });
+  app.post("/v1/sessions/:id/calls/:actionId/reminder", async (req) => {
+    const { id, actionId } = actionParams.parse(req.params);
+    service.session(id);
+    return { reminder: bookingSupport.remind(id, actionId, req.body) };
   });
   for (const route of ["voice/:turn", "gather/:turn", "status"]) {
     app.post(
@@ -755,12 +835,22 @@ export async function buildApp(
     return reply.type("audio/mpeg").send(calls.audio(token));
   });
   app.addHook("onClose", async () => {
+    if (pairingTimer) clearInterval(pairingTimer);
     reminders.close();
     await calls.close();
     await notifications.close();
     store.close();
   });
   app.addHook("onReady", async () => {
+    expirePairings();
+    pairingTimer = setInterval(() => {
+      try {
+        expirePairings();
+      } catch {
+        console.error("Pairing expiry cleanup unavailable");
+      }
+    }, 60000);
+    pairingTimer.unref();
     // Recover an alert if the process stopped after persisting a call outcome.
     for (const call of calls.listAll()) notifications.enqueue(call);
     reminders.start();
@@ -775,5 +865,7 @@ export async function buildApp(
     reminders,
     briefing,
     drafts,
+    pairing,
+    profiles,
   };
 }

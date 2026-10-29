@@ -79,6 +79,7 @@ export type Memory = z.infer<typeof memoryInputSchema> & {
   updatedAt: number;
 };
 export type PlanOptions = {
+  bookingProfile?: import("./booking-profile.ts").BookingProfile | null;
   signal?: AbortSignal;
   onText?: (text: string) => void;
   memories?: Memory[];

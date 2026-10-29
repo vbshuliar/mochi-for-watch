@@ -174,6 +174,9 @@ public struct CallAction: Codable, Identifiable, Sendable {
   public let supersededBy: String?
   public let calendarActionId: String?
   public let originalSlot: BookingWindow?
+  public let retryOfCallId: String?
+  public let retriedBy: String?
+  public let followUp: BookingFollowUp?
   public var booked: Bool { status == "completed" && ["booked", "rescheduled"].contains(outcome ?? "") }
   public var bookingCancelled: Bool { status == "completed" && outcome == "booking_cancelled" }
   public var resultTitle: String {
@@ -254,4 +257,49 @@ public struct DailyBriefing: Decodable, Sendable {
   public let timeZone: String
   public let simulated: Bool
   public let sources: [String: String]
+}
+
+public struct BookingFollowUp: Codable, Sendable {
+  public let canRetry: Bool
+  public let canChange: Bool
+  public let canAddReminder: Bool
+  public let needsVerification: Bool
+  public let message: String
+}
+public struct BookingProfile: Codable, Sendable {
+  public var destinationName: String = ""
+  public var phoneNumber: String = ""
+  public var purpose: String = "haircut"
+  public var customerName: String = ""
+  public var durationMinutes: Int = 30
+  public var timeZone: String = TimeZone.current.identifier
+  public var preferredDays: [Int] = [1, 2, 3, 4, 5]
+  public var preferredStart: String = "14:00"
+  public var preferredEnd: String = "18:00"
+  public init() {}
+}
+
+public struct DemoReadiness: Decodable, Sendable {
+  public let revision: String
+  public let mode: String
+  public let checkedAt: Double
+  public let configurationReady: Bool
+  public let readyForDemo: Bool
+  public let checks: [Check]
+  public let usage: Usage
+  public struct Check: Decodable, Identifiable, Sendable {
+    public let id: String
+    public let title: String
+    public let status: String
+    public let detail: String
+  }
+  public struct Usage: Decodable, Sendable {
+    public let periodStart: String
+    public let callAttempts: Int
+    public let callLimit: Int
+    public let remainingCalls: Int
+    public let activeCalls: Int
+    public let unverifiedCalls: Int
+    public let notes: String
+  }
 }

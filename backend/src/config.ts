@@ -4,6 +4,8 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env) {
     .object({
       HOST: z.enum(["127.0.0.1", "0.0.0.0"]).default("127.0.0.1"),
       PORT: z.coerce.number().int().min(1).max(65535).default(8787),
+      BUILD_REVISION: z.string().max(120).default("unknown"),
+      DAILY_CALL_LIMIT: z.coerce.number().int().min(1).max(100).default(10),
       APP_MODE: z.enum(["mock", "live"]).default("mock"),
       API_TOKEN: z.string().min(32),
       ENCRYPTION_KEY: z.string().regex(/^[a-f0-9]{64}$/i),

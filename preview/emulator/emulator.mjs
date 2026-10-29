@@ -519,6 +519,8 @@ try{
  await status();
  if(sessionId){try{await api(`/v1/sessions/${sessionId}/events`);}catch(error){if(error.status!==404)throw error;sessionId=null;sessionStorage.removeItem('muse-session');sessionStorage.removeItem('muse-action');}}
  await session();await restoreSavedAction();void refreshTasks();
+ const {setupBookingSupport}=await import('./booking-support.mjs');
+ setupBookingSupport({api,canReview:()=>!busy&&!decisionBusy&&!recording&&!recordingPending&&!foregroundApproval(),onCall:action=>{actionView(action,true);$('#approval').scrollIntoView({block:'nearest',behavior:'smooth'});}});
  const {setupDailySupport}=await import('./daily-support.mjs');
  setupDailySupport({api,getSession:session,canReview:()=>!busy&&!decisionBusy&&!recording&&!recordingPending&&!foregroundApproval(),onDraft:action=>{actionView(action,true);$('#approval').scrollIntoView({block:'nearest',behavior:'smooth'});}});
  $('#hint').textContent=pending?'A previous proposal is ready for review.':'Tap Jolly to start a real conversation.';log('backend connected');

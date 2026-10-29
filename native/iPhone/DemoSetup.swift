@@ -1,4 +1,3 @@
-#if DEBUG
   import SwiftUI
   import UniformTypeIdentifiers
   import MuseCore
@@ -11,9 +10,32 @@
     @State private var error: String?
     @State private var address = ""
     @State private var token = ""
+    @State private var pairingCode = ""
+    @State private var pairingModel: PairingModel
+    @State private var pairingTask: Task<Void, Never>?
+    init(store: ConnectionStore, saved: @escaping () -> Void) {
+      self.store = store; self.saved = saved
+      _pairingModel = State(initialValue: PairingModel(store: store))
+    }
+    private var pairing: Bool { pairingModel.busy }
     var body: some View {
       NavigationStack {
         Form {
+          Section("Pair with your backend") {
+            TextField("Backend HTTPS address", text: $address).textInputAutocapitalization(.never).autocorrectionDisabled().keyboardType(.URL)
+            SecureField("One-time pairing code", text: $pairingCode).textInputAutocapitalization(.characters).autocorrectionDisabled().privacySensitive()
+            Text("Use a short-lived code from your private backend. Your connection is stored securely and shared with your paired Watch.").font(.footnote)
+            Button("Pair iPhone and Watch") {
+              error = nil
+              pairingTask = Task {
+                if await pairingModel.pair(address: address, code: pairingCode) {
+                  pairingCode = ""; saved(); dismiss()
+                }
+              }
+            }.disabled(pairing || pairingCode.isEmpty || address.isEmpty)
+            if store.connection != nil { Button("Sync with Apple Watch") { saved() }.disabled(pairing) }
+          }
+          #if DEBUG
           Section {
             Text(
               "Import the private connection file generated on your Mac. It connects this phone and your paired Watch to your own backend."
@@ -44,9 +66,12 @@
           } header: { Text("Or enter the demo connection") } footer: {
             Text("Use the app access token from your backend, not a Meta or ElevenLabs API key.")
           }
-          if let error { Section { Text(error).foregroundStyle(.red) } }
-        }.navigationTitle("Demo connection")
-          .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } } }
+          #endif
+          if let error = pairingModel.error ?? error { Section { Text(error).foregroundStyle(.red) } }
+        }.disabled(pairing).navigationTitle("Connection")
+          .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() }.disabled(pairing) } }
+          .interactiveDismissDisabled(pairing)
+          .onDisappear { pairingTask?.cancel(); pairingModel.cancel() }
           .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { result in
             do {
               let url = try result.get()
@@ -64,4 +89,3 @@
       }
     }
   }
-#endif

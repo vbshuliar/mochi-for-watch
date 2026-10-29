@@ -99,3 +99,79 @@ struct DailySupportView: View {
     }
   }
 }
+
+struct BookingProfileView: View {
+  let model: DailySupportModel
+  @State private var profile = BookingProfile()
+  @State private var loaded = false
+  @Environment(\.dismiss) private var dismiss
+  private let days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+  var body: some View {
+    NavigationStack {
+      Form {
+        Section("My usual haircut") {
+          TextField("Barber or salon", text: $profile.destinationName)
+          TextField("Phone including country code", text: $profile.phoneNumber)
+          TextField("Service", text: $profile.purpose)
+          TextField("Booking name", text: $profile.customerName)
+          Stepper("\(profile.durationMinutes) minutes", value: $profile.durationMinutes, in: 5...240, step: 5)
+        }
+        Section("Preferred times") {
+          ForEach(1...7, id: \.self) { day in
+            Toggle(days[day - 1], isOn: Binding(get: { profile.preferredDays.contains(day) }, set: { selected in
+              if selected { profile.preferredDays = Array(Set(profile.preferredDays + [day])).sorted() }
+              else { profile.preferredDays.removeAll { $0 == day } }
+            }))
+          }
+          TextField("From, HH:mm", text: $profile.preferredStart)
+          TextField("Until, HH:mm", text: $profile.preferredEnd)
+          TextField("Time zone", text: $profile.timeZone)
+        }
+        Section {
+          Text("These details help Jolly prepare your usual booking. You still review and approve each call. Saving a number does not enable it for calling.").font(.footnote)
+          if !loaded { Button("Load preferences") { Task { if await model.loadProfile() { profile = model.profile ?? BookingProfile(); loaded = true } } } }
+          Button("Save preferences") { Task { if await model.saveProfile(profile) { dismiss() } } }.disabled(!loaded || profile.destinationName.trimmingCharacters(in: .whitespaces).isEmpty || profile.phoneNumber.isEmpty || profile.customerName.isEmpty || profile.preferredDays.isEmpty)
+          if model.profile != nil { Button("Forget booking preferences", role: .destructive) { Task { if await model.saveProfile(nil) { dismiss() } } } }
+          if let error = model.error { Text(error).foregroundStyle(.red) }
+        }
+      }.disabled(model.busy)
+        .navigationTitle("My usual haircut")
+        .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
+        .task { if await model.loadProfile() { profile = model.profile ?? BookingProfile(); loaded = true } }
+    }
+  }
+}
+
+struct DemoReadinessView: View {
+  let model: DailySupportModel
+  @Environment(\.dismiss) private var dismiss
+  var body: some View {
+    NavigationStack {
+      List {
+        if let readiness = model.readiness {
+          Section {
+            Text(readiness.configurationReady ? "Configuration ready" : "Setup needs attention").font(.headline)
+            Text("\(readiness.mode.capitalized) · revision \(readiness.revision)").font(.caption)
+            Text("Updated \(Date(timeIntervalSince1970: readiness.checkedAt / 1000).formatted())").font(.caption)
+            Text("Configuration checks do not prove a successful real call or device delivery.").font(.footnote)
+          }
+          ForEach(readiness.checks) { check in
+            Section(check.title) {
+              Label(check.status.replacingOccurrences(of: "_", with: " "), systemImage: check.status == "ready" ? "checkmark.circle" : "info.circle")
+              Text(check.detail).font(.footnote)
+            }
+          }
+          Section("Today's calls") {
+            Text("\(readiness.usage.callAttempts) of \(readiness.usage.callLimit) attempts used")
+            Text("\(readiness.usage.remainingCalls) remaining · \(readiness.usage.activeCalls) active · \(readiness.usage.unverifiedCalls) unverified").font(.footnote)
+            Text(readiness.usage.notes).font(.footnote)
+          }
+        }
+        if let error = model.error { Text(error).foregroundStyle(.red) }
+        Button("Refresh readiness") { Task { await model.loadReadiness() } }.disabled(model.busy)
+      }.navigationTitle("Demo readiness")
+        .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } } }
+        .task { await model.loadReadiness() }
+    }
+  }
+}

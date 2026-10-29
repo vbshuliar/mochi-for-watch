@@ -126,11 +126,10 @@ struct PhoneHome: View {
           conversation.suspend()
         }
       }
-      #if DEBUG
         .toolbar {
           ToolbarItem(placement: .topBarTrailing) {
             Button("Connection", systemImage: "link") { setup = true }
-              .accessibilityHint("Import your private connection and sync with Apple Watch")
+              .accessibilityHint("Pair your private backend and sync with Apple Watch")
           }
         }
         .sheet(isPresented: $setup) {
@@ -139,7 +138,6 @@ struct PhoneHome: View {
             Task { await model.refresh() }
           }
         }
-      #endif
     }
   }
 }

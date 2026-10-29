@@ -85,7 +85,7 @@ For a fresh installation, choose an app name, configure billing, create one 1 GB
 
 The local `native/scripts/connection.mjs` helper reads `backend/.env`; passing a Fly URL does **not** make it read Fly credentials. Do not overwrite the working hosted connection with a local token. For a new hosted connection, securely create JSON with `baseURL` and `token` matching that deployment.
 
-The Watch still needs internet access. The initial setup requires the paired iPhone, but the backend runs on Fly. Debug connection setup is not available in Release builds; public distribution needs a real sign-in/pairing flow. Development signing remains separate from hosting and can require renewal through Xcode.
+The Watch still needs internet access. The initial setup requires the paired iPhone, but the backend runs on Fly. The latest build supports private one-time code pairing in Release as well as Debug. Legacy owner-token import remains Debug-only. This remains a single-owner service, not public multi-user sign-in. Development signing remains separate from hosting and can require renewal through Xcode.
 
 ## Recorded checks — 27 October 2026
 
@@ -104,9 +104,9 @@ Initial local DNS caching briefly required a diagnostic lookup override while re
 
 Use `fly logs`, `fly status` and `fly checks list` for diagnosis; avoid sharing logs that contain conversation content. After a deployment, verify health, authentication, an actual reply and audio. Confirm restart persistence after storage changes. For recovery, redeploy a known-good image or revision; rolling back code does not roll back database contents. Test snapshot restoration before relying on it.
 
-Google Calendar remains optional. Before enabling it, add Google credentials as secrets and register `https://muse-for-watch-vlad.fly.dev/oauth/google/callback` in the Google OAuth client. Validate consent, read, proposal, confirm and cancel against a real account. Other connector rows are placeholders.
+Google Calendar remains optional. Before enabling it, add Google credentials as secrets and register `https://muse-for-watch-vlad.fly.dev/oauth/google/callback` in the Google OAuth client. Validate consent, read, proposal, confirm and cancel against a real account. Gmail, Notion and social adapters are implemented; each still requires its own provider app configuration and account consent.
 
-Remaining device checks include interruption, wrist-down/background transitions, weak connectivity, speaker routing and battery use. Public release additionally requires per-user authentication and ownership boundaries.
+Remaining device checks include interruption, wrist-down/background transitions, weak connectivity, speaker routing and battery use. A shared public service would additionally require per-user authentication and ownership boundaries; the owner chose private deployment.
 
 ## Retired Render deployment
 

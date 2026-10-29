@@ -6,6 +6,8 @@ COPY tsconfig.json ./
 COPY src ./src
 RUN npm run build && npm prune --omit=dev
 FROM node:24-bookworm-slim
+ARG BUILD_REVISION=unknown
+ENV BUILD_REVISION=$BUILD_REVISION
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=8787 DATABASE_PATH=/app/data/muse.sqlite
 WORKDIR /app
 COPY --from=build --chown=node:node /app/node_modules ./node_modules

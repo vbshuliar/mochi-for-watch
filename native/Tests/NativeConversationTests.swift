@@ -66,6 +66,10 @@ private final class NativeFixture: URLProtocol, @unchecked Sendable {
       }
     } else if path.hasSuffix("/tasks") {
       body = "{\"calls\":[" + callFixture + "," + callFixture.replacingOccurrences(of: "call-1", with: "call-2").replacingOccurrences(of: "test-session", with: "foreign-session") + "]}"
+    } else if path.hasSuffix("/retry") {
+      XCTAssertTrue(path.contains("/sessions/foreign-session/"))
+      let changed = callFixture.replacingOccurrences(of: "call-1", with: "retry-proposal").replacingOccurrences(of: "uncertain", with: "pending").replacingOccurrences(of: "test-session", with: "foreign-session")
+      body = #"{"sessionId":"foreign-session","state":"approval","statusText":"Review retry","speechText":"Review this call before calling again.","simulated":true,"callAction":\#(changed)}"#
     } else if path.hasSuffix("/change") {
       let changed = callFixture.replacingOccurrences(of: "call-1", with: "change-proposal").replacingOccurrences(of: "uncertain", with: "pending")
       body = #"{"sessionId":"test-session","state":"approval","statusText":"Review cancellation call","speechText":"Review this call before Jolly cancels the booking.","simulated":true,"callAction":\#(changed)}"#
@@ -477,6 +481,35 @@ extension NativeConversationTests {
 
 
 extension NativeConversationTests {
+  func testLateRetryDoesNotReplaceInterveningCalendarReview() async throws {
+    let (model, audio) = try makeModel()
+    defer { model.suspend() }
+    var object = try JSONSerialization.jsonObject(with: Data(callFixture.utf8)) as! [String: Any]
+    object["sessionId"] = "foreign-session"; object["status"] = "failed"
+    object["followUp"] = ["canRetry": true, "canChange": false, "canAddReminder": true, "needsVerification": false, "message": "Choose a new time"]
+    let failed = try JSONDecoder().decode(CallAction.self, from: JSONSerialization.data(withJSONObject: object))
+    model.prepareBookingRetry(failed, start: Date().addingTimeInterval(86400), end: Date().addingTimeInterval(90000))
+    model.action = try JSONDecoder().decode(Action.self, from: Data(calendarFixture(id: "intervening", status: "pending").utf8))
+    await eventually { model.taskCalls.contains(where: { $0.id == "retry-proposal" }) }
+    XCTAssertEqual(model.action?.id, "intervening")
+    XCTAssertNil(model.callAction)
+    XCTAssertTrue(model.activities.contains(where: { $0.text.contains("saved in Tasks") }))
+    XCTAssertEqual(audio.played, 0)
+  }
+  func testRetryUsesSourceSessionAndOnlyPreparesApproval() async throws {
+    let (model, audio) = try makeModel()
+    defer { model.suspend() }
+    var object = try JSONSerialization.jsonObject(with: Data(callFixture.utf8)) as! [String: Any]
+    object["sessionId"] = "foreign-session"
+    object["status"] = "failed"
+    object["followUp"] = ["canRetry": true, "canChange": false, "canAddReminder": true, "needsVerification": false, "message": "Choose a new time"]
+    let failed = try JSONDecoder().decode(CallAction.self, from: JSONSerialization.data(withJSONObject: object))
+    model.prepareBookingRetry(failed, start: Date().addingTimeInterval(86400), end: Date().addingTimeInterval(90000))
+    await eventually { model.callAction?.id == "retry-proposal" }
+    XCTAssertEqual(model.callAction?.status, "pending")
+    XCTAssertEqual(model.callAction?.sessionId, "foreign-session")
+    XCTAssertEqual(audio.played, 0)
+  }
   func testFreshDeviceLoadsTasksFromOtherSessionsWithoutStartingConversation() async throws {
     let (model, audio) = try makeModel()
     defer { model.suspend() }
@@ -590,6 +623,46 @@ extension NativeConversationTests {
 }
 
 @MainActor final class DailySupportTests: XCTestCase {
+  func testBusyProfileLoadDoesNotReportSuccessOrReplaceExistingData() async {
+    let model = DailySupportModel(store: ConnectionStore(connection: nil))
+    model.busy = true
+    var profile = BookingProfile(); profile.destinationName = "Saved salon"
+    model.profile = profile
+    let loaded = await model.loadProfile()
+    XCTAssertFalse(loaded)
+    XCTAssertEqual(model.profile?.destinationName, "Saved salon")
+  }
+  func testDismissedPairingCannotSaveLateConnection() async throws {
+    let original = try Connection(baseURL: URL(string: "https://original.fixture")!, token: String(repeating: "o", count: 32))
+    let replacement = try Connection(baseURL: URL(string: "https://replacement.fixture")!, token: String(repeating: "r", count: 32))
+    let store = ConnectionStore(connection: original)
+    var continuation: CheckedContinuation<Connection, Error>?
+    let model = PairingModel(store: store, redeem: { _, _ in try await withCheckedThrowingContinuation { continuation = $0 } })
+    let request = Task { await model.pair(address: "https://replacement.fixture", code: "ABCDEFGHJKLM2389") }
+    for _ in 0..<100 { if continuation != nil { break }; try? await Task.sleep(for: .milliseconds(5)) }
+    XCTAssertNotNil(continuation)
+    model.cancel()
+    continuation?.resume(returning: replacement)
+    let result = await request.value
+    XCTAssertFalse(result)
+    XCTAssertEqual(store.connection, original)
+    XCTAssertFalse(model.busy)
+  }
+  func testBookingProfileEncodesOnlyEditableFieldsAndDisconnectedSaveFails() async throws {
+    var profile = BookingProfile()
+    profile.destinationName = "Salon"; profile.phoneNumber = "+442012345678"; profile.customerName = "Alex"
+    let object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(profile)) as! [String: Any]
+    XCTAssertEqual(object["preferredDays"] as? [Int], [1,2,3,4,5])
+    XCTAssertNil(object["updatedAt"])
+    let model = DailySupportModel(store: ConnectionStore(connection: nil))
+    let saved = await model.saveProfile(profile)
+    XCTAssertFalse(saved)
+    XCTAssertNotNil(model.error)
+    model.profile = profile
+    model.reset()
+    XCTAssertNil(model.profile)
+    XCTAssertNil(model.readiness)
+  }
   func testDisconnectedReminderSaveReportsFailureInsteadOfClosingAsSuccessful() async {
     let model = DailySupportModel(store: ConnectionStore(connection: nil))
     model.beginReminder()

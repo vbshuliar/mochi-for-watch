@@ -8,7 +8,9 @@ export function attachRealtime(
   server: Server,
   config: Config,
   connect = (url: string) => new WebSocket(url, { maxPayload: 65536 }),
+  authorize?: (token: string) => boolean,
 ) {
+  const tokens = new WeakMap<WebSocket, string>();
   const wss = new WebSocketServer({ noServer: true, maxPayload: 65536 });
   server.on("upgrade", (req, socket, head) => {
     const expected = Buffer.from(config.API_TOKEN);
@@ -17,17 +19,20 @@ export function attachRealtime(
     );
     if (
       req.url !== "/v1/realtime" ||
-      provided.length !== expected.length ||
-      !timingSafeEqual(provided, expected) ||
+      !(authorize
+        ? authorize(provided.toString())
+        : provided.length === expected.length &&
+          timingSafeEqual(provided, expected)) ||
       config.APP_MODE !== "live" ||
       wss.clients.size >= 2
     ) {
       socket.end("HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n");
       return;
     }
-    wss.handleUpgrade(req, socket, head, (client) =>
-      wss.emit("connection", client),
-    );
+    wss.handleUpgrade(req, socket, head, (client) => {
+      tokens.set(client, provided.toString());
+      wss.emit("connection", client);
+    });
   });
   wss.on("connection", (client) => {
     const url = new URL(config.META_BASE_URL + "/asr/realtime");
@@ -99,6 +104,10 @@ export function attachRealtime(
       }
     });
     client.on("message", (raw, binary) => {
+      if (authorize && !authorize(tokens.get(client) ?? "")) {
+        fail();
+        return;
+      }
       if (!ready || ended) {
         fail();
         return;

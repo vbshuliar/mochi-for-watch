@@ -3,8 +3,10 @@ import { readConfig } from "./config.ts";
 import { attachRealtime } from "./realtime.ts";
 try {
   const config = readConfig();
-  const { app } = await buildApp(config);
-  const closeRealtime = attachRealtime(app.server, config);
+  const { app, pairing } = await buildApp(config);
+  const closeRealtime = attachRealtime(app.server, config, undefined, (token) =>
+    pairing.authorized(token),
+  );
   for (const signal of ["SIGINT", "SIGTERM"] as const)
     process.once(signal, () => {
       closeRealtime();
