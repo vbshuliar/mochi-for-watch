@@ -25,15 +25,15 @@ struct Connector: Identifiable {
   static let all = [
     Connector(
       id: "google-calendar", title: "Calendar",
-      detail: "Let Tuck view your schedule and create meetings—with your approval."),
+      detail: "Let Mochi view your schedule and create meetings—with your approval."),
     Connector(
       id: "instagram", title: "Instagram", detail: "Read posts and comments, and draft replies for you to review."),
     Connector(
       id: "facebook", title: "Facebook Pages", detail: "Read Page posts and comments, and draft replies for you to review."),
     Connector(
-      id: "notion", title: "Notion Workspace", detail: "Let Tuck find and organize your notes."),
-    Connector(id: "gmail", title: "Gmail Inbox", detail: "Let Tuck help you catch up on email."),
-    Connector(id: "safari", title: "Web Search", detail: "Let Tuck look things up for you."),
+      id: "notion", title: "Notion Workspace", detail: "Let Mochi find and organize your notes."),
+    Connector(id: "gmail", title: "Gmail Inbox", detail: "Let Mochi help you catch up on email."),
+    Connector(id: "safari", title: "Web Search", detail: "Let Mochi look things up for you."),
   ]
 }
 struct PhoneHome: View {
@@ -58,7 +58,7 @@ struct PhoneHome: View {
                   .onLongPressGesture(minimumDuration: 1.5) { setup = true }
                 #endif
               VStack(alignment: .leading, spacing: 5) {
-                Text("Tuck").font(.title2.bold()).foregroundStyle(.primary)
+                Text("Mochi").font(.title2.bold()).foregroundStyle(.primary)
                 Text("Your favorite Muse, on your wrist.").font(.subheadline).foregroundStyle(
                   .secondary)
               }
@@ -173,7 +173,7 @@ struct ConnectionDetail: View {
           }
         } else if connector.id == "safari", model.status?.webSearch == true {
           Label("Available through Meta", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
-          Text("Ask Tuck about current information. Sources appear with the reply; no extra sign-in needed.").font(.footnote)
+          Text("Ask Mochi about current information. Sources appear with the reply; no extra sign-in needed.").font(.footnote)
         } else {
           Text(connector.id == "safari" ? "Web search is unavailable right now. Try again later." : "This connection is unavailable right now. Try again later.").foregroundStyle(.secondary)
         }
@@ -223,7 +223,7 @@ struct PhoneConversation: View {
             JollyView(mood: model.mood, level: model.level, heartStart: model.heartStart)
               .frame(width: 260, height: 260)
           }.buttonStyle(.plain).accessibilityLabel(
-            model.recording ? "Finish speaking" : "Talk to Tuck")
+            model.recording ? "Finish speaking" : "Talk to Mochi")
           Text(model.caption).font(.subheadline)
         }
         if let failure = model.failure {
@@ -255,7 +255,7 @@ struct PhoneConversation: View {
         }
       }
     }.animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: model.completionCall?.id)
-      .navigationTitle("Tuck").navigationBarTitleDisplayMode(.inline)
+      .navigationTitle("Mochi").navigationBarTitleDisplayMode(.inline)
       .sheet(isPresented: $review) {
         if model.action == nil, model.documentAction == nil, model.gmailDraftAction == nil, let call = model.callAction { CallReview(model: model, call: call) }
         if let draft = model.gmailDraftAction {
@@ -291,7 +291,7 @@ struct WorkspaceConnectionView: View {
   var body: some View {
     Form {
       Section {
-        Text(provider == "gmail" ? "Let Tuck find and summarize your email. Enable drafts separately to save reviewed, unsent drafts. Tuck never sends email." : "Let Tuck turn ideas and email summaries into pages. Review every draft before saving.")
+        Text(provider == "gmail" ? "Let Mochi find and summarize your email. Enable drafts separately to save reviewed, unsent drafts. Mochi never sends email." : "Let Mochi turn ideas and email summaries into pages. Review every draft before saving.")
         if connected { Label("Connected", systemImage: "checkmark.circle.fill").foregroundStyle(.green) }
         Button(connected ? "Reconnect" : (provider == "gmail" ? "Connect with Google" : "Connect with Notion")) {
           Task { if let url = await model.connectWorkspace(provider) { openURL(url) } }
@@ -341,7 +341,7 @@ struct SocialConnectionView: View {
   var body: some View {
     Form {
       Section {
-        Text("Let Tuck read posts and comments, and draft replies for you to review. Tuck can’t publish posts or send replies.")
+        Text("Let Mochi read posts and comments, and draft replies for you to review. Mochi can’t publish posts or send replies.")
         if connected, let selected = model.selectedSocialAccount(provider) {
           Label("Connected to \(selected.name)", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
         } else {

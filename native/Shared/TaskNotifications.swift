@@ -57,7 +57,7 @@ import WatchKit
     Task { await refresh() }
   }
   func refresh() async {
-    guard let connection else { status = "Connect to Tuck to enable notifications"; return }
+    guard let connection else { status = "Connect to Mochi to enable notifications"; return }
     let ticket = generation
     for pending in pendingRemovals { removeRegistration(pending) }
     do {

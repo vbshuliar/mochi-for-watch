@@ -118,7 +118,7 @@ function setState(id,fromDemo=false){
  $('#message').setAttribute('aria-label',id==='listen'?'listening — microphone activity':statuses[id]);
  $('#mic-retry').hidden=true;
  if(id==='listen'&&!emulatorMode)void microphone.start();
- $('#mascot').setAttribute('aria-label',id==='approval'?'Approve simulated lunch event':id==='error'?'Retry simulated save':id==='sleep'?'Tap Tuck to wake up':id==='listen'?'Tap Tuck to finish talking':'Tap Tuck to continue');
+ $('#mascot').setAttribute('aria-label',id==='approval'?'Approve simulated lunch event':id==='error'?'Retry simulated save':id==='sleep'?'Tap Mochi to wake up':id==='listen'?'Tap Mochi to finish talking':'Tap Mochi to continue');
  document.querySelectorAll('[data-state]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.state===id)));
  // Keep this reaction independent of story timers, which stop at the result.
  if(Object.hasOwn(reactionDurations,id))reactionTimer=setTimeout(()=>setState('idle'),reactionDurations[id]);
@@ -391,7 +391,7 @@ if(emotionsOnly){
  $('#state-filter').value='emotions';
  document.title='Muse for Watch · emotions';
  $('.intro h1').textContent='every little feeling.';
- $('.intro>p:last-child').textContent='Choose an emotion to see Tuck react, then settle back to neutral.';
+ $('.intro>p:last-child').textContent='Choose an emotion to see Mochi react, then settle back to neutral.';
  $('aside>.description').textContent='All available emotions and reactions. Click one to preview its animation.';
  $('header>a').href='/preview/emulator/';$('header>a').textContent='← back to emulator';
  $('#mascot').onclick=()=>setState('idle');

@@ -30,7 +30,7 @@
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Connect to your Muse backend on your local network.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Talk to Tuck using your microphone. Audio is sent to Meta for transcription.</string>
+	<string>Talk to Mochi using your microphone. Audio is sent to Meta for transcription.</string>
 	<key>WKApplication</key>
 	<true/>
 	<key>WKCompanionAppBundleIdentifier</key>

@@ -1,4 +1,4 @@
-// Render a static version of the native Tuck component for the app launcher.
+// Render a static version of the native Mochi component for the app launcher.
 import AppKit
 import SwiftUI
 
@@ -7,7 +7,7 @@ import SwiftUI
   guard
     let plate = NSImage(
       contentsOf: root.appendingPathComponent("Resources/Assets.xcassets/Tuck.imageset/tuck.png"))
-  else { fatalError("Missing Tuck resource") }
+  else { fatalError("Missing Mochi resource") }
   let content = ZStack {
     Color.black
     Image(nsImage: plate).resizable().frame(width: 920, height: 920)

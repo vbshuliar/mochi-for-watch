@@ -12,6 +12,6 @@ The exact JavaScript dependency versions and package metadata are recorded in `b
 - `native/Verification/` contains dated simulator captures. They are not physical-device acceptance evidence for the current build.
 - `preview/` contains browser-client and character-playground captures. Booking-result examples may contain synthetic appointments.
 - `website/IMAGE-PROMPT.md` records the generated watch illustration's prompt. The illustration is not a product photograph.
-- Apple, Google, Notion and Meta product marks remain their owners' marks. The active Tuck character uses the user-selected generated concept; see `docs/design/tuck.md`. Historical Jolly studies and the Muse product name remain unresolved rights questions. Replacing the runtime mascot is not a complete branding clearance.
+- Apple, Google, Notion and Meta product marks remain their owners' marks. The active Mochi character uses the user-selected generated concept; see `docs/design/tuck.md`. Historical Jolly studies and the Muse product name remain unresolved rights questions. Replacing the runtime mascot is not a complete branding clearance.
 
 Before external distribution, resolve the asset rights question and choose an explicit software license. Keep original attribution and upstream notices with redistributed materials.

@@ -167,7 +167,7 @@ function monitorCall(){
  callTimer=setTimeout(async()=>{
   callAbort=new AbortController();
   try{const result=await api(`/v1/sessions/${call.sessionId}/calls/${call.id}`,{signal:callAbort.signal});if(backgroundCall?.id!==call.id)return;updateBackgroundCall(result.callAction,true);}
-  catch{if(backgroundCall?.id===call.id){$('#action-note').textContent='Call status temporarily unavailable. Checking again; Tuck will not redial automatically.';monitorCall();}}
+  catch{if(backgroundCall?.id===call.id){$('#action-note').textContent='Call status temporarily unavailable. Checking again; Mochi will not redial automatically.';monitorCall();}}
  },3000);
 }
 window.addEventListener('pagehide',stopCallUpdates);
@@ -265,7 +265,7 @@ function speak(text,result){
  apiLog('request','POST /v1/speech',{text});
  face('think','thinking…');
  void speechPlayer.play(text,{
-  onBlocked:()=>{if(version!==speechVersion)return;clearTimeout(softWaitTimer);face('idle','tap to hear me');log('browser paused audio · tap Tuck to play');},
+  onBlocked:()=>{if(version!==speechVersion)return;clearTimeout(softWaitTimer);face('idle','tap to hear me');log('browser paused audio · tap Mochi to play');},
   onReady:bytes=>apiLog('response','/v1/speech',{status:200,ms:Math.round(performance.now()-started),message:`ElevenLabs audio ready · ${Math.round(performance.now()-started)} ms`,bytes}),
   onStart:()=>{if(version!==speechVersion)return;clearTimeout(softWaitTimer);if(result?.voiceEndedAt!=null)log(`voice response · ${Math.round(performance.now()-result.voiceEndedAt)} ms from last speech to first audio`);face('speak','speaking…');log(`ElevenLabs playback started · ${Math.round(performance.now()-started)} ms`);},
   onEnd:()=>{if(version===speechVersion){clearTimeout(softWaitTimer);log('ElevenLabs playback finished');rest(result);}},
@@ -278,7 +278,7 @@ function actionView(action,review=false){
  if(!action&&savedForeground){action=savedForeground;savedForeground=null;}
  if(action?.booking&&action.status!=='pending'){if(!review)updateBackgroundCall(action);if(!review){if(sessionStorage.getItem('muse-action')===action.id){sessionStorage.removeItem('muse-action');sessionStorage.removeItem('muse-action-kind');}if(pending?.booking)pending=null;$('#approval').hidden=!pending;controls();return;}}
  if(action?.booking&&sessionStorage.getItem('muse-call-attempt')===action.id)uncertainCalls.add(action.id);
- let dismiss=$('#dismiss-document');if(!dismiss){dismiss=document.createElement('button');dismiss.id='dismiss-document';dismiss.textContent='back to Tuck';dismiss.onclick=()=>{if(!busy){actionView(null);if(dialogueIdle())face('idle','tap to talk');}};$('#approval').append(dismiss);}dismiss.hidden=!((action?.to&&action.status!=='pending')||(action?.body&&['uncertain','executing'].includes(action.status))||(action?.booking&&(action.status!=='pending'||uncertainCalls.has(action.id))));
+ let dismiss=$('#dismiss-document');if(!dismiss){dismiss=document.createElement('button');dismiss.id='dismiss-document';dismiss.textContent='back to Mochi';dismiss.onclick=()=>{if(!busy){actionView(null);if(dialogueIdle())face('idle','tap to talk');}};$('#approval').append(dismiss);}dismiss.hidden=!((action?.to&&action.status!=='pending')||(action?.body&&['uncertain','executing'].includes(action.status))||(action?.booking&&(action.status!=='pending'||uncertainCalls.has(action.id))));
  pending=action&&(action.booking||action.to||['pending','uncertain','executing'].includes(action.status))?action:null;
  for(const id of ['stop-call','call-calendar','refresh-call','reschedule-call','cancel-booking','reschedule-fields']){if($('#'+id))$('#'+id).hidden=true;}
  $('#confirm').hidden=!!pending?.booking&&pending.status!=='pending'||!!pending?.to&&!['pending','uncertain','executing'].includes(pending.status);
@@ -297,7 +297,7 @@ function actionView(action,review=false){
   $('#event-title').textContent=`${changeLabel} · ${booking.destinationName} · ${booking.phoneNumber}`;
   $('#event-time').style.whiteSpace='pre-wrap';
   $('#event-time').textContent=`${booking.purpose}\nBooking for: ${booking.customerName}${pending.originalSlot?'\nOriginal appointment: '+fmt.format(new Date(pending.originalSlot.start))+' → '+fmt.format(new Date(pending.originalSlot.end)):''}\n${pending.operation==='reschedule'?'New allowed times:\n':''}${availability}\n${booking.timeZone} · ${booking.durationMinutes} minutes\n${pending.calendarChecked?'Calendar checked for availability.':'Calendar has not been checked. Availability is unverified.'}\nStatus: ${pending.status.replaceAll('_',' ')}${pending.summary?'\n'+pending.summary:''}${pending.status==='completed'&&['booked','rescheduled'].includes(pending.outcome)&&pending.bookedSlot?'\nBooked: '+fmt.format(new Date(pending.bookedSlot.start))+' → '+fmt.format(new Date(pending.bookedSlot.end)):''}`;
-  $('#action-note').textContent=pending.status==='pending'&&!uncertainCalls.has(pending.id)?'Tuck will call as your AI assistant and share these booking details only after you approve.':pending.status==='uncertain'||uncertainCalls.has(pending.id)&&pending.status==='pending'?'The result is unverified. Check with the business before another booking. Tuck will not redial automatically.':'Review the call update below. Calendar events are saved only with separate approval.';
+  $('#action-note').textContent=pending.status==='pending'&&!uncertainCalls.has(pending.id)?'Mochi will call as your AI assistant and share these booking details only after you approve.':pending.status==='uncertain'||uncertainCalls.has(pending.id)&&pending.status==='pending'?'The result is unverified. Check with the business before another booking. Mochi will not redial automatically.':'Review the call update below. Calendar events are saved only with separate approval.';
   $('#confirm').textContent='approve and call';
   for(const [id,label,command,visible] of [['stop-call',pending.status==='uncertain'?'try stopping call':'stop call','stop',activeCall(pending)||pending.status==='uncertain'],['call-calendar',pending.outcome==='booking_cancelled'?'review Calendar deletion':pending.outcome==='rescheduled'?'review Calendar update':'review Calendar event','calendar',pending.status==='completed'&&['booked','rescheduled','booking_cancelled'].includes(pending.outcome)],['refresh-call','refresh status','refresh',true]]){
    let button=$('#'+id);if(!button){button=document.createElement('button');button.id=id;button.textContent=label;button.onclick=()=>callCommand(command);$('#approval').append(button);}button.textContent=label;button.hidden=!visible;
@@ -363,7 +363,7 @@ async function submit(request){
  if(local==='repeat'&&lastReply){log('local command · repeat last reply without Meta');speak(lastReply,{state:pending?'approval':'idle'});return;}
  stopSpeech();const ticket=turns.begin();let reaction=null,reactionResult=null;let streamFailed=false;busy=true;controls();$('#error').textContent='';$('#retry').hidden=true;lastRequest=request;
  affectionActive=!pending&&reactionFor(request.text)==='loved';
- face('think','thinking…');$('#hint').textContent='Tap Tuck to interrupt and speak again.';const since=Date.now();
+ face('think','thinking…');$('#hint').textContent='Tap Mochi to interrupt and speak again.';const since=Date.now();
  clearTimeout(softWaitTimer);softWaitTimer=setTimeout(()=>{if(turns.current(ticket)&&currentView.state==='think')face('think','still thinking · tap to interrupt');},6500);
  try{
   const result=await turns.run(ticket,async()=>{
@@ -421,8 +421,8 @@ async function startRecording(){
  stopSpeech();endOfSpeech.reset();$('#error').textContent='';recordingPending=true;controls();face('listen','listening…');const version=++recordVersion;
  liveTranscript?.cancel();let lastPartial='';
  liveTranscript=new RealtimeTranscriber({onPartial:text=>{if(version===recordVersion&&text!==lastPartial){lastPartial=text;endOfSpeech.partial(text,performance.now());apiLog('transcript','',text);}},onFailure:reason=>{if(version===recordVersion)log(`${reason} · recording upload fallback available`);}});
- try{const started=await recorder.start();if(version!==recordVersion||!started)return;recordingPending=false;recording=true;face('listen','listening…');$('#hint').textContent='Listening. Pause when done, or tap Tuck to send (60-second maximum).';log('recording started');}
- catch(error){if(version!==recordVersion)return;liveTranscript?.cancel();liveTranscript=null;recordingPending=false;errorView(new Error(error.name==='NotAllowedError'?'Microphone permission denied. Allow microphone access in browser settings, then tap Tuck again.':error.message));}
+ try{const started=await recorder.start();if(version!==recordVersion||!started)return;recordingPending=false;recording=true;face('listen','listening…');$('#hint').textContent='Listening. Pause when done, or tap Mochi to send (60-second maximum).';log('recording started');}
+ catch(error){if(version!==recordVersion)return;liveTranscript?.cancel();liveTranscript=null;recordingPending=false;errorView(new Error(error.name==='NotAllowedError'?'Microphone permission denied. Allow microphone access in browser settings, then tap Mochi again.':error.message));}
  finally{controls();}
 }
 async function finishRecording(){
@@ -468,7 +468,7 @@ async function decision(value){
  finally{decisionBusy=false;busy=false;controls();}
 }
 $('#confirm').onclick=()=>decision('confirm');$('#cancel').onclick=()=>decision('cancel');
-$('#reset').onclick=async()=>{if(decisionBusy||busy||recording||recordingPending||activeCall(backgroundCall))return;stopSpeech();busy=true;controls();try{const newSession=await api('/v1/sessions',{method:'POST',body:{timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone}});taskRefreshVersion++;clearTimeout(taskTimer);savedForeground=null;sessionId=newSession.id;sessionStorage.setItem('muse-session',sessionId);if(backgroundCall){sessionStorage.setItem(`${callScope()}:active`,backgroundCall.id);sessionStorage.setItem(`${callScope()}:active-session`,backgroundCall.sessionId);}for(const key of ['muse-action','muse-action-kind','muse-action-session'])sessionStorage.removeItem(key);actionView(null);showTaskPage('jolly');lastRequest=null;$('#retry').hidden=true;$('#replay').hidden=true;$('#conversation').replaceChildren();$('#error').textContent='';face('sleep','tap on me to wake up');$('#hint').textContent='A fresh conversation. Tap Tuck to start.';}catch(error){errorView(error);}finally{busy=false;controls();flushCompletion();}};
+$('#reset').onclick=async()=>{if(decisionBusy||busy||recording||recordingPending||activeCall(backgroundCall))return;stopSpeech();busy=true;controls();try{const newSession=await api('/v1/sessions',{method:'POST',body:{timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone}});taskRefreshVersion++;clearTimeout(taskTimer);savedForeground=null;sessionId=newSession.id;sessionStorage.setItem('muse-session',sessionId);if(backgroundCall){sessionStorage.setItem(`${callScope()}:active`,backgroundCall.id);sessionStorage.setItem(`${callScope()}:active-session`,backgroundCall.sessionId);}for(const key of ['muse-action','muse-action-kind','muse-action-session'])sessionStorage.removeItem(key);actionView(null);showTaskPage('jolly');lastRequest=null;$('#retry').hidden=true;$('#replay').hidden=true;$('#conversation').replaceChildren();$('#error').textContent='';face('sleep','tap on me to wake up');$('#hint').textContent='A fresh conversation. Tap Mochi to start.';}catch(error){errorView(error);}finally{busy=false;controls();flushCompletion();}};
 async function calendarOperation(operation){
  if(calendarBusy||busy||recording||recordingPending)return;
  calendarBusy=true;controls();$('#phone-error').hidden=true;
@@ -523,5 +523,5 @@ try{
  setupBookingSupport({api,canReview:()=>!busy&&!decisionBusy&&!recording&&!recordingPending&&!foregroundApproval(),onCall:action=>{actionView(action,true);$('#approval').scrollIntoView({block:'nearest',behavior:'smooth'});}});
  const {setupDailySupport}=await import('./daily-support.mjs');
  setupDailySupport({api,getSession:session,canReview:()=>!busy&&!decisionBusy&&!recording&&!recordingPending&&!foregroundApproval(),onDraft:action=>{actionView(action,true);$('#approval').scrollIntoView({block:'nearest',behavior:'smooth'});}});
- $('#hint').textContent=pending?'A previous proposal is ready for review.':'Tap Tuck to start a real conversation.';log('backend connected');
+ $('#hint').textContent=pending?'A previous proposal is ready for review.':'Tap Mochi to start a real conversation.';log('backend connected');
 }catch(error){connected=false;$('#connection').textContent='○ backend unavailable';errorView(error);controls();}

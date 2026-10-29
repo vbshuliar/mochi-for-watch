@@ -98,7 +98,7 @@ private final class PCMConverter: @unchecked Sendable {
       AVAudioApplication.requestRecordPermission { continuation.resume(returning: $0) }
     }
     guard allowed else {
-      throw MuseError.message("Allow microphone access in Settings to talk to Tuck.")
+      throw MuseError.message("Allow microphone access in Settings to talk to Mochi.")
     }
     try Task.checkCancellation()
     try await activate()
@@ -143,7 +143,7 @@ private final class PCMConverter: @unchecked Sendable {
         onPlaybackStart?()
       } else {
         playback = nil
-        continuation.resume(throwing: MuseError.message("Couldn’t play Tuck’s voice."))
+        continuation.resume(throwing: MuseError.message("Couldn’t play Mochi’s voice."))
       }
     }
   }
@@ -162,7 +162,7 @@ private final class PCMConverter: @unchecked Sendable {
   nonisolated func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
     Task { @MainActor in
       guard self.player === player else { return }
-      playback?.resume(throwing: MuseError.message("Couldn’t decode Tuck’s voice."))
+      playback?.resume(throwing: MuseError.message("Couldn’t decode Mochi’s voice."))
       playback = nil
       self.player = nil
     }

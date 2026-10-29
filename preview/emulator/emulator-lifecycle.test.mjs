@@ -53,7 +53,7 @@ test('silence closes the microphone locally without sending an agent request',as
 });
 
 test('affection shows hearts before speech, keeps them during speech, then returns to idle',async t=>{
- const h=await harness();t.after(h.cleanup);const request=h.setRequest();const task=h.app.submit({text:"Hey, Tuck, I really love you.",id:'compliment'});assert.equal(h.app.view().state,'loved');assert.equal(h.app.view().hearts,true);
+ const h=await harness();t.after(h.cleanup);const request=h.setRequest();const task=h.app.submit({text:"Hey, Mochi, I really love you.",id:'compliment'});assert.equal(h.app.view().state,'loved');assert.equal(h.app.view().hearts,true);
  request.resolve(reply('aww, thank you!'));await task;
  assert.equal(h.app.view().state,'speak');assert.equal(h.app.view().hearts,true);
  h.finishSpeech();assert.equal(h.app.view().state,'idle');assert.equal(h.app.view().hearts,false);

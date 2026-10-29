@@ -169,7 +169,7 @@ export class Briefing {
         );
       else if (["starting", "queued", "in_progress"].includes(booking.status))
         sentences.push(
-          `Tuck is handling your call to ${business}; the booking is not confirmed yet.`,
+          `Mochi is handling your call to ${business}; the booking is not confirmed yet.`,
         );
       else if (booking.status === "uncertain")
         sentences.push(

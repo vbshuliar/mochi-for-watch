@@ -23,7 +23,7 @@ import Observation
   }
   func refresh() async {
     guard !busy else { return }
-    guard let connection = store.connection else { error = "Connect to Tuck to load your day."; return }
+    guard let connection = store.connection else { error = "Connect to Mochi to load your day."; return }
     busy = true
     let ticket = generation
     defer { if generation == ticket { busy = false } }
@@ -44,7 +44,7 @@ import Observation
   }
   func loadReadiness() async {
     guard !busy else { return }
-    guard let connection = store.connection else { error = "Connect to Tuck to check readiness."; return }
+    guard let connection = store.connection else { error = "Connect to Mochi to check readiness."; return }
     let ticket = generation; busy = true
     defer { if generation == ticket { busy = false } }
     do {
@@ -58,7 +58,7 @@ import Observation
   }
   func loadProfile() async -> Bool {
     guard !busy else { return false }
-    guard let connection = store.connection else { error = "Connect to Tuck to load your booking preferences."; return false }
+    guard let connection = store.connection else { error = "Connect to Mochi to load your booking preferences."; return false }
     let ticket = generation; busy = true
     defer { if generation == ticket { busy = false } }
     do {
@@ -73,7 +73,7 @@ import Observation
   }
   func saveProfile(_ value: BookingProfile?) async -> Bool {
     guard !busy else { return false }
-    guard let connection = store.connection else { error = "Connect to Tuck before saving preferences."; return false }
+    guard let connection = store.connection else { error = "Connect to Mochi before saving preferences."; return false }
     let ticket = generation; busy = true
     defer { if generation == ticket { busy = false } }
     do {
@@ -88,7 +88,7 @@ import Observation
   }
   func remindForBooking(_ call: CallAction, id: String, due: Date) async -> Bool {
     guard !busy else { return false }
-    guard let connection = store.connection else { error = "Connect to Tuck before saving a reminder."; return false }
+    guard let connection = store.connection else { error = "Connect to Mochi before saving a reminder."; return false }
     let ticket = generation; busy = true
     defer { if generation == ticket { busy = false } }
     do {
@@ -123,7 +123,7 @@ import Observation
   }
   private func mutate(_ path: String, method: String, values: [String: String]) async {
     guard !busy else { return }
-    guard let connection = store.connection else { error = "Connect to Tuck before saving changes."; return }
+    guard let connection = store.connection else { error = "Connect to Mochi before saving changes."; return }
     let ticket = generation
     busy = true
     do {

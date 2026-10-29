@@ -447,7 +447,7 @@
 				DEVELOPMENT_TEAM = 59T623DV9Y;
 				INFOPLIST_KEY_CFBundleDisplayName = "Muse for Watch";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Connect to your Muse backend on your local network.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Talk to Tuck using your microphone. Audio is sent to Meta for transcription.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Talk to Mochi using your microphone. Audio is sent to Meta for transcription.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_FILE = "Generated/Phone-Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -586,7 +586,7 @@
 				DEVELOPMENT_TEAM = 59T623DV9Y;
 				INFOPLIST_KEY_CFBundleDisplayName = "Muse for Watch";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Connect to your Muse backend on your local network.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Talk to Tuck using your microphone. Audio is sent to Meta for transcription.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Talk to Mochi using your microphone. Audio is sent to Meta for transcription.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_FILE = "Generated/Phone-Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (

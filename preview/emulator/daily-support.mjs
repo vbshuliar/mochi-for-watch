@@ -60,7 +60,7 @@ export function createDailySupport({api,getSession,onDraft,canReview=()=>true,on
      if(!popup)throw Error('Allow popups to continue with Google.');
      const {url}=await api('/v1/integrations/gmail/connect',{method:'POST',body:{drafts:true}});
      popup.location.href=providerSignInURL('gmail',url);
-     state.notice='Finish Google consent, then refresh Today. Tuck saves drafts only; it never sends email.';
+     state.notice='Finish Google consent, then refresh Today. Mochi saves drafts only; it never sends email.';
     }catch(error){popup?.close();throw error;}
    });
   }
@@ -110,7 +110,7 @@ export function setupDailySupport({api,getSession,onDraft,canReview}){
    row.append(done,change,snooze,remove);reminders.append(row);
   }
   const enabled=state.status?.gmailDraftsEnabled===true&&state.status?.mode==='live';
-  draftInfo.textContent=state.status?.mode==='mock'?'Gmail drafts require live mode. Nothing will be saved or sent in this simulation.':enabled?'Review exact recipient, subject and message before saving. Tuck never sends email.':'Drafts need additional Google consent. Existing read-only Gmail access remains available.';
+  draftInfo.textContent=state.status?.mode==='mock'?'Gmail drafts require live mode. Nothing will be saved or sent in this simulation.':enabled?'Review exact recipient, subject and message before saving. Mochi never sends email.':'Drafts need additional Google consent. Existing read-only Gmail access remains available.';
   upgrade.hidden=enabled;upgrade.disabled=state.busy||state.status?.mode!=='live';
   for(const input of [to,subject,body,prepare])input.disabled=state.busy||!enabled;
   drafts.replaceChildren();

@@ -1046,7 +1046,7 @@ test("brief introduction discloses AI and a newly connected Calendar is checked 
   assert.equal(action.slots[0].start, "2030-11-05T11:00:00.000Z");
   assert.equal(counts.dial, 1);
   const intro = store.get<any>("call-turn", `${action.id}:0`).text;
-  assert.match(intro, /Tuck, Alex’s AI assistant/);
+  assert.match(intro, /Mochi, Alex’s AI assistant/);
   assert.match(intro, /Is it okay to chat/);
   assert.ok(intro.split(/\s+/).length <= 30);
 });

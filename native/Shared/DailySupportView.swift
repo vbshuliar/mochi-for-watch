@@ -47,7 +47,7 @@ struct DailySupportView: View {
             }
           } else { Text("Refresh to see your day.").foregroundStyle(.secondary) }
         }
-        Section("Tuck reminders") {
+        Section("Mochi reminders") {
           ForEach(model.reminders) { reminder in
             VStack(alignment: .leading, spacing: 6) {
               Text(reminder.title).font(.headline)
@@ -60,9 +60,9 @@ struct DailySupportView: View {
               Button("Delete", role: .destructive) { Task { await model.deleteReminder(reminder) } }
             }
           }
-          if model.reminders.isEmpty { Text("Ask Tuck to remind you, or add a reminder.") }
+          if model.reminders.isEmpty { Text("Ask Mochi to remind you, or add a reminder.") }
           Button("Add reminder") { model.beginReminder(); creating = true }
-          Text("Stored in Tuck; separate from Apple Reminders.").font(.caption).foregroundStyle(.secondary)
+          Text("Stored in Mochi; separate from Apple Reminders.").font(.caption).foregroundStyle(.secondary)
         }
         Section("Gmail drafts") {
           ForEach(model.drafts) { draft in
@@ -70,7 +70,7 @@ struct DailySupportView: View {
               VStack(alignment: .leading) { Text(draft.subject); Text("\(draft.to) · \(draft.status)").font(.caption).foregroundStyle(.secondary) }
             }
           }
-          if model.drafts.isEmpty { Text("Ask Tuck to draft an email. Review it here before saving to Gmail.") }
+          if model.drafts.isEmpty { Text("Ask Mochi to draft an email. Review it here before saving to Gmail.") }
         }
         if let error = model.error { Text(error).foregroundStyle(.red) }
         Button("Refresh") { Task { await model.refresh() } }
@@ -128,7 +128,7 @@ struct BookingProfileView: View {
           TextField("Time zone", text: $profile.timeZone)
         }
         Section {
-          Text("These details help Tuck prepare your usual booking. You still review and approve each call. Saving a number does not enable it for calling.").font(.footnote)
+          Text("These details help Mochi prepare your usual booking. You still review and approve each call. Saving a number does not enable it for calling.").font(.footnote)
           if !loaded { Button("Load preferences") { Task { if await model.loadProfile() { profile = model.profile ?? BookingProfile(); loaded = true } } } }
           Button("Save preferences") { Task { if await model.saveProfile(profile) { dismiss() } } }.disabled(!loaded || profile.destinationName.trimmingCharacters(in: .whitespaces).isEmpty || profile.phoneNumber.isEmpty || profile.customerName.isEmpty || profile.preferredDays.isEmpty)
           if model.profile != nil { Button("Forget booking preferences", role: .destructive) { Task { if await model.saveProfile(nil) { dismiss() } } } }

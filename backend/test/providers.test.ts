@@ -160,7 +160,7 @@ test("Meta chat adapter sends context and accepts validated plan", async (t) => 
     const body = JSON.parse(init!.body as string);
     assert.equal(body.messages[0].role, "developer");
     assert.equal(body.reasoning_effort, "low");
-    assert(body.messages[0].content.includes("You are Tuck"));
+    assert(body.messages[0].content.includes("You are Mochi"));
     assert(body.messages[0].content.includes("Europe/London"));
     return json({
       choices: [

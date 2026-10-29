@@ -253,11 +253,11 @@ export class Notifications {
         aps: {
           alert: {
             title: delivery.reminderId
-              ? "Tuck has a reminder"
-              : "Tuck has a task update",
+              ? "Mochi has a reminder"
+              : "Mochi has a task update",
             body: delivery.reminderId
-              ? "Open Tuck to review your reminder."
-              : "Open Tuck to review the result or next step.",
+              ? "Open Mochi to review your reminder."
+              : "Open Mochi to review the result or next step.",
           },
           sound: "default",
           "thread-id": delivery.taskId,

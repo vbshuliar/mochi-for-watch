@@ -40,7 +40,7 @@ test("briefing leads with booking progress without inventing confirmation", asyn
   const o = options();
   o.calls.listAll = () => [booking()];
   const result = await new Briefing(o).get("Europe/London");
-  assert.match(result.summary, /^Tuck is handling your call/);
+  assert.match(result.summary, /^Mochi is handling your call/);
   assert.match(result.summary, /not confirmed yet/);
   assert.match(result.summary, /no events today/);
   assert.equal(result.sources.gmail, "disconnected");

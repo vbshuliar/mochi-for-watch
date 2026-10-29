@@ -11,7 +11,7 @@ struct MemoryView: View {
     List {
       Section {
         if model.memories.isEmpty {
-          Text("Say “remember I live in London” to Tuck, or add a memory here.").foregroundStyle(.secondary)
+          Text("Say “remember I live in London” to Mochi, or add a memory here.").foregroundStyle(.secondary)
         }
         ForEach(model.memories) { memory in
           Button { editing = memory } label: {
@@ -22,7 +22,7 @@ struct MemoryView: View {
           }
         }
       } footer: {
-        Text("Shared with Tuck on your iPhone and Watch. Only facts you ask Tuck to remember are saved. Changes reset conversation context so old facts aren’t reused.")
+        Text("Shared with Mochi on your iPhone and Watch. Only facts you ask Mochi to remember are saved. Changes reset conversation context so old facts aren’t reused.")
       }
       if let error = model.memoryError { Section { Text(error).foregroundStyle(.red) } }
       if !model.memories.isEmpty {
@@ -38,7 +38,7 @@ struct MemoryView: View {
     .sheet(item: $editing) { memory in MemoryEditor(model: model, memory: memory) }
     .confirmationDialog("Forget all saved memories?", isPresented: $forgetAll, titleVisibility: .visible) {
       Button("Forget everything", role: .destructive) { Task { _ = await model.forgetMemory(id: nil) } }
-    } message: { Text("Tuck will stop using these facts. This cannot be undone.") }
+    } message: { Text("Mochi will stop using these facts. This cannot be undone.") }
   }
 }
 struct MemoryEditor: View {
@@ -58,7 +58,7 @@ struct MemoryEditor: View {
       Form {
         Section("About you") {
           TextField("Title", text: $title)
-          TextField("What should Tuck remember?", text: $text, axis: .vertical).lineLimit(3...8)
+          TextField("What should Mochi remember?", text: $text, axis: .vertical).lineLimit(3...8)
         }
         if let error = model.memoryError { Section { Text(error).foregroundStyle(.red) } }
         if memory != nil {

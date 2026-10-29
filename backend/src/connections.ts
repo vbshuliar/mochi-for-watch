@@ -159,7 +159,7 @@ export class Connection {
           400,
           "missing_gmail_permission",
           pending.drafts
-            ? "Allow Gmail reading and draft access, then reconnect. Tuck never sends email."
+            ? "Allow Gmail reading and draft access, then reconnect. Mochi never sends email."
             : "allow read-only Gmail access, then reconnect",
         );
       const current = this.store.get<{ generation: string }>(
@@ -274,7 +274,7 @@ export class Connection {
         throw new AppError(
           403,
           "gmail_operation_forbidden",
-          "Tuck can save drafts, but cannot send or modify email.",
+          "Mochi can save drafts, but cannot send or modify email.",
         );
       if (!this.canDraft())
         throw new AppError(
