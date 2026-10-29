@@ -52,3 +52,7 @@ Session histories, approvals, external receipts, uncertain actions, memories, re
 ## Deployment preflight
 
 The Fly CLI on the development Mac is `/Users/admin/.fly/bin/flyctl`. Read-only inspection on 29 October 2026 confirmed the original single London machine remains started with a passing health check and image `deployment-01M61MS5MS2DR5SJWTSYYH0CAQ`; that observation does not deploy the latest code. Before updating, verify no active or uncertain calls, preserve the encrypted volume and key, deploy the exact tested commit to the existing single machine, and then inspect readiness and authentication. Never scale this SQLite design into independent writable replicas.
+
+### Verified deployment and production-copy recovery
+
+On 29 October 2026, source `f833b5e` was deployed to the existing single London machine. Public health and authenticated readiness returned its exact revision; protected endpoints rejected anonymous access. An online encrypted backup and isolated restore copy each verified all 59 production records without replacing or switching the live database. The latest snapshot and private backup locations are recorded in [deployment](private-deployment.md). Missing profile/push setup and deferred live/device acceptance remain honestly reported.

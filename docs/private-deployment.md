@@ -1,6 +1,19 @@
 # Private deployment — Fly.io
 
-Updated 28 October 2026. **The owner confirmed Jolly works on Apple Watch after importing the Fly connection. The Mac no longer needs to stay on.** This is a private single-user deployment, not a public release. The latest backend release and remaining client/provisioning gates are recorded below.
+Updated 29 October 2026. **The owner confirmed Jolly works on Apple Watch after importing the Fly connection. The Mac no longer needs to stay on.** This is a private single-user deployment, not a public release. The latest backend release and remaining client/provisioning gates are recorded below.
+
+## Booking-first private release deployed — 29 October 2026
+
+Current running source: `f833b5e2ab1581e14d993b292c43d6a8ece3e94c`. Image: `registry.fly.io/muse-for-watch-vlad:deployment-01M62P84MTNVPWEQR3082XE6MM`. Built from an isolated committed snapshot, with public website assets staged, and deployed to the existing single London machine/volume. The unrelated local website and research changes were excluded. This release includes the preceding daily briefing, reminders and reviewed Gmail drafts implementation.
+
+- All 348 automated tests passed locally (196 backend, 94 browser, 58 native), plus animation checks. Debug and Release native simulator SDK builds passed. Both [GitHub jobs](https://github.com/vbshuliar/muse-for-watch/actions/runs/40803845273) passed.
+- Read-only preflight found zero active/uncertain calls. Fly created volume snapshot `vs_KXBjnNvQKYpSB9mGY2` before deployment.
+- Post-deployment public health, authenticated status/readiness/profile/reminders/drafts returned 200; health and readiness returned the exact source revision. Anonymous readiness/profile/device-administration requests returned 401. Fly health is passing.
+- Live model, voice, Calendar and calling configuration are available. No usual-booking profile is saved; push configuration is missing; live booking and physical-device acceptance remain unverified. The readiness screen reports these distinctions.
+- Production encrypted backup `/data/muse/backups/release-f833b5e.sqlite` and an isolated restore check at `/tmp/jolly-restore-check-f833b5e.sqlite` both verified all 59 encrypted records. The running database was not replaced, rolled back or switched. Preserve the encryption key separately; the backup is private and must not be published.
+- No calls, Calendar/Gmail writes, OAuth changes, device installations or organizer messages were performed. Credentials and the destination allowlist were unchanged.
+
+[Private setup and pairing](booking-experience.md) and [readiness/recovery operations](operations-readiness.md) describe the new workflows. Historical records below describe earlier releases and are not the current feature inventory.
 
 ## Shared tasks and booking changes deployed — 28 October 2026
 
