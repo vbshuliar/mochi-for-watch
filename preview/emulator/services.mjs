@@ -1,10 +1,10 @@
 const catalog={
- calendar:{name:'Google Calendar',title:'Calendar',description:'Let Jolly access your calendar to view meetings, find free time and add events.',access:['View meetings and free time','Add events with your approval']},
- instagram:{name:'Instagram',title:'Instagram',description:'Let Jolly help with Instagram posts, comments and replies.',access:['View posts and comments','Draft reply suggestions']},
- facebook:{name:'Facebook Pages',title:'Facebook Pages',description:'Let Jolly follow page activity and help with replies.',access:['View page activity','Help draft replies']},
- notion:{name:'Notion',title:'Notion Workspace',description:'Let Jolly turn ideas and email summaries into Notion pages.',access:['Choose a destination page','Create pages with your approval']},
- gmail:{name:'Gmail',title:'Gmail Inbox',description:'Let Jolly find and summarize your email. It cannot send or delete messages.',access:['Find and summarise emails','Read-only access']},
- search:{name:'web search',title:'Web Search',description:'Let Jolly search the web and bring back answers with sources.',access:['Search the web','Include sources']}
+ calendar:{name:'Google Calendar',title:'Calendar',description:'Let Tuck access your calendar to view meetings, find free time and add events.',access:['View meetings and free time','Add events with your approval']},
+ instagram:{name:'Instagram',title:'Instagram',description:'Let Tuck help with Instagram posts, comments and replies.',access:['View posts and comments','Draft reply suggestions']},
+ facebook:{name:'Facebook Pages',title:'Facebook Pages',description:'Let Tuck follow page activity and help with replies.',access:['View page activity','Help draft replies']},
+ notion:{name:'Notion',title:'Notion Workspace',description:'Let Tuck turn ideas and email summaries into Notion pages.',access:['Choose a destination page','Create pages with your approval']},
+ gmail:{name:'Gmail',title:'Gmail Inbox',description:'Let Tuck find and summarize your email. It cannot send or delete messages.',access:['Find and summarise emails','Read-only access']},
+ search:{name:'web search',title:'Web Search',description:'Let Tuck search the web and bring back answers with sources.',access:['Search the web','Include sources']}
 };
 const providers=['gmail','notion','instagram','facebook'];
 const socialProviders=['instagram','facebook'];
@@ -53,7 +53,7 @@ export function setupServices(onToggle,{api,refresh}={}){
   e.preventDefault();const provider=active,searchQuery=query.value;
   void operate(provider,async()=>{
    const data=await api('/v1/integrations/notion/pages/search',{method:'POST',body:{query:searchQuery}});
-   pages.notion=data.pages;errors.notion=data.pages.length?(data.hasMore?'More pages available; narrow your search.':''):'No shared pages found. Share a page with Jolly in Notion and try again.';
+   pages.notion=data.pages;errors.notion=data.pages.length?(data.hasMore?'More pages available; narrow your search.':''):'No shared pages found. Share a page with Tuck in Notion and try again.';
   });
  };
  reload.onclick=()=>{const provider=active;void operate(provider,async()=>{await refresh();await loadAccounts(provider);});};
@@ -61,7 +61,7 @@ export function setupServices(onToggle,{api,refresh}={}){
   for(const key of providers){const row=$(`[data-service="${key}"]`)?.closest('.service-row');row?.classList.toggle('service-linked',workspace[key]==='connected');row?.querySelector('.service-dot')?.setAttribute('aria-label',workspace[key]==='connected'?'connected':'not connected');}
   const searchRow=$('[data-service="search"]')?.closest('.service-row');
   if(searchRow){searchRow.classList.toggle('service-linked',webSearch);searchRow.querySelector('.service-dot')?.setAttribute('aria-label',webSearch?'available through Meta':'unavailable');}
-  for(const {input} of switches){const ready=calendar==='connected'||calendar==='simulated';input.closest('.service-row').classList.toggle('service-linked',ready);input.checked=ready&&enabled;input.disabled=!ready||busy();input.title=ready?'Allow Jolly to use this service':'Connect this service first';}
+  for(const {input} of switches){const ready=calendar==='connected'||calendar==='simulated';input.closest('.service-row').classList.toggle('service-linked',ready);input.checked=ready&&enabled;input.disabled=!ready||busy();input.title=ready?'Allow Tuck to use this service':'Connect this service first';}
  }
  function render(){
   if(!active)return;
@@ -72,7 +72,7 @@ export function setupServices(onToggle,{api,refresh}={}){
   $('#service-description').textContent=entry.description;
   const access=provider==='gmail'&&workspace.gmailDraftsEnabled?['Find and summarise emails','Save exact email drafts after your approval','No email sending']:entry.access;
   $('#service-access').replaceChildren(...access.map(text=>{const li=document.createElement('li');li.textContent=text;return li;}));
-  $('#service-availability').textContent=provider==='search'?(webSearch?'Ask Jolly for current information. No extra sign-in needed.':'Web search is unavailable right now.'):isCalendar?'Disconnect anytime. Your events stay unchanged.':isSocial?'Choose an account after signing in. Disconnect anytime.': 'Disconnect anytime. Existing email and pages stay unchanged.';
+  $('#service-availability').textContent=provider==='search'?(webSearch?'Ask Tuck for current information. No extra sign-in needed.':'Web search is unavailable right now.'):isCalendar?'Disconnect anytime. Your events stay unchanged.':isSocial?'Choose an account after signing in. Disconnect anytime.': 'Disconnect anytime. Existing email and pages stay unchanged.';
   $('#calendar-detail-controls').hidden=!isCalendar;$('#planned-controls').hidden=true;controls.hidden=!isProvider;
   if(isProvider){
    connect.textContent=linked?'Reconnect':provider==='gmail'?'Connect with Google':provider==='notion'?'Connect with Notion':'Connect with Facebook';

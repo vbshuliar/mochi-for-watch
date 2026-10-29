@@ -139,7 +139,7 @@ export class GmailDrafts {
       throw new AppError(
         409,
         "gmail_draft_permission_required",
-        "Enable Gmail draft access on your iPhone first. Jolly only saves drafts and never sends email.",
+        "Enable Gmail draft access on your iPhone first. Tuck only saves drafts and never sends email.",
       );
     return this.gmail.epoch()!;
   }
@@ -262,7 +262,7 @@ export class GmailDrafts {
       throw new AppError(
         409,
         "draft_save_uncertain",
-        "Gmail has not confirmed this draft. Check Gmail; Jolly will not create another copy.",
+        "Gmail has not confirmed this draft. Check Gmail; Tuck will not create another copy.",
       );
     return this.verify(action, found.drafts[0]!.id);
   }

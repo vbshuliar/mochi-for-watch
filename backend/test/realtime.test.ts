@@ -50,7 +50,7 @@ test("realtime authenticates, streams partials, and waits for an explicit end be
           JSON.stringify({
             type: "transcript",
             final: true,
-            transcript: "Hello Jolly.",
+            transcript: "Hello Tuck.",
           }),
         );
       } else {
@@ -81,6 +81,6 @@ test("realtime authenticates, streams partials, and waits for an explicit end be
   client.send(JSON.stringify({ type: "end" }));
   assert.deepEqual(JSON.parse(String((await final)[0])), {
     type: "final",
-    text: "Hello Jolly.",
+    text: "Hello Tuck.",
   });
 });

@@ -111,7 +111,7 @@ struct WatchHome: View {
           .buttonStyle(.plain)
           .accessibilityLabel(
             model.recording
-              ? "Finish speaking" : model.hasProposal ? "Review proposal" : "Talk to Jolly"
+              ? "Finish speaking" : model.hasProposal ? "Review proposal" : "Talk to Tuck"
           )
           .accessibilityHint(model.caption)
           Button { showingSources = true } label: {
@@ -169,7 +169,7 @@ struct WatchHome: View {
           taskSection("Recently completed", calls: recent)
           if active.isEmpty && attention.isEmpty && recent.isEmpty && !model.hasProposal && !model.tasksLoadFailed {
             Text("No current tasks").font(.headline)
-            Text("Ask Jolly to help with a booking. Recent results appear here for 24 hours.")
+            Text("Ask Tuck to help with a booking. Recent results appear here for 24 hours.")
               .font(.caption2).foregroundStyle(.secondary)
           }
           if model.tasksLoadFailed {

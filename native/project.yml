@@ -33,7 +33,7 @@ targets:
       properties:
         CFBundleDisplayName: Muse for Watch
         MusePushEnvironment: $(MUSE_PUSH_ENVIRONMENT)
-        NSMicrophoneUsageDescription: Talk to Jolly using your microphone. Audio is sent to Meta for transcription.
+        NSMicrophoneUsageDescription: Talk to Tuck using your microphone. Audio is sent to Meta for transcription.
         NSLocalNetworkUsageDescription: Connect to your Muse backend on your local network.
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
@@ -59,7 +59,7 @@ targets:
         WKApplication: true
         WKCompanionAppBundleIdentifier: com.museforwatch.app
         WKRunsIndependentlyOfCompanionApp: true
-        NSMicrophoneUsageDescription: Talk to Jolly using your microphone. Audio is sent to Meta for transcription.
+        NSMicrophoneUsageDescription: Talk to Tuck using your microphone. Audio is sent to Meta for transcription.
         NSLocalNetworkUsageDescription: Connect to your Muse backend on your local network.
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true

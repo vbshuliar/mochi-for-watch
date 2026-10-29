@@ -385,7 +385,7 @@ struct Activity: Identifiable {
   private func complete(_ result: TurnResult, input: String, ticket: UUID) async throws {
     reply = result.speechText
     sources = (result.sources ?? []).filter { $0.safeURL != nil }
-    log("Jolly", result.speechText, sources: sources)
+    log("Tuck", result.speechText, sources: sources)
     action = result.action.flatMap {
       ["pending", "uncertain", "executing"].contains($0.status) ? $0 : nil
     }

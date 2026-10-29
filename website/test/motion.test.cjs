@@ -16,8 +16,8 @@ test('idle and confused stay alive, settle after 1.5s, and respect reduced motio
  });
  function step(ms){for(let t=0;t<ms;t+=16){now+=16;for(const [i,v]of timers)if(now>=v.at){timers.delete(i);v.f();}const pending=[...frames];frames.clear();for(const [,f]of pending)f(now);}}
  step(500);const idle=face.style.transform;step(500);assert.notEqual(face.style.transform,idle);
- events.click();step(16);assert.equal(smile.style.opacity,'1');assert.notEqual(smile.d,'M451 592 C470.6 616, 529.4 616, 549 592','mouth starts morphing');const enteringMouth=smile.d;step(144);const confused=eyes.style.transform;step(176);assert.notEqual(eyes.style.transform,confused);
- assert.notEqual(lids.transform,'translate(0 520) scale(1 1) translate(0 -520)','confused blinks');
+ events.click();step(16);assert.equal(smile.style.opacity,'1');assert.notEqual(smile.d,'M439 548 C463 582, 537 582, 561 548','mouth starts morphing');const enteringMouth=smile.d;step(144);const confused=eyes.style.transform;step(176);assert.notEqual(eyes.style.transform,confused);
+ assert.notEqual(lids.transform,'translate(0 487) scale(1 1) translate(0 -487)','confused blinks');
  assert.equal(attrs['aria-pressed'],'true');step(1200);assert.equal(attrs['aria-pressed'],'false');
  assert.equal(caption.textContent,'tap to talk');assert.equal(expression.style.opacity,'1');assert.equal(smile.style.opacity,'1');assert.notEqual(smile.d,enteringMouth,'mouth geometry changes without fading');
  const returned=face.style.transform;step(600);assert.notEqual(face.style.transform,returned,'idle keeps moving');

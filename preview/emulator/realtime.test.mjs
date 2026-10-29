@@ -17,7 +17,7 @@ test('audio queues until ready, partials do not resolve, end follows final audio
  const f=fixture();f.stream.push(new Float32Array(100),24000);assert.equal(f.sent.length,0);
  f.receive({type:'ready'});assert.equal(f.sent[0].byteLength,200);f.receive({type:'partial',text:'hello'});assert.deepEqual(f.partials,['hello']);
  f.stream.push(new Float32Array(20),24000);const done=f.stream.finish();assert.equal(f.sent[1].byteLength,40);assert.deepEqual(JSON.parse(f.sent[2]),{type:'end'});
- f.receive({type:'final',text:'Hello Jolly.'});assert.equal(await done,'Hello Jolly.');assert(f.isClosed());
+ f.receive({type:'final',text:'Hello Tuck.'});assert.equal(await done,'Hello Tuck.');assert(f.isClosed());
 });
 test('cancel and provider disconnect reject without submitting partial text',async()=>{
  const f=fixture();f.receive({type:'ready'});f.receive({type:'partial',text:'unfinished'});f.stream.cancel();await assert.rejects(f.stream.finish(),/cancelled/);

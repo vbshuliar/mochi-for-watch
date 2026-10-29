@@ -1,6 +1,6 @@
 # Muse for Watch · native apps
 
-Two SwiftUI applications, one shared conversation engine. The iPhone handles connections and pairing; the Watch presents Jolly and a single status line. This is a private single-user hackathon client for the existing backend, not an App Store release or a multi-user authentication system.
+Two SwiftUI applications, one shared conversation engine. The iPhone handles connections and pairing; the Watch presents Tuck and a single status line. This is a private single-user hackathon client for the existing backend, not an App Store release or a multi-user authentication system.
 
 See the [native simulator captures and verification record](Verification/README.md).
 
@@ -62,7 +62,7 @@ Before the demo, test on your SE 2:
 - Natural pauses, short answers, noisy surroundings and a 55-second recording limit.
 - Actual built-in-speaker route and volume, optional Bluetooth route, first voice playback, and interruption mid-sentence. Short `.playAndRecord` sessions are used; long-form media routing is not requested. Simulator success does not prove speaker routing on SE 2.
 - Locked phone, phone out of range, Wi-Fi failure, slow provider, playback failure, Watch wrist-down and app backgrounding.
-- “Hey Jolly, I really love you”: expression first, one floating-heart burst, mouth moving during speech, smooth idle return.
+- “Hey Tuck, I really love you”: expression first, one floating-heart burst, mouth moving during speech, smooth idle return.
 - Calendar consent denied, disconnected/disabled, create/confirm/cancel, uncertain save recovery.
 - Real display readability, Dynamic Type/VoiceOver, reduced motion, battery and 30 fps rendering.
 
@@ -74,7 +74,7 @@ Apple references: [WatchConnectivity](https://developer.apple.com/documentation/
 
 ## App icon
 
-The included launcher icon is a static render of the native Jolly component. To regenerate it on a Mac, run `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swift native/scripts/render-icon.swift "$PWD/native"` from the repository root.
+The included launcher icon is a static render of the native Tuck component. To regenerate it on a Mac, run `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swift native/scripts/render-icon.swift "$PWD/native"` from the repository root.
 
 ## Web-search sources
 
@@ -93,9 +93,9 @@ Booking reviews on iPhone and Watch show each allowed window for flexible reques
 
 ## Background booking cards
 
-After call approval, booking progress has its own review button and does not block talking to Jolly. The backend continues the call while the app is inactive; the apps refresh the tracked task when reopened. Session/task pointers and dismissed-card IDs are scoped to a hash of the backend connection and stored locally. Ordinary replies cannot erase a running booking.
+After call approval, booking progress has its own review button and does not block talking to Tuck. The backend continues the call while the app is inactive; the apps refresh the tracked task when reopened. Session/task pointers and dismissed-card IDs are scoped to a hash of the backend connection and stored locally. Ordinary replies cannot erase a running booking.
 
-Completion cards wait until recording, thinking, speech, and foreground approvals finish. The compact card replaces Jolly until dismissal or another conversation, respecting Reduce Motion. Only a verified `booked` outcome is titled **booking confirmed**, with the actual booked start displayed in the viewer’s device timezone using a compact 12-hour clock (for example, `Fri, 6 Nov · 3:30 pm`), without a timezone label. Full call review retains the booking timezone. Other outcomes retain their honest summary. Review offers stop/refresh controls, including uncertain calls. Calendar writes still require a separate explicit approval. Dismissed completion cards do not reappear after refresh or restart.
+Completion cards wait until recording, thinking, speech, and foreground approvals finish. The compact card replaces Tuck until dismissal or another conversation, respecting Reduce Motion. Only a verified `booked` outcome is titled **booking confirmed**, with the actual booked start displayed in the viewer’s device timezone using a compact 12-hour clock (for example, `Fri, 6 Nov · 3:30 pm`), without a timezone label. Full call review retains the booking timezone. Other outcomes retain their honest summary. Review offers stop/refresh controls, including uncertain calls. Calendar writes still require a separate explicit approval. Dismissed completion cards do not reappear after refresh or restart.
 
 These are in-app cards, with catch-up on resume. This feature requires no APNs setup, system-notification permission, or paid Apple developer membership. It does not promise delivery while the app is suspended. Building remains unsigned; installation is a separate manual step.
 
@@ -103,7 +103,7 @@ These are in-app cards, with catch-up on resume. This feature requires no APNs s
 
 Both clients load the private account's task feed from authenticated `GET /v1/tasks`. A fresh device can see bookings created by the other device; conversation histories remain separate. Reviews keep the task's original session identity for approval, stop and Calendar operations. Opening a task retrieves any linked pending Calendar approval. The iPhone has a Tasks entry; the Watch keeps its Tasks page. Foreground polling checks active work every three seconds and idle feeds every fifteen seconds, and stops when the app is inactive.
 
-Confirmed bookings offer **Reschedule booking** and **Cancel booking**. These prepare a new call proposal; they never dial immediately. A reschedule selects an allowed window in the booking's timezone. Review shows the original appointment and the requested change. Jolly must obtain a verified result from the business; any Calendar update or removal has its own clearly labelled approval. Superseded bookings link conceptually to the newer task and no longer offer change controls.
+Confirmed bookings offer **Reschedule booking** and **Cancel booking**. These prepare a new call proposal; they never dial immediately. A reschedule selects an allowed window in the booking's timezone. Review shows the original appointment and the requested change. Tuck must obtain a verified result from the business; any Calendar update or removal has its own clearly labelled approval. Superseded bookings link conceptually to the newer task and no longer offer change controls.
 
 Push delivery is implemented for both iPhone and independent Watch tokens, with explicit notification permission and task refresh on tap. Alerts contain generic task text, never the business, phone number or appointment details. The default development build has `MUSE_PUSH_ENVIRONMENT=disabled` and honestly reports that provisioning is needed. It continues to show task results in-app. Remote delivery has **not** been verified on hardware.
 
@@ -131,7 +131,7 @@ The owner requested builds now and physical-device testing later. No device inst
 
 Tasks now includes **My usual haircut**: save the business, international phone number, booking name, service, duration, timezone and preferred weekdays/hours. Saving preferences does not authorize a call or add a number to the server's calling allowlist. Each actual call still has a review step.
 
-The shared iPhone/Watch call review shows the server's next-step guidance. Verified bookings offer the existing Calendar, reschedule and cancellation reviews plus a Jolly reminder at an explicitly selected time. Eligible unsuccessful calls offer a new appointment window and prepare another call for approval; uncertain outcomes do not offer automatic redial. Reminder retries retain the same request ID until the chosen time changes.
+The shared iPhone/Watch call review shows the server's next-step guidance. Verified bookings offer the existing Calendar, reschedule and cancellation reviews plus a Tuck reminder at an explicitly selected time. Eligible unsuccessful calls offer a new appointment window and prepare another call for approval; uncertain outcomes do not offer automatic redial. Reminder retries retain the same request ID until the chosen time changes.
 
 **Demo readiness** on iPhone displays the backend revision, configuration checks and call-attempt allowance. A configured service is not proof of live provider or device acceptance.
 

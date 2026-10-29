@@ -40,14 +40,14 @@ export async function synthesizeSpeech(
     throw new AppError(
       502,
       "speech_failed",
-      "Jolly’s voice is temporarily unavailable",
+      "Tuck’s voice is temporarily unavailable",
     );
   const audio = Buffer.from(await response.arrayBuffer());
   if (!audio.length || audio.length > 4 * 1024 * 1024)
     throw new AppError(
       502,
       "invalid_speech",
-      "Jolly’s voice returned invalid audio",
+      "Tuck’s voice returned invalid audio",
     );
   return audio;
 }

@@ -14,7 +14,7 @@ COPY --from=build --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/dist ./dist
 COPY --from=build --chown=node:node /app/package.json ./package.json
 COPY --chown=node:node public/index.html public/style.css public/agent.md public/site.js public/mouse-gaze.js ./public/
-COPY --chown=node:node public/assets/jolly.png public/assets/jolly-face.png public/assets/watch-3d.png ./public/assets/
+COPY --chown=node:node public/assets/tuck.png public/assets/tuck-face.png public/assets/watch-3d.png ./public/assets/
 RUN mkdir /app/data && chown node:node /app/data
 USER node
 EXPOSE 8787

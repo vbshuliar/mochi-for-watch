@@ -150,7 +150,7 @@ test("social routes require authentication and OAuth state; no publish endpoint 
     assert.match(denied.body, /cancelled/);
   }
 });
-test("Jolly routes social requests to the connected account rather than guessing", async (t) => {
+test("Tuck routes social requests to the connected account rather than guessing", async (t) => {
   const f = await buildApp(config, {
     planner: {
       transcribe: async () => "",

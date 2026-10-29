@@ -32,11 +32,11 @@ struct JollyView: View {
         c.rotate(by: .degrees(p.angle))
         c.scaleBy(x: p.scale, y: p.scale)
         c.translateBy(x: -edge / 2, y: -edge * 0.65)
-        c.draw(Image("Jolly"), in: CGRect(x: 0, y: 0, width: edge, height: edge))
+        c.draw(Image("Tuck"), in: CGRect(x: 0, y: 0, width: edge, height: edge))
         c.scaleBy(x: edge / 1000, y: edge / 1000)
         for x in [335.0, 665.0] {
           var eyeContext = c
-          eyeContext.translateBy(x: x + p.gazeX, y: 520 + p.gazeY)
+          eyeContext.translateBy(x: x + p.gazeX, y: 487 + p.gazeY)
           let eye = eyePath(openness: p.eye, joy: p.joy)
           eyeContext.fill(
             eye,
@@ -50,18 +50,19 @@ struct JollyView: View {
               Path(ellipseIn: CGRect(x: 7, y: -27, width: 10, height: 18)), with: .color(.white))
           }
         }
+        let width = p.width * 1.25
         let x = 500 + p.gazeX * 0.25
-        let y = 592 + p.gazeY * 0.18
+        let y = 548 + p.gazeY * 0.18
         var mouth = Path()
-        mouth.move(to: CGPoint(x: x - p.width, y: y))
+        mouth.move(to: CGPoint(x: x - width, y: y))
         mouth.addCurve(
-          to: CGPoint(x: x + p.width, y: y),
-          control1: CGPoint(x: x - p.width * 0.6, y: y + p.smile),
-          control2: CGPoint(x: x + p.width * 0.6, y: y + p.smile))
+          to: CGPoint(x: x + width, y: y),
+          control1: CGPoint(x: x - width * 0.6, y: y + p.smile),
+          control2: CGPoint(x: x + width * 0.6, y: y + p.smile))
         mouth.addCurve(
-          to: CGPoint(x: x - p.width, y: y),
-          control1: CGPoint(x: x + p.width * 0.9, y: y + p.smile + p.mouth),
-          control2: CGPoint(x: x - p.width * 0.9, y: y + p.smile + p.mouth))
+          to: CGPoint(x: x - width, y: y),
+          control1: CGPoint(x: x + width * 0.9, y: y + p.smile + p.mouth),
+          control2: CGPoint(x: x - width * 0.9, y: y + p.smile + p.mouth))
         mouth.closeSubpath()
         c.fill(
           mouth,
@@ -117,8 +118,8 @@ struct JollyView: View {
     let o = max(0, min(1.45, openness))
     let close = 1 - min(1, o / 0.7)
     let curve = (12 - joy * 34) * close
-    let rx = 33 - close
-    let ry = 3 + o * 32
+    let rx = 39 - close
+    let ry = 3 + o * 36
     let k = 0.5522848
     var p = Path()
     p.move(to: CGPoint(x: -rx, y: 0))

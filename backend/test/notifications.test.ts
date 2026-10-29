@@ -311,7 +311,7 @@ test("reminder alerts persist once per occurrence and keep private titles off lo
   await f.notifications.flush();
   assert.equal(payloads.length, 1);
   assert.equal(payloads[0]?.reminderId, reminder.id);
-  assert.equal(payloads[0]?.aps.alert.title, "Jolly has a reminder");
+  assert.equal(payloads[0]?.aps.alert.title, "Tuck has a reminder");
   assert.equal(JSON.stringify(payloads).includes("medical"), false);
 });
 

@@ -57,7 +57,7 @@
     confusion += ((confused ? 1 : 0) - confusion) * (1 - Math.exp(-dt * 6));
     // Morph a single persistent mouth; no overlapping or fading expressions.
     const mix = (from, to) => from + (to - from) * confusion;
-    if (smile) smile.setAttribute('d', `M${mix(451,465)} ${mix(592,608)} C${mix(470.6,488.3)} ${mix(616,596)}, ${mix(529.4,513.3)} ${mix(616,593.7)}, ${mix(549,540)} ${mix(592,601)}`);
+    if (smile) smile.setAttribute('d', `M${mix(439,456)} ${mix(548,564)} C${mix(463,485)} ${mix(582,552)}, ${mix(537,517)} ${mix(582,549.7)}, ${mix(561,550)} ${mix(548,557)}`);
     // Brows grow from a point and bend, rather than appearing through opacity.
     for (const [index, brow] of brows.entries()) {
       const center = index === 0 ? 332 : 666;
@@ -91,7 +91,7 @@
     }
     const age = time - blinkStart;
     const openness = active && age >= 0 && age < .2 ? 1 - .94 * Math.sin(age / .2 * Math.PI) : 1;
-    lids.setAttribute('transform', `translate(0 520) scale(1 ${openness * (1 - confusion * .12)}) translate(0 -520)`);
+    lids.setAttribute('transform', `translate(0 487) scale(1 ${openness * (1 - confusion * .12)}) translate(0 -487)`);
     if (active || Math.abs(x) + Math.abs(y) + Math.abs(tilt) + Math.abs(lift) + Math.abs(confusion - (confused ? 1 : 0)) > .01) {
       frame = requestAnimationFrame(render);
     }
@@ -106,7 +106,7 @@
     if (!rect.width || !rect.height) return;
     target = {
       x: Math.max(-28, Math.min(28, (event.clientX - rect.left - rect.width / 2) / rect.width * 40)),
-      y: Math.max(-18, Math.min(18, (event.clientY - rect.top - rect.height * .52) / rect.height * 30)),
+      y: Math.max(-18, Math.min(18, (event.clientY - rect.top - rect.height * .487) / rect.height * 30)),
     };
     start();
   });

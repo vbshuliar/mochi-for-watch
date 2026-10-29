@@ -12,8 +12,8 @@ for (const file of [
   "style.css",
   "mouse-gaze.js",
   "site.js",
-  "assets/jolly.png",
-  "assets/jolly-face.png",
+  "assets/tuck.png",
+  "assets/tuck-face.png",
   "assets/watch-3d.png",
 ]) {
   await cp(new URL(file, source), new URL(file, destination));

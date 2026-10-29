@@ -14,8 +14,8 @@ export function reactionFor(text='',reply='',state='speak') {
  if(/\b(died|death|grief|grieving|funeral|suicide|hurt|injured|hospital|abuse|scared|terrified|depressed|lonely|crying|heartbroken|lost my|fired|laid off|bad news|sorry to hear)\b/.test(both))return null;
  if(!['speak','clarify'].includes(state))return null;
  const negative=/\b(not|never|hate|don't|do not|aren't|isn't|wasn't|weren't)\b/.test(input);
- const addressed=/\b(?:you(?:'re| are)|jolly(?: is|,? you're)?)\s+(?:(?:so|really|very|super|absolutely|such a|the)\s+)*(?:cute|adorable|sweet|lovely|wonderful|amazing|awesome|great|best|helpful|kind|cool)\b/;
- const affection=/\b(?:i (?:(?:really|truly|absolutely|so|much)\s+)*love you|love you(?:,? jolly)?|you're my favo(?:u)?rite|you are my favo(?:u)?rite|good job(?: jolly)?|well done(?: jolly)?)\b/;
+ const addressed=/\b(?:you(?:'re| are)|tuck(?: is|,? you're)?)\s+(?:(?:so|really|very|super|absolutely|such a|the)\s+)*(?:cute|adorable|sweet|lovely|wonderful|amazing|awesome|great|best|helpful|kind|cool)\b/;
+ const affection=/\b(?:i (?:(?:really|truly|absolutely|so|much)\s+)*love you|love you(?:,? tuck)?|you're my favo(?:u)?rite|you are my favo(?:u)?rite|good job(?: tuck)?|well done(?: tuck)?)\b/;
  if(!negative&&(addressed.test(input)||affection.test(input)))return 'loved';
  if(/\b(i'm not sure|i am not sure|could you clarify|did you mean|not quite sure|don't quite understand)\b/.test(answer))return 'confused';
  if(state==='clarify')return 'curious';
@@ -23,6 +23,6 @@ export function reactionFor(text='',reply='',state='speak') {
  if(!negative&&goodNews.test(input)&&!/\b(unfortunately|sorry|not|never)\b/.test(answer))return 'delighted';
  if(!negative&&/\b(wow|that's unexpected|what a surprise|incredible)\b/.test(answer))return 'surprised';
  if(/\?\s*$/.test(answer)&&/\b(what|which|how|tell me|would you|could you)\b/.test(answer))return 'curious';
- if(/^(hi|hello|hey)(?: jolly)?[!.\s]*$/.test(input)&&/\b(hi|hello|hey|glad|happy)\b/.test(answer))return 'delighted';
+ if(/^(hi|hello|hey)(?: tuck)?[!.\s]*$/.test(input)&&/\b(hi|hello|hey|glad|happy)\b/.test(answer))return 'delighted';
  return null;
 }

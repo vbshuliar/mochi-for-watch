@@ -19,7 +19,7 @@ final class ConversationTests: XCTestCase {
     XCTAssertThrowsError(try JSONDecoder().decode(Connection.self, from: invalid))
   }
   func testAffectionVariantsAndSeriousContext() {
-    XCTAssertEqual(Reactions.choose(input: "Hey Jolly, I really love you!"), .loved)
+    XCTAssertEqual(Reactions.choose(input: "Hey Tuck, I really love you!"), .loved)
     XCTAssertNil(Reactions.choose(input: "I don't really love you"))
     XCTAssertNil(Reactions.choose(input: "My dog died, you are so sweet"))
     XCTAssertEqual(

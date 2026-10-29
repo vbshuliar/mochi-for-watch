@@ -28,8 +28,8 @@ test("landing page is public while APIs and non-website files remain protected",
     "/site.js",
     "/mouse-gaze.js",
     "/style.css?v=1",
-    "/assets/jolly.png",
-    "/assets/jolly-face.png",
+    "/assets/tuck.png",
+    "/assets/tuck-face.png",
     "/assets/watch-3d.png",
   ]) {
     const response = await app.inject(url);

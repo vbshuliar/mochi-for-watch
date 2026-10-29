@@ -91,7 +91,7 @@ public struct APIClient: Sendable {
       switch event.type {
       case "text": if let text = event.text { await onText(text) }
       case "result": if let result = event.result { return result }
-      case "error": throw MuseError.message(event.message ?? "Jolly couldn’t finish that reply.")
+      case "error": throw MuseError.message(event.message ?? "Tuck couldn’t finish that reply.")
       default: throw MuseError.message("Unexpected reply from the server.")
       }
     }
@@ -107,7 +107,7 @@ public struct APIClient: Sendable {
       if let data, let error = try? JSONDecoder().decode(Envelope.self, from: data) {
         throw MuseError.message(error.error.message)
       }
-      throw MuseError.message("Couldn’t reach Jolly. Check your connection and try again.")
+      throw MuseError.message("Couldn’t reach Tuck. Check your connection and try again.")
     }
   }
 }

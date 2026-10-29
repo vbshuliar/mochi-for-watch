@@ -49,7 +49,7 @@ Run `node --test preview/emulator/audio.test.mjs` and `node preview/animation/ch
 
 ## iPhone companion preview
 
-Scroll the left device column below the watch to reach Jolly’s iPhone setup screen. There is one companion, no bot picker or additional-buddies placeholder. Connections add capabilities to Jolly; Calendar, Gmail, Notion, managed Instagram/Facebook and web search have implemented flows with provider-specific setup requirements. Calendar status is read from the same backend as the watch. Connect requests a Google consent link; check connection refreshes status; disconnect appears when an actual Google connection exists. These actions are recorded in the right-hand activity stream. Missing OAuth configuration shows a simple temporary-unavailability message; developer instructions never appear in the phone. This remains a single-user browser preview, not a native iPhone app or multi-user pairing flow.
+Scroll the left device column below the watch to reach Tuck’s iPhone setup screen. There is one companion, no bot picker or additional-buddies placeholder. Connections add capabilities to Tuck; Calendar, Gmail, Notion, managed Instagram/Facebook and web search have implemented flows with provider-specific setup requirements. Calendar status is read from the same backend as the watch. Connect requests a Google consent link; check connection refreshes status; disconnect appears when an actual Google connection exists. These actions are recorded in the right-hand activity stream. Missing OAuth configuration shows a simple temporary-unavailability message; developer instructions never appear in the phone. This remains a single-user browser preview, not a native iPhone app or multi-user pairing flow.
 
 ### Calendar connection experience
 

@@ -6,3 +6,5 @@
 #live-watch .success .head{animation-iteration-count:1}
 @media(min-width:701px) and (max-width:1450px){#canvas{min-width:0;padding:40px 28px 90px}.frames{grid-template-columns:repeat(2,208px);gap:30px;justify-content:space-around}.stamp{display:none}.canvas-heading{display:block}h1{font-size:34px}}
 @media(min-width:701px) and (max-width:760px){.layers{width:175px}main{left:175px}.frames{gap:18px;grid-template-columns:repeat(2,184px)}.frame-card{width:184px;padding:0}}
+
+.head svg.eyes-closed{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}

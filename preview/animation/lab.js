@@ -118,7 +118,7 @@ function setState(id,fromDemo=false){
  $('#message').setAttribute('aria-label',id==='listen'?'listening — microphone activity':statuses[id]);
  $('#mic-retry').hidden=true;
  if(id==='listen'&&!emulatorMode)void microphone.start();
- $('#mascot').setAttribute('aria-label',id==='approval'?'Approve simulated lunch event':id==='error'?'Retry simulated save':id==='sleep'?'Tap Jolly to wake up':id==='listen'?'Tap Jolly to finish talking':'Tap Jolly to continue');
+ $('#mascot').setAttribute('aria-label',id==='approval'?'Approve simulated lunch event':id==='error'?'Retry simulated save':id==='sleep'?'Tap Tuck to wake up':id==='listen'?'Tap Tuck to finish talking':'Tap Tuck to continue');
  document.querySelectorAll('[data-state]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.state===id)));
  // Keep this reaction independent of story timers, which stop at the result.
  if(Object.hasOwn(reactionDurations,id))reactionTimer=setTimeout(()=>setState('idle'),reactionDurations[id]);
@@ -292,11 +292,11 @@ function render(now){const dt=Math.min((now-last)/1000,.05);last=now;const t=(no
  // One continuous filled contour per eye. No separate lid overlay.
  for(const [side,x,sign]of [['left',335,-1],['right',665,1]]){
   const eye=Math.max(0,pose.eye*(1+sign*pose.asym*.008));
-  const ex=x+pose.gx*.75+eyeAttention.x,ey=520+pose.gy*.82+eyeAttention.y;
+  const ex=x+pose.gx*.75+eyeAttention.x,ey=487+pose.gy*.82+eyeAttention.y;
   // Keep the entire brow above the eye, including upward gaze and wide expressions.
-  const eyeTop=ey-(3+Math.min(1.45,eye)*32);
+  const eyeTop=ey-(3+Math.min(1.45,eye)*36);
   const browEnd=Math.max(4+sign*pose.asym*.4,4-sign*pose.asym*.4);
-  const browY=Math.min(450-pose.brow-sign*pose.asym+eyeAttention.y,eyeTop-18-browEnd);
+  const browY=Math.min(417-pose.brow-sign*pose.asym+eyeAttention.y,eyeTop-18-browEnd);
   $('#'+side+'-brow').setAttribute('d',`M ${ex-29} ${browY+4+sign*pose.asym*.4} Q ${ex} ${browY-7} ${ex+29} ${browY+4-sign*pose.asym*.4}`);
   $('#'+side+'-brow').style.opacity=Math.min(.22,Math.abs(pose.brow)/70+Math.abs(pose.asym)/100)*Math.min(1,eye*2);
  }
@@ -304,14 +304,14 @@ function render(now){const dt=Math.min((now-last)/1000,.05);last=now;const t=(no
  // Reference mouth: shallow smiling upper edge, deep rounded lower bowl.
  const mx=500+pose.skew;
  const openness=Math.max(0,Math.min(1,pose.open));
- const width=pose.width*(1+openness*.32),left=mx-width,right=mx+width;
+ const width=pose.width*1.25*(1+openness*.32),left=mx-width,right=mx+width;
  const opening=openness*86,restSmile=pose.smile*(1-openness);
- const top=592+restSmile+opening*.08;
- const bottom=592+restSmile+opening*1.22;
+ const top=548+restSmile+opening*.08;
+ const bottom=548+restSmile+opening*1.22;
  const upperControl=width*.6,lowerControl=width*(.6+openness*.38);
- const mouthPath=`M ${left} 592 C ${mx-upperControl} ${top}, ${mx+upperControl} ${top}, ${right} 592 C ${mx+lowerControl} ${bottom}, ${mx-lowerControl} ${bottom}, ${left} 592 Z`;
+ const mouthPath=`M ${left} 548 C ${mx-upperControl} ${top}, ${mx+upperControl} ${top}, ${right} 548 C ${mx+lowerControl} ${bottom}, ${mx-lowerControl} ${bottom}, ${left} 548 Z`;
  $('#mouth').setAttribute('d',mouthPath);
- const tongueY=592+restSmile*.75+opening*.68;
+ const tongueY=548+restSmile*.75+opening*.68;
  $('#tongue').setAttribute('d',`M ${mx-width*.8} ${tongueY+opening*.35} Q ${mx-width*.8} ${tongueY-opening*.26} ${mx} ${tongueY-opening*.26} Q ${mx+width*.8} ${tongueY-opening*.26} ${mx+width*.8} ${tongueY+opening*.35} Z`);
  $('#tongue').style.opacity=Math.max(0,Math.min(1,(openness-.14)*3));
  // A short, interruptible compliment reaction; no persistent decoration.
@@ -344,7 +344,7 @@ window.addEventListener('pagehide',()=>microphone.stop());
 function eyeContour(openness,joy){
  const o=Math.max(0,Math.min(1.45,openness));
  const close=1-Math.min(1,o/.7),curve=(12-joy*34)*close;
- const rx=33-close,ry=3+o*32,k=.5522848;
+ const rx=39-close,ry=3+o*36,k=.5522848;
  // Rounded bead eyes become a single curved lid as they close.
  return new Path2D(`M ${-rx} 0 C ${-rx} ${-ry*k}, ${-rx*k} ${curve-ry}, 0 ${curve-ry} C ${rx*k} ${curve-ry}, ${rx} ${-ry*k}, ${rx} 0 C ${rx} ${ry*k}, ${rx*k} ${curve+ry}, 0 ${curve+ry} C ${-rx*k} ${curve+ry}, ${-rx} ${ry*k}, ${-rx} 0 Z`);
 }
@@ -359,7 +359,7 @@ function drawWatch(t,active){
  c.scale(head/1000,head/1000);c.translate(pose.gx*.25,pose.gy*.18);
  for(const [side,ex,sign]of [['left',335,-1],['right',665,1]]){
   const openness=Math.max(0,pose.eye*(1+sign*pose.asym*.008));
-  c.save();c.translate(ex+pose.gx*.75+eyeAttention.x,520+pose.gy*.82+eyeAttention.y);
+  c.save();c.translate(ex+pose.gx*.75+eyeAttention.x,487+pose.gy*.82+eyeAttention.y);
   const eye=eyeContour(openness,pose.joy),gloss=c.createRadialGradient(10,-17,1,0,0,38);
   gloss.addColorStop(0,'#292b30');gloss.addColorStop(.45,'#101114');gloss.addColorStop(1,'#030405');
   c.fillStyle=openness<.25?'#211916':gloss;c.fill(eye);c.clip(eye);
@@ -370,7 +370,7 @@ function drawWatch(t,active){
   c.beginPath();c.ellipse(12,-18,5,9,-.55,0,Math.PI*2);c.fill();c.restore();
   c.save();c.globalAlpha=Number($('#'+side+'-brow').style.opacity)||0;c.strokeStyle='#80634e';c.lineWidth=6;c.lineCap='round';c.stroke(new Path2D($('#'+side+'-brow').getAttribute('d')));c.restore();
  }
- const mouth=new Path2D($('#mouth').getAttribute('d')),depth=c.createLinearGradient(0,590,0,675);
+ const mouth=new Path2D($('#mouth').getAttribute('d')),depth=c.createLinearGradient(0,548,0,631);
  depth.addColorStop(0,'#281311');depth.addColorStop(1,'#71332e');c.fillStyle=depth;c.fill(mouth);c.strokeStyle='#281b17';c.lineWidth=7;c.lineJoin='round';c.lineCap='round';c.stroke(mouth);
  c.save();c.clip(mouth);c.globalAlpha=Number($('#tongue').style.opacity)||0;c.fillStyle='#bd7773';c.fill(new Path2D($('#tongue').getAttribute('d')));c.restore();c.restore();
  if(state==='loved'||heartOverlay){
@@ -391,7 +391,7 @@ if(emotionsOnly){
  $('#state-filter').value='emotions';
  document.title='Muse for Watch · emotions';
  $('.intro h1').textContent='every little feeling.';
- $('.intro>p:last-child').textContent='Choose an emotion to see Jolly react, then settle back to neutral.';
+ $('.intro>p:last-child').textContent='Choose an emotion to see Tuck react, then settle back to neutral.';
  $('aside>.description').textContent='All available emotions and reactions. Click one to preview its animation.';
  $('header>a').href='/preview/emulator/';$('header>a').textContent='← back to emulator';
  $('#mascot').onclick=()=>setState('idle');

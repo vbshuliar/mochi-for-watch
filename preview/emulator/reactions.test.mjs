@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {reactionFor} from './reactions.mjs';
 test('direct compliments trigger the heart reaction',()=>{
- for(const text of ["you're so cute",'Jolly is adorable','You are really helpful','I love you, Jolly','Hey, Jolly, I really love you.','I absolutely love you','love you, Jolly','You’re the best!','good job Jolly'])assert.equal(reactionFor(text),'loved',text);
+ for(const text of ["you're so cute",'Tuck is adorable','You are really helpful','I love you, Tuck','Hey, Tuck, I really love you.','I absolutely love you','love you, Tuck','You’re the best!','good job Tuck'])assert.equal(reactionFor(text),'loved',text);
 });
 test('ordinary requests, third-party praise and negative phrases do not trigger hearts',()=>{
  for(const text of ['schedule lunch','my dog is cute',"you are not helpful","I don't think you are cute","I don't really love you",'what a wonderful day',''])assert.equal(reactionFor(text),null,text);
@@ -13,7 +13,7 @@ test('response and context select different conversational reactions',()=>{
  assert.equal(reactionFor('I want to try a hobby.','What do you enjoy doing?'),'curious');
  assert.equal(reactionFor('Use the other one.','Did you mean the earlier option?'),'confused');
  assert.equal(reactionFor('Tomorrow.','What time tomorrow?','clarify'),'curious');
- assert.equal(reactionFor('Hello Jolly!','hello, happy to see you'),'delighted');
+ assert.equal(reactionFor('Hello Tuck!','hello, happy to see you'),'delighted');
 });
 test('serious context and workflow states override cheerful triggers',()=>{
  assert.equal(reactionFor('My dog died. You are so sweet.','I’m sorry to hear that.'),null);

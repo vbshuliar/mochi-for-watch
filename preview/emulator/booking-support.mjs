@@ -22,7 +22,7 @@ export function setupBookingSupport(options){
  for(const [key,label,type] of definitions){const wrap=el('label',label),input=el('input');input.type=type;input.required=true;input.id='booking-'+key;if(type==='number'){input.min='5';input.max='240';}wrap.append(input);form.append(wrap);fields[key]=input;}
  const dayNodes=[];const days=el('fieldset');days.append(el('legend','Preferred days'));for(const [index,name] of ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].entries()){const label=el('label',name),input=el('input');input.type='checkbox';input.value=String(index+1);label.append(input);days.append(label);dayNodes.push(input);}form.append(days);
  fields.timeZone.value=Intl.DateTimeFormat().resolvedOptions().timeZone;fields.purpose.value='haircut';fields.durationMinutes.value='30';
- const save=el('button','Save usual booking');save.type='submit';const remove=el('button','Remove saved profile');remove.type='button';form.append(save,remove,el('p','Saving a business does not enable its number or place a call. Ask Jolly to find alternatives if you do not have a usual barber; review their details before saving.'));
+ const save=el('button','Save usual booking');save.type='submit';const remove=el('button','Remove saved profile');remove.type='button';form.append(save,remove,el('p','Saving a business does not enable its number or place a call. Ask Tuck to find alternatives if you do not have a usual barber; review their details before saving.'));
  const ready=el('div'),results=el('div');panel.append(feedback,refresh,form,ready,results);
  let controller,profileVersion,editing=false;
  form.addEventListener('input',()=>{editing=true;});

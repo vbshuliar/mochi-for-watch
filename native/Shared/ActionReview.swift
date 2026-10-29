@@ -62,7 +62,7 @@ struct DocumentReview: View {
         Text(action.body).font(.body)
         if action.status == "uncertain" || action.status == "executing" {
           Text("The save wasn’t verified. Check Notion before creating another page. Automatic retries are disabled to avoid duplicates.").font(.caption)
-          Button("Back to Jolly") { dismiss() }.disabled(busy)
+          Button("Back to Tuck") { dismiss() }.disabled(busy)
         } else {
           Text("Nothing is saved until you confirm.").font(.caption)
           Button("Save to Notion") { decide(true) }.buttonStyle(.borderedProminent).disabled(busy)
@@ -129,10 +129,10 @@ struct CallReview: View {
           ReviewDetail("Booked", value: "\(date(slot.start)) until \(date(slot.end))")
         }
         if let followUp = call.followUp { Text(followUp.message).font(.footnote) }
-        if reminderSaved { Label("Reminder saved in Jolly", systemImage: "checkmark.circle").font(.footnote) }
+        if reminderSaved { Label("Reminder saved in Tuck", systemImage: "checkmark.circle").font(.footnote) }
         if let failure = model.failure { Text(failure).font(.footnote) }
         if call.status == "pending", !model.confirmationUnknown(for: call) {
-          Text("Jolly will call this number as your AI assistant and share these booking details only after you approve.")
+          Text("Tuck will call this number as your AI assistant and share these booking details only after you approve.")
             .font(.footnote).foregroundStyle(.secondary)
           VStack(spacing: 8) {
             ReviewButton("Approve and call", prominent: true) { model.callCommand("confirm", callID: call.id) }
@@ -141,7 +141,7 @@ struct CallReview: View {
         } else {
           Text(call.status.replacingOccurrences(of: "_", with: " ")).font(.headline)
           if call.status == "uncertain" || model.confirmationUnknown(for: call) && call.status == "pending" {
-            Text("The result could not be verified. Check with the business before making another booking. Jolly will not redial automatically.").font(.footnote)
+            Text("The result could not be verified. Check with the business before making another booking. Tuck will not redial automatically.").font(.footnote)
           }
           VStack(spacing: 8) {
             if call.active || call.status == "uncertain" || model.confirmationUnknown(for: call) && call.status == "pending" {
@@ -165,7 +165,7 @@ struct CallReview: View {
               ReviewButton("Choose times and try again") { retrying = true }.disabled(model.hasProposal)
             }
             ReviewButton("Refresh status") { model.callCommand("refresh", callID: call.id) }
-            ReviewButton("Back to Jolly") { model.dismissCallCompletion(); close() }
+            ReviewButton("Back to Tuck") { model.dismissCallCompletion(); close() }
           }
         }
         if model.callUpdating { ProgressView("Updating…").frame(maxWidth: .infinity) }
@@ -178,7 +178,7 @@ struct CallReview: View {
             Section {
               DatePicker("Earliest start", selection: $windowStart, in: Date()..., displayedComponents: [.date, .hourAndMinute])
               DatePicker("Available until", selection: $windowEnd, in: windowStart..., displayedComponents: [.date, .hourAndMinute])
-              Text("Times use \(call.booking.timeZone). Jolly will prepare a new call for your approval. The existing booking stays unchanged until the business confirms a change.").font(.footnote)
+              Text("Times use \(call.booking.timeZone). Tuck will prepare a new call for your approval. The existing booking stays unchanged until the business confirms a change.").font(.footnote)
             }
             Button("Prepare reschedule call") {
               model.prepareBookingChange(call, operation: "reschedule", start: windowStart, end: windowEnd)
@@ -220,7 +220,7 @@ struct CallReview: View {
       .confirmationDialog("Prepare a cancellation call?", isPresented: $cancellingBooking, titleVisibility: .visible) {
         Button("Prepare cancellation") { model.prepareBookingChange(call, operation: "cancel_booking") }
       } message: {
-        Text("You will review and approve the call before Jolly asks the business to cancel. Calendar removal needs a separate approval.")
+        Text("You will review and approve the call before Tuck asks the business to cancel. Calendar removal needs a separate approval.")
       }
   }
 }

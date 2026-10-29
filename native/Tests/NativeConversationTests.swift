@@ -72,7 +72,7 @@ private final class NativeFixture: URLProtocol, @unchecked Sendable {
       body = #"{"sessionId":"foreign-session","state":"approval","statusText":"Review retry","speechText":"Review this call before calling again.","simulated":true,"callAction":\#(changed)}"#
     } else if path.hasSuffix("/change") {
       let changed = callFixture.replacingOccurrences(of: "call-1", with: "change-proposal").replacingOccurrences(of: "uncertain", with: "pending")
-      body = #"{"sessionId":"test-session","state":"approval","statusText":"Review cancellation call","speechText":"Review this call before Jolly cancels the booking.","simulated":true,"callAction":\#(changed)}"#
+      body = #"{"sessionId":"test-session","state":"approval","statusText":"Review cancellation call","speechText":"Review this call before Tuck cancels the booking.","simulated":true,"callAction":\#(changed)}"#
     } else if path.hasSuffix("/stop") {
       body = #"{"sessionId":"test-session","state":"idle","statusText":"Stopped","speechText":"Call stopped.","simulated":true,"callAction":\#(callFixture.replacingOccurrences(of: "uncertain", with: "cancelled"))}"#
     } else if path.contains("/calls/") {
@@ -124,7 +124,7 @@ private final class NativeFixture: URLProtocol, @unchecked Sendable {
   func testHeartsStartBeforeSpeechAndIdleWaitsForPlayback() async throws {
     let (model, audio) = try makeModel()
     defer { model.suspend() }
-    model.sendText("Hey Jolly, I really love you!")
+    model.sendText("Hey Tuck, I really love you!")
     await eventually { audio.played == 1 }
     XCTAssertNotNil(model.heartStart)
     XCTAssertEqual(model.mood, .speak)
@@ -667,10 +667,10 @@ extension NativeConversationTests {
     let model = DailySupportModel(store: ConnectionStore(connection: nil))
     model.beginReminder()
     await model.createReminder(title: "Check booking", due: Date().addingTimeInterval(3600), recurrence: "none")
-    XCTAssertEqual(model.error, "Connect to Jolly before saving changes.")
+    XCTAssertEqual(model.error, "Connect to Tuck before saving changes.")
     XCTAssertTrue(model.reminders.isEmpty)
     await model.refresh()
-    XCTAssertEqual(model.error, "Connect to Jolly to load your day.")
+    XCTAssertEqual(model.error, "Connect to Tuck to load your day.")
   }
   func testSuccessfulReminderSaveKeepsRetryIDWhenFollowingRefreshFails() async throws {
     ReminderRefreshFailureFixture.log.reset()

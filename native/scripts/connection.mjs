@@ -13,4 +13,4 @@ if(!token || token.length < 32) throw new Error('Set API_TOKEN in backend/.env f
 await mkdir(fileURLToPath(new URL('../Local/', import.meta.url)), {recursive:true, mode:0o700});
 await writeFile(output, JSON.stringify({baseURL:url.origin,token}, null, 2), {mode:0o600});
 await chmod(output, 0o600);
-console.log('Saved native/Local/connection.json (private, Git-ignored). Press and hold Jolly’s avatar in the Debug iPhone app to import it.');
+console.log('Saved native/Local/connection.json (private, Git-ignored). Press and hold Tuck’s avatar in the Debug iPhone app to import it.');

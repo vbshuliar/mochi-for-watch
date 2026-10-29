@@ -253,11 +253,11 @@ export class Notifications {
         aps: {
           alert: {
             title: delivery.reminderId
-              ? "Jolly has a reminder"
-              : "Jolly has a task update",
+              ? "Tuck has a reminder"
+              : "Tuck has a task update",
             body: delivery.reminderId
-              ? "Open Jolly to review your reminder."
-              : "Open Jolly to review the result or next step.",
+              ? "Open Tuck to review your reminder."
+              : "Open Tuck to review the result or next step.",
           },
           sound: "default",
           "thread-id": delivery.taskId,

@@ -1,4 +1,4 @@
-// Render a static version of the native Jolly component for the app launcher.
+// Render a static version of the native Tuck component for the app launcher.
 import AppKit
 import SwiftUI
 
@@ -6,8 +6,8 @@ import SwiftUI
   let root = URL(fileURLWithPath: CommandLine.arguments[1], isDirectory: true)
   guard
     let plate = NSImage(
-      contentsOf: root.appendingPathComponent("Resources/Assets.xcassets/Jolly.imageset/jolly.png"))
-  else { fatalError("Missing Jolly resource") }
+      contentsOf: root.appendingPathComponent("Resources/Assets.xcassets/Tuck.imageset/tuck.png"))
+  else { fatalError("Missing Tuck resource") }
   let content = ZStack {
     Color.black
     Image(nsImage: plate).resizable().frame(width: 920, height: 920)
@@ -17,19 +17,19 @@ import SwiftUI
           c.scaleBy(x: size.width / 1000, y: size.height / 1000)
           for x in [335.0, 665.0] {
             c.fill(
-              Path(ellipseIn: CGRect(x: x - 33, y: 484, width: 66, height: 72)),
+              Path(ellipseIn: CGRect(x: x - 39, y: 448, width: 78, height: 78)),
               with: .radialGradient(
                 Gradient(colors: [Color(white: 0.17), Color(white: 0.02)]),
-                center: CGPoint(x: x + 10, y: 503), startRadius: 1, endRadius: 38))
+                center: CGPoint(x: x + 10, y: 470), startRadius: 1, endRadius: 38))
             c.fill(
-              Path(ellipseIn: CGRect(x: x + 7, y: 493, width: 10, height: 18)),
+              Path(ellipseIn: CGRect(x: x + 7, y: 460, width: 10, height: 18)),
               with: .color(.white.opacity(0.85)))
           }
           var smile = Path()
-          smile.move(to: CGPoint(x: 451, y: 592))
+          smile.move(to: CGPoint(x: 439, y: 548))
           smile.addCurve(
-            to: CGPoint(x: 549, y: 592), control1: CGPoint(x: 470, y: 624),
-            control2: CGPoint(x: 530, y: 624))
+            to: CGPoint(x: 561, y: 548), control1: CGPoint(x: 463, y: 582),
+            control2: CGPoint(x: 537, y: 582))
           c.stroke(
             smile, with: .color(Color(red: 0.16, green: 0.1, blue: 0.08)),
             style: StrokeStyle(lineWidth: 7, lineCap: .round))

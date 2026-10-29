@@ -648,7 +648,7 @@ export async function buildApp(
         .send(
           query.error
             ? "Connection cancelled. Return to Muse to try again."
-            : "Sign-in complete. Return to Muse and choose the account Jolly should use.",
+            : "Sign-in complete. Return to Muse and choose the account Tuck should use.",
         );
     });
   }
