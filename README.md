@@ -1,152 +1,84 @@
 # Mochi for Watch
 
-<div align="center">
-
-**MOCHI · YOUR PERSONAL SECRETARY, ON YOUR WRIST**
-
 [![Checks](https://github.com/vbshuliar/mochi-for-watch/actions/workflows/checks.yml/badge.svg)](https://github.com/vbshuliar/mochi-for-watch/actions/workflows/checks.yml)
-![License](https://img.shields.io/badge/license-Apache--2.0-61806b?style=flat-square)
+[![License](https://img.shields.io/badge/license-Apache--2.0-61806b?style=flat-square)](LICENSE)
 ![Node](https://img.shields.io/badge/Node-24-339933?style=flat-square)
 ![Devices](https://img.shields.io/badge/iOS_17%2B-watchOS_10%2B-007AFF?style=flat-square)
 
-[Website](https://mochi-for-watch.fly.dev/) · [Quick start](#run-it-locally) · [Agent setup](docs/agent-setup.md) · [Documentation](docs/README.md) · [Contributing](CONTRIBUTING.md)
-
-</div>
+[Website](https://mochi-for-watch.fly.dev/) · [Quick start](#run-it-locally) · [Architecture](#inside-the-app) · [Documentation](docs/README.md) · [Agent setup](docs/agent-setup.md)
 
 <img align="right" src="docs/design/mochi-watch-preview.png" alt="Mochi on Apple Watch — transparent product illustration" width="260" />
 
-### Your personal secretary, on your wrist.
+## Ask for a haircut. Let Mochi make the call.
 
-**Mochi makes calls on your behalf and handles tasks across your connected services.**
+Mochi is a personal assistant for Apple Watch. Tell him what you need, review the proposed call, and let him speak with the business to arrange it.
 
-![SwiftUI](https://img.shields.io/badge/SwiftUI-F05138?style=flat-square)
-![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square)
-![Node.js](https://img.shields.io/badge/Node.js-339933?style=flat-square)
-![Fastify](https://img.shields.io/badge/Fastify-000000?style=flat-square)
-![SQLite](https://img.shields.io/badge/SQLite-003B57?style=flat-square)
-![ElevenLabs](https://img.shields.io/badge/ElevenLabs-222222?style=flat-square)
-![Twilio](https://img.shields.io/badge/Twilio-F22F46?style=flat-square)
+> “Book my usual haircut next week. Any afternoon except Thursday.”
 
-**Ask once. Let Mochi take care of the conversation.**
+Mochi uses your saved preferences and Calendar availability to prepare the request. After you approve, he handles the phone conversation while you keep chatting or check progress from your Watch or iPhone.
 
-[Meet Mochi](#meet-mochi) · [The booking flow](#one-request-a-whole-task) · [Run locally](#run-it-locally) · [Architecture](#inside-the-app) · [Docs](#find-your-way-around)
+**You approve the call. Mochi negotiates within your instructions. You review the outcome.** Adding the appointment to Calendar gets a separate approval.
+
+**Private, self-hosted, single-owner.** Includes native Watch/iPhone apps and a browser emulator. The illustration shows the intended interface; live booking and latest physical-device acceptance remain pending.
 
 <br clear="both" />
 
----
-
-## Meet Mochi
-
-Need a haircut booked, a free afternoon found, or your travel emails turned into a plan? Tell Mochi from your Apple Watch.
-
-**Mochi is your personal secretary with a face you’ll love talking to.** He remembers your preferences, uses the services you connect, and carries out tasks on your behalf. For a booking, he checks your Calendar, calls the business, speaks as your AI assistant, and negotiates within the times you approved.
-
-**You approve the call. Mochi handles the conversation.** Keep chatting while he works in the background, swipe to check progress, and review the result when he’s finished. Saving the appointment to Calendar gets its own approval.
-
-Connect Calendar, Gmail, Notion, Instagram and Facebook Pages to give Mochi useful context and capabilities. Ask him to summarize email, prepare a Notion document, or catch you up on social activity. One familiar companion brings the connected tools together.
-
-He still blinks, glances around, reacts to your words and sends little hearts when you compliment him. The personality makes delegation feel like a conversation.
-
-<table>
-<tr>
-<td width="50%" valign="top">
-
-### Small screen, plenty of personality
-
-- A plush face and one readable status line.
-- Head movement responds to microphone volume.
-- Thoughtful glances, expressive replies and a single burst of hearts.
-- Smooth transitions from listening to thinking to speaking.
-- Interruptible voice replies and streaming transcription.
-
-</td>
-<td width="50%" valign="top">
-
-### Delegate the follow-through
-
-- Call businesses and speak on your behalf after approval.
-- Negotiate appointments around your Calendar and preferences.
-- Summarize email and draft Notion documents.
-- Read connected social activity and suggest replies.
-- Remember preferences you can edit or delete on iPhone.
-- Keep chatting while an approved booking runs.
-- Check real call progress and review an idle-time result card.
-- Ask before calling or saving an event.
-
-</td>
-</tr>
-</table>
-
-[Explore the character playground](preview/animation/README.md) · [Artwork and animation guide](docs/design/mochi.md)
-
-## A look at Mochi
-
-<table>
-<tr>
-<td align="center" width="50%"><img src="docs/design/mochi-portrait.png" width="220" alt="Approved Mochi character portrait" /><br/><strong>The new Mochi companion</strong><br/><sub>Generated portrait · selected 29 October 2026</sub></td>
-<td align="center" width="50%"><strong>Ask → approve → call → review</strong><br/><sub>Autonomous booking within your approved instructions. Calendar writes receive separate approval.</sub></td>
-</tr>
-</table>
-
-[Native capture provenance](native/Verification/README.md) · [Character playground](preview/animation/README.md) · [Visual asset notices](THIRD_PARTY_NOTICES.md)
-
-## One request. A whole task.
-
-The signature workflow: delegate a booking from your wrist, and let Mochi handle the phone conversation autonomously within your approved instructions.
-
-> **You:** “Call my usual barber. Any afternoon next week, except Thursday.”
-
-Mochi uses saved details where available, asks about anything missing, and checks the requested windows against your Calendar. You review the number, purpose and allowed times before the call starts.
-
-> **Mochi, on the call:** “Hi, I’m Mochi, Alex’s AI assistant. Is this Demo Salon? I’m calling to arrange a haircut. Is it okay to chat?”
->
-> **Then:** “Do you have anything between 2 and 4 pm on Friday?”
-
-Once the call starts, Mochi stays available for another conversation. Ask how the booking is going to hear its recorded status. A completion card waits until you finish speaking; reopening the app refreshes the task. Swipe to the tasks page for in-progress work, items needing your approval and recent completions.
-
-He offers natural ranges, not a list of fifteen-minute slots. When the business suggests an allowed time, he moves to confirmation. A verified booking becomes a result you can review and separately approve for Calendar.
+## How booking works
 
 ```mermaid
 flowchart LR
-    Request[Ask Mochi] --> Plan[Preferences + Calendar availability]
-    Plan --> Review[Review and approve call]
-    Review --> Call[Mochi speaks with the business]
-    Call --> Result[Review confirmed booking]
-    Result --> Save[Approve Calendar event]
+    Ask[Ask for a booking] --> Plan[Preferences + availability]
+    Plan --> Approve[You approve the call]
+    Approve --> Call[Mochi calls the business]
+    Call --> Outcome{Outcome}
+    Outcome -->|Confirmed| Review[Review appointment]
+    Review --> Calendar[Approve Calendar save]
+    Outcome -->|Unavailable or uncertain| Recover[Review next steps]
 ```
 
-## What Mochi can do
-
-| Capability | Experience |
+| Step | What happens |
 | --- | --- |
-| **Voice conversation** | Speak naturally, interrupt a reply, and hear Mochi answer through the configured model and speech services. |
-| **Expressive face** | Blinking, thoughtful glances, playful reactions and smooth speech animation. |
-| **Personal memory** | Remember preferences across conversations, with iPhone controls to view, edit and delete facts. |
-| **Current answers** | Search the web through the configured provider and follow source links. |
-| **Google Calendar** | Check events and availability, then review and approve new appointments. |
-| **Booking calls** | Let Mochi call on your behalf, negotiate within your preferred times, and report the result while you keep chatting. |
-| **Daily support** | Booking-first daily briefing, persistent reminders, and reviewed unsent Gmail drafts. |
-| **Usual booking setup** | Save your barber, service and preferred hours; review booking follow-through and safe retry proposals. |
-| **Gmail → Notion** | Summarize matching emails or turn ideas into Notion pages, with review before saving. |
-| **Instagram / Facebook Pages** | Read recent activity from a selected account and get suggested replies. Nothing is published automatically. |
+| **Prepare** | Mochi checks saved business details, service, preferred hours and Calendar availability. Missing details are requested before dialing. |
+| **Approve** | You review the recipient, purpose and allowed times. Live calls also require a configured destination allowlist. |
+| **Call** | Mochi identifies himself as your AI assistant, asks for consent and negotiates within the approved window. The task continues in the background. |
+| **Review** | Shared Watch/iPhone tasks show progress and the recorded result. A call ending does not count as a confirmed appointment. |
+| **Follow through** | Review a Calendar save, a retry proposal, or a change to a linked booking. An uncertain result is preserved for reconciliation rather than blindly retried. |
 
-Connected services use their own account permissions. Calendar supports availability, new single events, and reviewed changes to Mochi's linked booking events; Gmail is read-only by default, with optional reviewed unsent drafts; social connections support managed Pages and linked professional Instagram accounts. See [connection capabilities and setup](docs/integrations-and-models.md).
+[Booking setup and safeguards](docs/booking-calls.md) · [Usual haircut preferences](docs/booking-experience.md)
 
-The latest development build adds a structured usual-booking profile, safe retry proposals, booking reminders, readiness checks, one-time private pairing, and shared Watch/iPhone booking tasks, reviewed rescheduling and cancellation, separately approved Calendar updates/removals, and opt-in completion alerts. Alerts require Apple push provisioning. Live booking-change tests and physical-device acceptance remain pending; see [the acceptance checklist](docs/development-acceptance.md) and [notification setup](docs/task-notifications.md).
+## What else you can do
 
-## Readiness, honestly
+| Capability | Use it for | Boundary |
+| --- | --- | --- |
+| **Voice and memory** | Interruptible conversations; preferences you can view, edit and delete on iPhone. | Live speech needs provider credentials. |
+| **Web search** | Current answers with source links. | Uses the configured search/model provider. |
+| **Calendar** | Availability, new events, and reviewed changes to linked bookings. | Writes need approval. |
+| **Daily briefing** | Booking progress, today's events, due reminders and recent inbox context. | On demand; not an automatic morning message. |
+| **Reminders** | Persistent, shared reminders with snooze and recurrence. | Stored in Mochi, not Apple Reminders; push needs APNs setup. |
+| **Gmail drafts** | Review a recipient, subject and message, then save an unsent draft. | Separate compose permission; no send endpoint. |
+| **Gmail → Notion** | Turn selected email context or your ideas into a document. | Review before saving to an authorized page. |
+| **Social activity** | Summaries and reply suggestions for Facebook Pages and linked professional Instagram accounts. | No automatic publishing; personal accounts are not supported. |
 
-The booking flow, approval controls, recovery paths and native clients are implemented. Automated checks use fixtures; they do not prove a real telephone appointment. The current owner deployment has Calendar, Gmail and Notion connected. Live haircut acceptance, latest physical-device acceptance and Apple push provisioning remain outstanding. Gmail and Notion stay outside the signature haircut demo.
+[Connection setup](docs/integrations-and-models.md) · [Briefings, reminders and drafts](docs/daily-support.md) · [Gmail and Notion](docs/gmail-notion.md)
 
-This is a private single-owner prototype, not an App Store release or multi-user service. Phone-menu navigation, payments/deposits and automatically trying multiple businesses are outside the implemented scope. Original project code and artwork are available under [Apache-2.0](LICENSE). Hosted services require their own accounts and terms.
+## Status and limits
+
+| Area | Current status |
+| --- | --- |
+| Backend, browser and native logic | Implemented with automated fixture-based checks. See the CI badge for the latest run. |
+| End-to-end haircut booking | Complete live acceptance remains pending. Automated tests do not prove a real appointment. |
+| Native apps | iPhone/Watch builds are available from source; latest physical-device acceptance remains pending. |
+| Completion and reminder alerts | Implemented; require Apple push provisioning and device verification. |
+| Distribution | Private single-owner deployment; not an App Store release or shared multi-user service. |
+| Outside scope | Phone-menu navigation, payments/deposits, and automatically trying multiple businesses. |
+
+The haircut demo focuses on calling and Calendar. Gmail and Notion are optional integrations outside that demo. See the [acceptance checklist](docs/development-acceptance.md).
 
 ## Run it locally
 
-Before committing or pushing development changes, run `npm --prefix backend run format` followed by `npm --prefix backend run check:all` from the repository root. This runs the checks shared with GitHub CI. Native UI changes additionally require `sh native/scripts/check.sh` for SDK builds.
+**Requirements:** Node.js 24, npm and a browser. No Watch or provider credentials are needed for the mock backend demo. Native apps require macOS/Xcode, iOS 17+ and watchOS 10+.
 
-**You need:** Node.js 24, npm and a browser. No Watch is required to explore the emulator. Live voice needs model and speech-provider credentials; mock mode uses deterministic fixtures.
-
-### 1 · Start the backend
+### 1. Start the backend
 
 ```sh
 git clone https://github.com/vbshuliar/mochi-for-watch.git
@@ -157,23 +89,23 @@ npm run build
 npm start
 ```
 
-Setup creates a private, ignored `.env` and generates authentication/encryption keys. It leaves existing configuration intact. Keep the encryption key when retaining the database.
+Setup creates an ignored `.env` with authentication and encryption keys. Existing configuration is preserved. Keep the encryption key when retaining the database.
 
-### 2 · Open the emulator
+### 2. Open the browser emulator
 
-In a second terminal, from `backend/`:
+In another terminal, from `backend/`:
 
 ```sh
 npm run emulator
 ```
 
-Open **[127.0.0.1:4174/preview/emulator/](http://127.0.0.1:4174/preview/emulator/)**. The Watch preview sits above the iPhone companion; the activity log explains requests and results, with payloads collapsed until clicked.
+Open **[127.0.0.1:4174/preview/emulator/](http://127.0.0.1:4174/preview/emulator/)**. With the backend running, `npm run demo` exercises proposal → approval → receipt without calling external services.
 
-Mock mode is for deterministic backend examples, not arbitrary spoken conversation. With the backend running, `npm run demo` exercises proposal → approval → receipt without calling external providers.
+Mock mode uses deterministic fixtures; it does not provide arbitrary spoken conversation.
 
-### 3 · Give Mochi a real voice
+### 3. Enable live services
 
-Edit `backend/.env` locally:
+Edit `backend/.env` locally, then restart the backend:
 
 ```dotenv
 APP_MODE=live
@@ -182,120 +114,85 @@ MODEL_API_KEY=your-model-api-key
 ELEVENLABS_API_KEY=your-elevenlabs-api-key
 ```
 
-Restart the backend, tap Mochi and allow microphone access. Speak, then pause—or tap again to finish. Use separate live/mock databases. Credentials belong on the server, never in browser code or Git.
+Use separate live and mock databases. Credentials stay on the server. In the emulator, tap Mochi, allow microphone access and speak; pause or tap again to finish, and tap during a reply to interrupt.
 
-<details>
-<summary><strong>Provider defaults and optional connections</strong></summary>
-
-| Setting | Default / role |
+| Connect | Required setup |
 | --- | --- |
-| `ELEVENLABS_VOICE_ID` | `cgSgspJ2msm6clMCkdW9` — Jessica |
-| `ELEVENLABS_MODEL` | `eleven_flash_v2_5` |
-| `API_TOKEN` / `ENCRYPTION_KEY` | Generated locally by setup |
-
-Provider access and credits are required. The [environment template](backend/.env.example) lists credentials; [configuration defaults](backend/src/config.ts) are authoritative.
-
-- **Calendar:** create a Google OAuth web client, configure credentials, then connect in the companion UI. [Setup](backend/README.md#connect-live-providers).
-- **Calls:** configure Twilio, an HTTPS callback origin and a consenting destination allowlist. [Booking guide](docs/booking-calls.md).
-- **Hosted emulator:** set `EMULATOR_BACKEND_URL` to your HTTPS backend. The gateway keeps the app token server-side. [Emulator guide](preview/emulator/README.md).
-- **Gmail / Notion:** separate account grants and reviewed document creation. [Setup and limits](docs/gmail-notion.md).
-- **Instagram / Facebook Pages:** connect and select an eligible account, read recent activity, and ask Mochi for summaries or reply suggestions. Nothing is published. [Setup and limits](docs/social-connections.md).
-
-</details>
+| Model and speech | Provider accounts, credentials and credits. [Configuration](docs/configuration.md) · [Environment template](backend/.env.example) |
+| Google Calendar | Google OAuth web client and Calendar grant. [Provider setup](backend/README.md#connect-live-providers) |
+| Telephone calls | Twilio, HTTPS callbacks and a consenting destination allowlist. [Calling guide](docs/booking-calls.md) |
+| Watch and iPhone | Build the native apps, pair using a one-time code, then sync the Watch. [Installation](native/README.md) |
+| Optional integrations | Separate Gmail/Notion grants or eligible social accounts. [Connections](docs/integrations-and-models.md) |
 
 ## Inside the app
 
 ```mermaid
 flowchart TD
-    Watch[Apple Watch · SwiftUI] --> API[Fastify + TypeScript]
-    Phone[iPhone · SwiftUI] --> API
-    Browser[Browser emulator] --> Gateway[Local credential-holding gateway]
+    Watch[Apple Watch] --> API[TypeScript / Fastify backend]
+    Phone[iPhone] --> API
+    Browser[Browser emulator] --> Gateway[Local authenticated gateway]
     Gateway --> API
-    API <--> Model[Model API · transcription, planning, search]
-    API --> Voice[ElevenLabs · Jessica]
-    API <--> Data[(SQLite · encrypted record values)]
-    API --> Calendar[Google Calendar · approved writes]
-    API --> Workspace[Gmail + Notion · email and reviewed documents]
-    API --> Social[Instagram + Facebook Pages · activity and reply suggestions]
-    API --> Calls[Twilio · approved booking calls]
-    Calls --> Hooks[Signed callbacks]
+    API <--> Model[Model API: transcription, planning, search]
+    API --> Voice[ElevenLabs: speech]
+    API <--> Data[(SQLite: encrypted record values)]
+    API --> Approval{Validated approval}
+    Approval --> Calls[Twilio: booking calls]
+    Calls --> Hooks[Signed outcome callbacks]
     Hooks --> API
+    Approval --> Calendar[Calendar writes]
+    Approval --> Docs[Gmail drafts / Notion pages]
 ```
 
-The backend owns provider credentials, validated plans and action state. A model response cannot directly dial a phone or write an event: those actions pass through explicit approval endpoints. Callbacks are authenticated, duplicate decisions are handled, and ambiguous outcomes are preserved for recovery rather than blindly retried.
+| Component | Responsibility | Source |
+| --- | --- | --- |
+| SwiftUI clients | Voice interaction, shared tasks, action review and pairing. | [native/](native/) |
+| Browser emulator | Explore the same flows without installing on a device. | [preview/emulator/](preview/emulator/) |
+| Backend | Provider credentials, validated plans, approvals and durable task state. | [backend/src/](backend/src/) |
+| Character renderer | Blinking, gaze, speech reactions and reduced motion. | [Animation playground](preview/animation/README.md) |
+| Hosting | HTTPS backend with one writable SQLite volume; separate static website. | [Operations guide](docs/private-deployment.md) |
 
-The backend runs on **Fly.io with persistent storage**. The configured model service supplies reasoning, ElevenLabs the voice, and Twilio telephone calls. The Watch connects over HTTPS, so your Mac can stay off. Internet access is required.
+A model response cannot directly dial or write an event. The backend validates proposals and requires approval. Duplicate decisions and ambiguous provider outcomes have recovery paths. With a hosted backend, your Mac can stay off; internet access is required.
 
-Private pairing uses expiring one-time codes and revocable device tokens. [Readiness, backup and recovery](docs/operations-readiness.md) describe the private release controls.
+[Architecture](docs/architecture.md) · [Code map](docs/code-map.md) · [API and provider configuration](backend/README.md)
 
-Read the [architecture](docs/architecture.md), [Fly operations guide](docs/private-deployment.md), or [native installation guide](native/README.md).
+## Your data and controls
 
-## Built to be inspectable
-
-| Layer | Checks |
+| Area | Behavior |
 | --- | --- |
-| Backend | TypeScript build, formatting, authentication, provider contracts, approvals, memory, Calendar and call recovery tests |
-| Browser | Microphone lifecycle, interruptions, streamed playback, reactions, call review and recovery |
-| Character | Scripted 26-state animation check |
-| Native | Shared model and conversation tests; local iPhone/Watch SDK builds |
+| **Device access** | Expiring one-time pairing codes and revocable device tokens. Each deployment serves one owner. |
+| **Stored data** | Credentials, histories and action record values use AES-256-GCM. Identifiers remain database metadata; this is not whole-disk encryption. |
+| **Memory** | Saved facts can be edited or deleted. Deleting a conversation does not erase shared memories or undo external actions. |
+| **Audio** | Microphone audio is not stored by the app. Calls are not recorded. Generated telephone reply clips are encrypted, served through short-lived links and pruned. |
+| **External providers** | Relevant audio and text are sent to connected providers; their retention policies apply separately. |
+| **Disconnection** | Blocks new operations and removes local credentials; previously created external data remains. |
+
+[Memory controls](docs/memory.md) · [Call safeguards](docs/booking-calls.md) · [Backup and recovery](docs/operations-readiness.md)
+
+## Development and checks
+
+From the repository root:
 
 ```sh
-# From backend/
-npm test
-npm run typecheck
-npm run build
-npm run format:check
+npm --prefix backend run format
+npm --prefix backend run check:all
 
-# From the repository root
-node --test preview/emulator/*.test.mjs
-node preview/animation/check.cjs
-sh native/scripts/check.sh  # macOS + Xcode
+# For native UI / SDK changes, on macOS with Xcode:
+sh native/scripts/check.sh
 ```
 
-[GitHub Actions](.github/workflows/checks.yml) runs backend, browser, animation and native host tests without provider credentials. Native device/simulator builds remain a local Xcode check. Detailed results live in the verification documentation.
-
-## Your data, your decisions
-
-- **Single-owner hosting:** each deployment serves one owner, with one server process and one writable database.
-- **Memory you control:** saved facts can be edited or deleted. Removing a session does not automatically remove shared memories or undo external actions.
-- **Encrypted record values:** credentials, histories and action records use AES-256-GCM. Record identifiers remain database metadata; this is not whole-disk encryption.
-- **Audio:** microphone audio is not stored by the app. Generated telephone reply clips are stored encrypted and served through short-lived opaque links; clips expire for access after six minutes and are pruned on later synthesis or restart. Calls are not recorded by this implementation.
-- **Provider processing:** audio/text goes to the relevant providers. Their retention policies are separate from local storage.
-- **Approval first:** calls, Calendar writes and Notion saves require review. Disabling a connection blocks new operations; disconnecting removes local credentials, not previously created external data.
-
-[Backend boundaries](backend/README.md) · [Memory controls](docs/memory.md) · [Call safeguards](docs/booking-calls.md)
-
-## Build with confidence
-
-[Agent setup](docs/agent-setup.md) · [Configuration](docs/configuration.md) · [Code map](docs/code-map.md) · [Release runbook](docs/runbook.md) · [Troubleshooting](docs/troubleshooting.md)
-
-[Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Support](SUPPORT.md) · [Apache-2.0 license](LICENSE) · [Third-party notices](THIRD_PARTY_NOTICES.md)
-
-## Find your way around
-
-```text
-backend/src/       API, planning, provider adapters, action state and storage
-backend/test/      Behaviour and mocked-provider regression tests
-preview/animation/ Mochi renderer and emotion playground
-preview/emulator/  Voice emulator, companion UI and activity log
-native/            iPhone + Watch apps, shared Swift code and tests
-docs/              Product decisions, setup, research and verification
-```
-
-| Start with… | Then explore… |
+| Check | Coverage |
 | --- | --- |
-| Product idea | [Experience design](docs/experience-design.md) · Roadmap |
-| [Booking calls](docs/booking-calls.md) | [Memory](docs/memory.md) · [Web search](docs/web-search.md) |
-| [Backend setup](backend/README.md) | [Architecture](docs/architecture.md) · [Deployment](docs/private-deployment.md) |
-| [Native apps](native/README.md) | [SwiftUI layout contract](docs/design/swiftui-companion-spec.md) |
-| [Full knowledge base](docs/README.md) | Design decisions, research and source records |
+| Backend | Formatting, types, build, authentication, provider contracts, approval and recovery behavior. |
+| Browser | Microphone lifecycle, interruptions, streamed playback, tasks and action review. |
+| Animation | Scripted checks across 26 character states. |
+| Native | Shared model and conversation tests in CI; SDK builds through the local Xcode check. |
 
----
+CI uses synthetic providers and does not place calls, save appointments or establish physical-device acceptance.
 
-<div align="center">
+[Agent setup](docs/agent-setup.md) · [Contributing](CONTRIBUTING.md) · [Release runbook](docs/runbook.md) · [Troubleshooting](docs/troubleshooting.md)
 
-**One Mochi. Your preferences. A little less to do.**
+## License and support
 
-Independent open-source project. Apple Watch is a compatibility reference; provider names do not imply endorsement.
+Original project code and artwork are available under [Apache-2.0](LICENSE), to the extent applicable rights are held. Hosted models and services require separate accounts and terms. Apple Watch is a compatibility reference; provider names do not imply endorsement.
 
-</div>
+[Security](SECURITY.md) · [Support](SUPPORT.md) · [Third-party notices](THIRD_PARTY_NOTICES.md) · [Artwork provenance](docs/design/mochi.md)
