@@ -1,6 +1,6 @@
 # Third-party notices
 
-Mochi for Watch is an independent project. Its original code, documentation and project-created artwork are licensed under Apache-2.0, to the extent applicable rights are held. See [LICENSE](LICENSE) and [NOTICE](NOTICE). This grant does not relicense third-party material in earlier commits.
+Mochi for Watch is an independent project. Its original code, documentation and project-created artwork are licensed under Apache-2.0, to the extent applicable rights are held. See [LICENSE](LICENSE) and [NOTICE](NOTICE). Third-party software and services retain their own licences and terms.
 
 ## Software dependencies
 
@@ -16,4 +16,4 @@ The current Mochi portrait and animation plate were generated for this project a
 
 Connection icons are original generic functional drawings, not provider logos. The website's generated watch illustration is documented in `website/IMAGE-PROMPT.md`; it depicts compatible hardware, is not a product photograph and grants no Apple trademark rights. Apple Watch is a compatibility reference. No third-party character artwork is included in the current release tree.
 
-Older public commits may contain materials that are not covered by this licence. This release does not claim to clear or relicense those historical materials.
+The public history was cleaned on 30 October 2026 to remove obsolete character artwork, third-party logo files, screenshots and source/design archives with unclear redistribution rights. See [history maintenance](docs/history-maintenance.md). This audit is not a guarantee of trademark clearance or a licence to third-party services.

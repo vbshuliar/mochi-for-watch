@@ -23,3 +23,7 @@ Before committing or pushing changes, and before reporting implementation work c
 Use Node.js 24 and a Swift toolchain compatible with the native package. If a required tool or external service is unavailable, state which checks could not run rather than claiming success. Local validation cannot guarantee hosted runner or service availability.
 
 Keep the shared npm check commands and `.github/workflows/checks.yml` in sync when checks change.
+
+# Public history
+
+The public history was rewritten on 30 October 2026. Never merge or push pre-cleanup history or private backup refs. Use a fresh clone for old checkouts; transplant only reviewed source changes. For new artwork, record provenance and redistribution permissions before committing. See [history maintenance](docs/history-maintenance.md).
