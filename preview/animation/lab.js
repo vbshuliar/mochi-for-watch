@@ -371,7 +371,7 @@ function drawWatch(t,active){
   c.save();c.globalAlpha=Number($('#'+side+'-brow').style.opacity)||0;c.strokeStyle='#80634e';c.lineWidth=6;c.lineCap='round';c.stroke(new Path2D($('#'+side+'-brow').getAttribute('d')));c.restore();
  }
  const mouth=new Path2D($('#mouth').getAttribute('d')),depth=c.createLinearGradient(0,548,0,631);
- depth.addColorStop(0,'#281311');depth.addColorStop(1,'#71332e');c.fillStyle=depth;c.fill(mouth);c.strokeStyle='#281b17';c.lineWidth=7;c.lineJoin='round';c.lineCap='round';c.stroke(mouth);
+ depth.addColorStop(0,'#281311');depth.addColorStop(1,'#71332e');c.fillStyle=depth;c.fill(mouth);c.strokeStyle='#281b17';c.lineWidth=10;c.lineJoin='round';c.lineCap='round';c.stroke(mouth);
  c.save();c.clip(mouth);c.globalAlpha=Number($('#tongue').style.opacity)||0;c.fillStyle='#bd7773';c.fill(new Path2D($('#tongue').getAttribute('d')));c.restore();c.restore();
  if(state==='loved'||heartOverlay){
   const points=[[.13,.49,25],[.86,.29,31],[.22,.22,19]];

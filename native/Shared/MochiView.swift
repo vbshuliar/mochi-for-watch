@@ -72,7 +72,7 @@ struct MochiView: View {
             ]), startPoint: CGPoint(x: x, y: y), endPoint: CGPoint(x: x, y: y + 65)))
         c.stroke(
           mouth, with: .color(Color(red: 0.16, green: 0.1, blue: 0.08)),
-          style: StrokeStyle(lineWidth: 6, lineCap: .round, lineJoin: .round))
+          style: StrokeStyle(lineWidth: 10, lineCap: .round, lineJoin: .round))
         if p.mouth > 8 {
           var tongue = c
           tongue.clip(to: mouth)
