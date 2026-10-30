@@ -10,6 +10,7 @@ Start with the [project README](../README.md), then the relevant guide below. Th
 - [Deployment and recovery](runbook.md)
 - [Troubleshooting](troubleshooting.md)
 - [Approved autonomous booking calls](booking-calls.md)
+- [Calling someone from Contacts](contact-calling.md)
 - [Booking experience](booking-experience.md)
 - [Briefings, reminders and drafts](daily-support.md)
 - [Gmail and Notion](gmail-notion.md)

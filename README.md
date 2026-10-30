@@ -66,7 +66,7 @@ flowchart LR
 
 If a booking cannot be confirmed, Mochi reports that instead of presenting an uncertain outcome as success. Booking is one demonstration of the larger promise: **help that follows through.**
 
-[How calling works](docs/booking-calls.md) · [Booking preferences](docs/booking-experience.md)
+[How calling works](docs/booking-calls.md) · [Booking preferences](docs/booking-experience.md) · [Calling someone from Contacts](docs/contact-calling.md)
 
 ## Close at hand. Under your control.
 

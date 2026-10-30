@@ -123,7 +123,7 @@ struct PhoneHome: View {
           conversation.resumeCalls()
           bridge.publish()
         } else {
-          conversation.suspend()
+          if new == .inactive { conversation.becameInactive() } else { conversation.suspend() }
         }
       }
         .toolbar {
@@ -271,6 +271,7 @@ struct PhoneConversation: View {
       .sheet(isPresented: $callReview, onDismiss: { if model.hasProposal { review = true } }) {
         if let call = model.backgroundCall { CallReview(model: model, call: call) }
       }
+      .sheet(isPresented: Binding(get: { model.contactLookup != nil }, set: { if !$0 { model.cancelContactLookup() } })) { ContactSelectionView(model: model) }
       .onChange(of: model.proposalID) { _, value in
         if value == nil { review = false }
         else if callReview { callReview = false }

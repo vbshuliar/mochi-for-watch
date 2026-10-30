@@ -18,11 +18,11 @@ let package = Package(
         "iPhone/MemoryView.swift", "iPhone/TasksView.swift", "iPhone/DemoSetup.swift", "iPhone/MochiPhoneApp.swift",
         "Shared/DailySupportView.swift", "Shared/ActionReview.swift", "Shared/AudioController.swift",
         "Shared/MochiView.swift", "Shared/PhoneWatchBridge.swift", "Shared/RealtimeTranscriber.swift",
-        "Shared/PlatformBootstrap.swift", "Shared/TaskNotifications.swift",
+        "Shared/DeviceContacts.swift", "Shared/ContactSelectionView.swift", "Shared/PlatformBootstrap.swift", "Shared/TaskNotifications.swift",
       ] + ["Local", "DerivedData", "DerivedDataSigned"].filter {
         FileManager.default.fileExists(atPath: URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent($0).path)
       },
-      sources: ["Shared/DailySupportModel.swift", "Shared/ConnectionStore.swift", "Shared/ConversationModel.swift", "Shared/VoiceInterfaces.swift", "Shared/SerialRegistrationQueue.swift", "iPhone/PhoneModel.swift"]),
+      sources: ["Shared/ContactSearch.swift", "Shared/DailySupportModel.swift", "Shared/ConnectionStore.swift", "Shared/ConversationModel.swift", "Shared/VoiceInterfaces.swift", "Shared/SerialRegistrationQueue.swift", "iPhone/PhoneModel.swift"]),
     .testTarget(
       name: "MochiCoreTests", dependencies: ["MochiCore"], path: "MochiCore/Tests/MochiCoreTests"),
     .testTarget(

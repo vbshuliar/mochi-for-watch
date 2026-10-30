@@ -47,6 +47,13 @@
 		D136F6BBA85EC54AF0BE5CD1 /* RealtimeTranscriber.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29A4F5ACAD59FA67859ADE1F /* RealtimeTranscriber.swift */; };
 		D6A1E6F7718DB44EE4AF3375 /* MemoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 591449F0493C3108F29868AF /* MemoryView.swift */; };
 		D9E034DF7B54E1FB6DF21DC9 /* MochiView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0833E711F93D580A24FCCDF /* MochiView.swift */; };
+		1A546D63D1016A774D2DF320 /* ContactSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC56DC9FC1045BBA194EB296 /* ContactSearch.swift */; };
+		35605D325D9882FDB28DE06B /* ContactSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC56DC9FC1045BBA194EB296 /* ContactSearch.swift */; };
+		188D86F7A17B13ADA62E4A3D /* DeviceContacts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DCB6A6FD4AD9FBCCC4C0889 /* DeviceContacts.swift */; };
+		F9D11B70F0AFDAF4BEE6D028 /* DeviceContacts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DCB6A6FD4AD9FBCCC4C0889 /* DeviceContacts.swift */; };
+		398A13C7AC656A39F9FED4B6 /* ContactSelectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E573FA38A201D73C5EE8A49B /* ContactSelectionView.swift */; };
+		6E227465DC7F7EE746C1F93E /* ContactSelectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E573FA38A201D73C5EE8A49B /* ContactSelectionView.swift */; };
+		AA0011223344556677889901 /* ContactTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0011223344556677889900 /* ContactTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -107,6 +114,10 @@
 		E7CC661164AD274C5B266CA3 /* ConnectionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionStore.swift; sourceTree = "<group>"; };
 		F0EC6906F20CDCEAF74A4A55 /* PhoneModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneModel.swift; sourceTree = "<group>"; };
 		F71639B57719A50DE232510F /* MochiCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = MochiCore; path = MochiCore; sourceTree = SOURCE_ROOT; };
+		BC56DC9FC1045BBA194EB296 /* ContactSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactSearch.swift; sourceTree = "<group>"; };
+		9DCB6A6FD4AD9FBCCC4C0889 /* DeviceContacts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceContacts.swift; sourceTree = "<group>"; };
+		E573FA38A201D73C5EE8A49B /* ContactSelectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactSelectionView.swift; sourceTree = "<group>"; };
+		AA0011223344556677889900 /* ContactTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -159,6 +170,7 @@
 			isa = PBXGroup;
 			children = (
 				B57EB68D65F91537C5CBF05A /* NativeConversationTests.swift */,
+				AA0011223344556677889900 /* ContactTests.swift */,
 				0AB07E80F695993EE0667A1E /* PhoneModelTests.swift */,
 			);
 			path = Tests;
@@ -200,6 +212,9 @@
 				86B5EC8DA1935E4E96F31F32 /* SerialRegistrationQueue.swift */,
 				790878D28D5CD904E1060F9B /* TaskNotifications.swift */,
 				800501A57C9213A35045E0E1 /* VoiceInterfaces.swift */,
+				E573FA38A201D73C5EE8A49B /* ContactSelectionView.swift */,
+				9DCB6A6FD4AD9FBCCC4C0889 /* DeviceContacts.swift */,
+				BC56DC9FC1045BBA194EB296 /* ContactSearch.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -377,6 +392,9 @@
 				25C9935A39592A2649681C07 /* TaskNotifications.swift in Sources */,
 				4BF9AFA17E195E28D1F3FDF5 /* TasksView.swift in Sources */,
 				5E3B22CB4CE13A01DCD32394 /* VoiceInterfaces.swift in Sources */,
+				398A13C7AC656A39F9FED4B6 /* ContactSelectionView.swift in Sources */,
+				188D86F7A17B13ADA62E4A3D /* DeviceContacts.swift in Sources */,
+				1A546D63D1016A774D2DF320 /* ContactSearch.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -385,6 +403,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				B4997002F25DD3A49DF55319 /* NativeConversationTests.swift in Sources */,
+				AA0011223344556677889901 /* ContactTests.swift in Sources */,
 				5BA42E04C7195D6B559DBFC4 /* PhoneModelTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -407,6 +426,9 @@
 				AB276E98A45F22813C4723F3 /* SerialRegistrationQueue.swift in Sources */,
 				CC57A64745293538C4C9C73A /* TaskNotifications.swift in Sources */,
 				0A0FCDD93F79238FDA9E7095 /* VoiceInterfaces.swift in Sources */,
+				6E227465DC7F7EE746C1F93E /* ContactSelectionView.swift in Sources */,
+				F9D11B70F0AFDAF4BEE6D028 /* DeviceContacts.swift in Sources */,
+				35605D325D9882FDB28DE06B /* ContactSearch.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

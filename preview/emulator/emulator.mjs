@@ -106,8 +106,8 @@ function flushCompletion(){
  sessionStorage.setItem(`${callScope()}:seen:${call.id}:${call.status}:${call.outcome||''}`,'1');
  const booked=call.status==='completed'&&['booked','rescheduled'].includes(call.outcome);
  const cancelledBooking=call.status==='completed'&&call.outcome==='booking_cancelled';
- $('#call-card-title').textContent=booked?(call.outcome==='rescheduled'?'booking rescheduled':'booking confirmed'):cancelledBooking?'booking cancelled':call.status==='uncertain'?'booking unverified':'call finished';
- $('#call-card-detail').textContent=booked?call.booking.purpose:call.summary||'No booking has been confirmed. Review the call for details.';
+ $('#call-card-title').textContent=booked?(call.outcome==='rescheduled'?'booking rescheduled':'booking confirmed'):cancelledBooking?'booking cancelled':call.status==='uncertain'?'call unverified':'call finished';
+ $('#call-card-detail').textContent=booked?call.booking.purpose:call.summary||(call.operation==='conversation'?'Review the call for its outcome.':'No booking has been confirmed. Review the call for details.');
  $('#call-card-business').textContent=booked?call.booking.destinationName:'';
  $('#call-card-business').hidden=!booked;
  $('#call-card').classList.toggle('is-confirmed',booked);
@@ -289,20 +289,21 @@ function actionView(action,review=false){
  const persisted=savedForeground||pending;sessionStorage.setItem('muse-action',persisted.id);sessionStorage.setItem('muse-action-kind',persisted.booking?'calls':persisted.to?'drafts':persisted.body?'documents':'actions');sessionStorage.setItem('muse-action-session',persisted.sessionId||sessionId);
  if(pending.booking){
   const booking=pending.booking;
+  const conversation=pending.operation==='conversation';
   const changeLabel=pending.operation==='reschedule'?'Reschedule booking':pending.operation==='cancel_booking'?'Cancel booking':'Call';
   if(sessionStorage.getItem('muse-call-attempt')===pending.id)uncertainCalls.add(pending.id);
   const fmt=new Intl.DateTimeFormat(undefined,{timeZone:booking.timeZone,dateStyle:'medium',timeStyle:'short'});
-  const windows=booking.windows??[booking.window];
+  const windows=conversation?[]:booking.windows??(booking.window?[booking.window]:[]);
   const availability=windows.map(window=>`${fmt.format(new Date(window.start))} → ${fmt.format(new Date(window.end))}`).join('\n');
   $('#event-title').textContent=`${changeLabel} · ${booking.destinationName} · ${booking.phoneNumber}`;
   $('#event-time').style.whiteSpace='pre-wrap';
-  $('#event-time').textContent=`${booking.purpose}\nBooking for: ${booking.customerName}${pending.originalSlot?'\nOriginal appointment: '+fmt.format(new Date(pending.originalSlot.start))+' → '+fmt.format(new Date(pending.originalSlot.end)):''}\n${pending.operation==='reschedule'?'New allowed times:\n':''}${availability}\n${booking.timeZone} · ${booking.durationMinutes} minutes\n${pending.calendarChecked?'Calendar checked for availability.':'Calendar has not been checked. Availability is unverified.'}\nStatus: ${pending.status.replaceAll('_',' ')}${pending.summary?'\n'+pending.summary:''}${pending.status==='completed'&&['booked','rescheduled'].includes(pending.outcome)&&pending.bookedSlot?'\nBooked: '+fmt.format(new Date(pending.bookedSlot.start))+' → '+fmt.format(new Date(pending.bookedSlot.end)):''}`;
-  $('#action-note').textContent=pending.status==='pending'&&!uncertainCalls.has(pending.id)?'Mochi will call as your AI assistant and share these booking details only after you approve.':pending.status==='uncertain'||uncertainCalls.has(pending.id)&&pending.status==='pending'?'The result is unverified. Check with the business before another booking. Mochi will not redial automatically.':'Review the call update below. Calendar events are saved only with separate approval.';
+  $('#event-time').textContent=conversation?`${booking.purpose}\nOn behalf of: ${booking.customerName}\nStatus: ${pending.status.replaceAll('_',' ')}${pending.summary?'\n'+pending.summary:''}`:`${booking.purpose}\nBooking for: ${booking.customerName}${pending.originalSlot?'\nOriginal appointment: '+fmt.format(new Date(pending.originalSlot.start))+' → '+fmt.format(new Date(pending.originalSlot.end)):''}\n${pending.operation==='reschedule'?'New allowed times:\n':''}${availability}\n${booking.timeZone} · ${booking.durationMinutes} minutes\n${pending.calendarChecked?'Calendar checked for availability.':'Calendar has not been checked. Availability is unverified.'}\nStatus: ${pending.status.replaceAll('_',' ')}${pending.summary?'\n'+pending.summary:''}${pending.status==='completed'&&['booked','rescheduled'].includes(pending.outcome)&&pending.bookedSlot?'\nBooked: '+fmt.format(new Date(pending.bookedSlot.start))+' → '+fmt.format(new Date(pending.bookedSlot.end)):''}`;
+  $('#action-note').textContent=pending.status==='pending'&&!uncertainCalls.has(pending.id)?`Mochi will call as your AI assistant and share these ${conversation?'instructions':'booking details'} only after you approve.`:pending.status==='uncertain'||uncertainCalls.has(pending.id)&&pending.status==='pending'?'The result is unverified. Check with the recipient before another call. Mochi will not redial automatically.':conversation?'Review the call update below.':'Review the call update below. Calendar events are saved only with separate approval.';
   $('#confirm').textContent='approve and call';
-  for(const [id,label,command,visible] of [['stop-call',pending.status==='uncertain'?'try stopping call':'stop call','stop',activeCall(pending)||pending.status==='uncertain'],['call-calendar',pending.outcome==='booking_cancelled'?'review Calendar deletion':pending.outcome==='rescheduled'?'review Calendar update':'review Calendar event','calendar',pending.status==='completed'&&['booked','rescheduled','booking_cancelled'].includes(pending.outcome)],['refresh-call','refresh status','refresh',true]]){
+  for(const [id,label,command,visible] of [['stop-call',pending.status==='uncertain'?'try stopping call':'stop call','stop',activeCall(pending)||pending.status==='uncertain'],['call-calendar',pending.outcome==='booking_cancelled'?'review Calendar deletion':pending.outcome==='rescheduled'?'review Calendar update':'review Calendar event','calendar',!conversation&&pending.status==='completed'&&['booked','rescheduled','booking_cancelled'].includes(pending.outcome)],['refresh-call','refresh status','refresh',true]]){
    let button=$('#'+id);if(!button){button=document.createElement('button');button.id=id;button.textContent=label;button.onclick=()=>callCommand(command);$('#approval').append(button);}button.textContent=label;button.hidden=!visible;
   }
-  const canChange=pending.status==='completed'&&['booked','rescheduled'].includes(pending.outcome)&&!pending.supersededBy;
+  const canChange=!conversation&&pending.status==='completed'&&['booked','rescheduled'].includes(pending.outcome)&&!pending.supersededBy;
   for(const [id,label,operation] of [['reschedule-call','reschedule booking','reschedule'],['cancel-booking','cancel booking','cancel_booking']]){
    let button=$('#'+id);if(!button){button=document.createElement('button');button.id=id;$('#approval').append(button);}button.textContent=label;button.hidden=!canChange;
    button.onclick=()=>{if(operation==='reschedule'){$('#reschedule-fields').hidden=false;$('#reschedule-zone').textContent=`New availability (${Intl.DateTimeFormat().resolvedOptions().timeZone})`;$('#reschedule-start').focus();}else void callCommand('change',{operation});};

@@ -27,6 +27,8 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSContactsUsageDescription</key>
+	<string>Search contacts when you ask Mochi to call someone. Only the name and number you select are shared with your backend for review.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Connect to your Mochi backend on your local network.</string>
 	<key>NSMicrophoneUsageDescription</key>

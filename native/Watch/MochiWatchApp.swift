@@ -79,13 +79,14 @@ struct WatchHome: View {
         else { VStack { Text("Task unavailable or refreshing"); Button("Refresh") { model.resumeCalls() } }.padding() }
       } else if let call = model.backgroundCall { CallReview(model: model, call: call) }
     }
-    .onChange(of: model.proposalID) { _, new in
+    .sheet(isPresented: Binding(get: { model.contactLookup != nil }, set: { if !$0 { model.cancelContactLookup() } })) { ContactSelectionView(model: model) }
+      .onChange(of: model.proposalID) { _, new in
       if new == nil { reviewing = false }
       else if callReview { callReview = false }
     }
     .onChange(of: store.connection) { _, _ in model.connectionChanged(); notifications.configure(store.connection); model.resumeCalls() }
     .onChange(of: notifications.openedTaskID) { _, _ in openNotificationTask() }
-    .onChange(of: phase) { _, new in if new != .active { model.suspend() } else { model.resumeCalls(); Task { await notifications.refresh() } } }
+    .onChange(of: phase) { _, new in if new == .inactive { model.becameInactive() } else if new == .background { model.suspend() } else { model.resumeCalls(); Task { await notifications.refresh() } } }
   }
   private func openNotificationTask() {
     if notifications.openedReminderID != nil { showingDaily = true; notifications.openedReminderID = nil }

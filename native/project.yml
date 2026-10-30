@@ -33,6 +33,7 @@ targets:
       properties:
         CFBundleDisplayName: Mochi for Watch
         MochiPushEnvironment: $(MOCHI_PUSH_ENVIRONMENT)
+        NSContactsUsageDescription: Search contacts when you ask Mochi to call someone. Only the name and number you select are shared with your backend for review.
         NSMicrophoneUsageDescription: Talk to Mochi using your microphone. Audio is sent to Meta for transcription.
         NSLocalNetworkUsageDescription: Connect to your Mochi backend on your local network.
         NSAppTransportSecurity:
@@ -59,6 +60,7 @@ targets:
         WKApplication: true
         WKCompanionAppBundleIdentifier: com.museforwatch.app
         WKRunsIndependentlyOfCompanionApp: true
+        NSContactsUsageDescription: Search contacts when you ask Mochi to call someone. Only the name and number you select are shared with your backend for review.
         NSMicrophoneUsageDescription: Talk to Mochi using your microphone. Audio is sent to Meta for transcription.
         NSLocalNetworkUsageDescription: Connect to your Mochi backend on your local network.
         NSAppTransportSecurity:

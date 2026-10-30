@@ -79,6 +79,12 @@ export type Memory = z.infer<typeof memoryInputSchema> & {
   updatedAt: number;
 };
 export type PlanOptions = {
+  contactLookupSupported?: boolean;
+  selectedContact?: {
+    displayName: string;
+    phoneNumber: string;
+    phoneLabel?: string;
+  };
   bookingProfile?: import("./booking-profile.ts").BookingProfile | null;
   signal?: AbortSignal;
   onText?: (text: string) => void;
@@ -106,6 +112,44 @@ export const workflowPlan = z
   })
   .strict();
 export type WorkspacePlan = z.infer<typeof workflowPlan>;
+export const contactSelectionSchema = z
+  .object({
+    displayName: z.string().trim().min(1).max(120),
+    phoneNumber: z.string().regex(/^\+[1-9]\d{7,14}$/),
+    phoneLabel: z.string().trim().min(1).max(60).optional(),
+  })
+  .strict();
+export const contactLookupResponseSchema = z
+  .object({
+    requestId: z.uuid(),
+    status: z.enum([
+      "selected",
+      "not_found",
+      "denied",
+      "unavailable",
+      "cancelled",
+    ]),
+    contact: contactSelectionSchema.optional(),
+  })
+  .strict()
+  .superRefine((v, ctx) => {
+    if ((v.status === "selected") !== Boolean(v.contact))
+      ctx.addIssue({
+        code: "custom",
+        message: "Only selected lookups require a contact",
+      });
+  });
+export type ContactLookupResponse = z.infer<typeof contactLookupResponseSchema>;
+export const conversationSchema = z
+  .object({
+    destinationName: z.string().trim().min(1).max(120),
+    phoneNumber: z.string().regex(/^\+[1-9]\d{7,14}$/),
+    purpose: z.string().trim().min(1).max(300),
+    customerName: z.string().trim().min(1).max(120),
+    timeZone: timezone,
+  })
+  .strict();
+export type ConversationInput = z.infer<typeof conversationSchema>;
 export const bookingSchema = z
   .object({
     destinationName: z.string().trim().min(1).max(120),
@@ -162,6 +206,15 @@ export const bookingChangeSchema = z
 export type BookingChange = z.infer<typeof bookingChangeSchema>;
 export const planSchema = z.discriminatedUnion("kind", [
   workflowPlan,
+  z
+    .object({
+      kind: z.literal("lookup_contact"),
+      query: z.string().trim().min(1).max(120),
+    })
+    .strict(),
+  z
+    .object({ kind: z.literal("call_delegate"), request: conversationSchema })
+    .strict(),
   z.object({ kind: z.literal("daily_briefing") }).strict(),
   z.object({ kind: z.literal("list_reminders") }).strict(),
   z
@@ -227,6 +280,12 @@ export type Session = {
   timeZone: string;
   messages: Message[];
   createdAt: number;
+  pendingContactLookupId?: string;
+  selectedContact?: {
+    lookupId: string;
+    contact: z.infer<typeof contactSelectionSchema>;
+    expiresAt: number;
+  };
 };
 export type Action = {
   operation?: "update" | "delete";
@@ -262,6 +321,7 @@ export type TurnResult = {
   speechText: string;
   simulated: boolean;
   returnTo?: { state: "idle"; afterMs: number };
+  contactLookup?: { id: string; query: string; expiresAt: number };
   action?: Action;
   callAction?: import("./calls.ts").PublicCallAction;
   documentAction?: import("./workflows.ts").DocumentAction;

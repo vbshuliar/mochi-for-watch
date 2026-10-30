@@ -11,6 +11,15 @@ struct Activity: Identifiable {
   var sources: [SearchSource] = []
 }
 @MainActor @Observable final class ConversationModel {
+  var contactLookup: ContactLookup?
+  private(set) var contactCandidates: [LocalContact] = []
+  private(set) var contactMessage = ""
+  private(set) var contactBusy = false
+  private let contacts: any ContactSearching
+  private var contactTask: Task<Void, Never>?
+  private var contactExpiry: Task<Void, Never>?
+  private var contactPermissionPrompt = false
+  private var contactSubmission: Data?
   var mood: Mood = .sleep
   var caption = "tap on me to wake up"
   var level = 0.0
@@ -81,7 +90,7 @@ struct Activity: Identifiable {
   }
   var callConfirmationUnknown = false
   private var callPoll: Task<Void, Never>?
-  var hasProposal: Bool { action != nil || documentAction != nil || gmailDraftAction != nil || callProposal != nil }
+  var hasProposal: Bool { contactLookup != nil || action != nil || documentAction != nil || gmailDraftAction != nil || callProposal != nil }
   var proposalID: String? { action?.id ?? documentAction?.id ?? gmailDraftAction?.id ?? callProposal?.id }
   var activities: [Activity] = []
   var failure: String?
@@ -113,8 +122,10 @@ struct Activity: Identifiable {
   init(
     store: ConnectionStore, audio: any AudioIO, transcriber: any TranscriptionIO,
     defaults: UserDefaults = .standard,
+    contacts: any ContactSearching = UnavailableContacts(),
     makeClient: @escaping (Connection) -> APIClient = { APIClient(connection: $0) }
   ) {
+    self.contacts = contacts
     self.daily = DailySupportModel(store: store, makeClient: makeClient)
     self.defaults = defaults
     self.store = store
@@ -383,6 +394,8 @@ struct Activity: Identifiable {
     }
   }
   private func complete(_ result: TurnResult, input: String, ticket: UUID) async throws {
+    guard generation == ticket, !Task.isCancelled, foreground else { return }
+    if let lookup = result.contactLookup { beginContactLookup(lookup, ticket: ticket) }
     reply = result.speechText
     sources = (result.sources ?? []).filter { $0.safeURL != nil }
     log("Mochi", result.speechText, sources: sources)
@@ -418,6 +431,119 @@ struct Activity: Identifiable {
     affection = false
     show(.idle, reply.hasSuffix("?") ? "tap to answer" : "tap to talk")
   }
+  private func clearContactLookup() {
+    contactTask?.cancel()
+    contactExpiry?.cancel()
+    contactLookup = nil
+    contactPermissionPrompt = false
+    contactCandidates = []
+    contactSubmission = nil
+    contactBusy = false
+    contactMessage = ""
+  }
+  private func beginContactLookup(_ lookup: ContactLookup, ticket: UUID) {
+    clearContactLookup()
+    guard lookup.expiresAt > Date().timeIntervalSince1970 * 1000,
+      let connection = store.connection else { return }
+    contactLookup = lookup
+    contactMessage = "Search contacts on this device for “\(lookup.query)”. Only the name and number you select will be shared for call review."
+    contactExpiry = Task {
+      try? await Task.sleep(for: .seconds(min(600, max(0, lookup.expiresAt / 1000 - Date().timeIntervalSince1970))))
+      guard !Task.isCancelled, generation == ticket, store.connection == connection, contactLookup?.id == lookup.id else { return }
+      interrupt()
+      show(.idle, "Contact search expired · ask again")
+    }
+  }
+  private func contactPermissionChanged(_ prompting: Bool, lookupID: String, ticket: UUID, connection: Connection) {
+    guard generation == ticket, store.connection == connection, contactLookup?.id == lookupID else { return }
+    contactPermissionPrompt = prompting
+  }
+  func becameInactive() {
+    // The OS permission sheet temporarily makes the app inactive. Backgrounding
+    // and audio interruptions still call suspend and discard all local candidates.
+    if !contactPermissionPrompt { suspend() }
+  }
+  func searchContacts() {
+    guard let lookup = contactLookup, !contactBusy, contactSubmission == nil,
+      let connection = store.connection else { return }
+    let ticket = generation
+    contactBusy = true
+    contactTask = Task { [self] in
+      let result = await contacts.search(lookup.query) { [weak self] prompting in
+        await self?.contactPermissionChanged(prompting, lookupID: lookup.id, ticket: ticket, connection: connection)
+      }
+      guard !Task.isCancelled, generation == ticket, store.connection == connection,
+        contactLookup?.id == lookup.id else { return }
+      contactBusy = false
+      switch result {
+      case .matches(let matches, let limited):
+        contactCandidates = matches
+        contactMessage = matches.isEmpty ? "No matching phone numbers found\(limited ? " in the contacts shared with Mochi" : "")." : "Choose a person and number.\(limited ? " Only contacts shared with Mochi are shown." : "") Numbers need an explicit +country code; edit the contact in Contacts if needed."
+        if matches.isEmpty { submitContact(status: "not_found") }
+      case .denied:
+        contactMessage = "Contacts access is denied or restricted. You can provide an international phone number instead."
+        submitContact(status: "denied")
+      case .unavailable:
+        contactMessage = "Contacts are unavailable on this device. You can provide an international phone number instead."
+        submitContact(status: "unavailable")
+      }
+    }
+  }
+  func selectContact(_ candidate: LocalContact) {
+    guard contactCandidates.contains(candidate), candidate.internationalNumber != nil else { return }
+    submitContact(status: "selected", candidate: candidate)
+  }
+  func cancelContactLookup() {
+    if contactBusy || contactSubmission != nil {
+      interrupt()
+      show(.idle, "Contact selection closed · ask again")
+    } else { submitContact(status: "cancelled") }
+  }
+  func retryContactSubmission() { submitContact(status: "cancelled") }
+  private func submitContact(status: String, candidate: LocalContact? = nil) {
+    guard let lookup = contactLookup, !contactBusy, let sessionID,
+      let connection = store.connection, lookup.expiresAt > Date().timeIntervalSince1970 * 1000 else { return }
+    let ticket = generation
+    if contactSubmission == nil {
+      var payload: [String: Any] = ["requestId": UUID().uuidString, "status": status]
+      if let candidate, let number = candidate.internationalNumber {
+        var selected = ["displayName": candidate.displayName, "phoneNumber": number]
+        selected["phoneLabel"] = candidate.phoneLabel
+        payload["contact"] = selected
+      }
+      contactSubmission = try? JSONSerialization.data(withJSONObject: payload)
+    }
+    guard let body = contactSubmission else { return }
+    speechTail?.cancel()
+    speechTail = nil
+    clips.forEach { $0.cancel() }
+    clips.removeAll()
+    audio.stop()
+    contactCandidates = []
+    contactBusy = true
+    activeRequest = (try? JSONSerialization.jsonObject(with: body) as? [String: Any])?["requestId"] as? String
+    activeClient = makeClient(connection)
+    contactTask = Task {
+      do {
+        let client = makeClient(connection)
+        let bytes = try await client.data("v1/sessions/\(sessionID)/contact-lookups/\(lookup.id)", method: "POST", body: body)
+        guard !Task.isCancelled, generation == ticket, store.connection == connection, contactLookup?.id == lookup.id else { return }
+        let result = try JSONDecoder().decode(TurnResult.self, from: bytes)
+        activeRequest = nil
+        // Do not cancel the task currently applying the continuation.
+        contactTask = nil
+        clearContactLookup()
+        speechTail = nil
+        queue(result.speechText, client: client, ticket: ticket)
+        try await complete(result, input: "", ticket: ticket)
+      } catch {
+        guard !Task.isCancelled, generation == ticket, store.connection == connection, contactLookup?.id == lookup.id else { return }
+        contactBusy = false
+        contactMessage = error.localizedDescription + " Retry sends the same selection request; it cannot approve a call. You can also cancel."
+      }
+    }
+  }
+  var contactCanRetry: Bool { contactSubmission != nil && !contactBusy }
   func decide(_ confirm: Bool) {
     guard hasProposal, !deciding, let connection = store.connection else { return }
     let calendarProposal = action
@@ -722,6 +848,7 @@ struct Activity: Identifiable {
     show(.sleep, "tap on me to wake up")
   }
   private func interrupt() {
+    clearContactLookup()
     generation = UUID()
     responseStartedAt = nil
     firstAudioLatencyMs = nil

@@ -61,6 +61,24 @@ test('affection shows hearts before speech, keeps them during speech, then retur
 });
 
 const callFixture={id:'call-1',sessionId:'session',status:'pending',calendarChecked:false,booking:{destinationName:'Salon',phoneNumber:'+442012345678',purpose:'Haircut',customerName:'Alex',timeZone:'Europe/London',window:{start:'2026-11-01T10:00:00Z',end:'2026-11-01T12:00:00Z'},durationMinutes:30}};
+test('general call review shows the approved message without fabricated appointment details',async t=>{
+ const h=await harness();t.after(h.cleanup);
+ const call={...callFixture,operation:'conversation',booking:{destinationName:'Sam',phoneNumber:'+442012345678',purpose:'Tell Sam I am running ten minutes late.',customerName:'Alex',timeZone:'Europe/London'}};
+ h.app.actionView(call);
+ assert.match(h.document.querySelector('#event-title').textContent,/Sam.*\+442012345678/);
+ assert.match(h.document.querySelector('#event-time').textContent,/Tell Sam I am running ten minutes late/);
+ assert.match(h.document.querySelector('#event-time').textContent,/On behalf of: Alex/);
+ assert.doesNotMatch(h.document.querySelector('#event-time').textContent,/Calendar|undefined|Booking for|Allowed time/);
+ assert.equal(h.document.querySelector('#confirm').hidden,false);
+ assert.match(h.document.querySelector('#action-note').textContent,/instructions.*after you approve/);
+ h.app.actionView({...call,status:'completed',outcome:'completed_request',summary:'The recipient acknowledged the message.'},true);
+ assert.equal(h.document.querySelector('#call-calendar').hidden,true);
+ assert.equal(h.document.querySelector('#reschedule-call').hidden,true);
+ assert.equal(h.document.querySelector('#cancel-booking').hidden,true);
+ assert.equal(h.document.querySelector('#confirm').hidden,true);
+ h.app.announceCall({...call,status:'completed',outcome:'completed_request'});
+ assert.doesNotMatch(h.document.querySelector('#call-card-detail').textContent,/booking/i);
+});
 test('call review requires approval and failed confirmation never permits automatic redial',async t=>{
  let confirmations=0,reads=0;
  const h=await harness(async(url,options)=>{

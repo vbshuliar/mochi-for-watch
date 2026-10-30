@@ -32,6 +32,7 @@ public struct APIClient: Sendable {
     if !query.isEmpty { components.queryItems = query }
     var request = URLRequest(url: components.url!, timeoutInterval: 95)
     request.httpMethod = method
+    if path.hasSuffix("/audio") { request.setValue("true", forHTTPHeaderField: "X-Contact-Lookup-Supported") }
     request.httpBody = body
     request.setValue("Bearer \(connection.token)", forHTTPHeaderField: "Authorization")
     if body != nil { request.setValue(contentType, forHTTPHeaderField: "Content-Type") }
@@ -72,7 +73,7 @@ public struct APIClient: Sendable {
   public func stream(
     sessionID: String, requestID: String, text: String, onText: @Sendable (String) async -> Void
   ) async throws -> TurnResult {
-    let body = try JSONEncoder().encode(["requestId": requestID, "text": text])
+    let body = try JSONSerialization.data(withJSONObject: ["requestId": requestID, "text": text, "contactLookupSupported": true])
     let (bytes, response) = try await session.bytes(
       for: request("v1/sessions/\(sessionID)/stream", method: "POST", body: body))
     try Self.validate(response)

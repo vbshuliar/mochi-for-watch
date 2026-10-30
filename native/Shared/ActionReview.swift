@@ -109,20 +109,22 @@ struct CallReview: View {
         }
         VStack(alignment: .leading, spacing: 12) {
           ReviewDetail("Phone", value: call.booking.phoneNumber)
-          ReviewDetail("Booking for", value: call.booking.customerName)
+          ReviewDetail(call.isConversation ? "Calling on behalf of" : "Booking for", value: call.booking.customerName)
           if let original = call.originalSlot {
             ReviewDetail("Original appointment", value: "\(date(original.start)) until \(date(original.end))")
             Text(call.operation == "cancel_booking" ? "Ask the business to cancel this appointment." : "Ask the business to move this appointment to an allowed time below.").font(.footnote)
           }
+          if !call.isConversation {
           ForEach(Array(call.booking.allowedWindows.enumerated()), id: \.offset) { _, window in
             ReviewDetail("Allowed time", value: "Between \(date(window.start)) and \(date(window.end))")
           }
-          ReviewDetail("Duration", value: "\(call.booking.durationMinutes) minutes")
+          if let duration = call.booking.durationMinutes { ReviewDetail("Duration", value: "\(duration) minutes") }
           ReviewDetail("Time zone", value: call.booking.timeZone)
+          }
         }
         Divider()
-        Text(call.calendarChecked ? "Calendar checked for availability." : "Calendar has not been checked. Availability is unverified.")
-          .font(.footnote).foregroundStyle(.secondary)
+        if !call.isConversation { Text(call.calendarChecked ? "Calendar checked for availability." : "Calendar has not been checked. Availability is unverified.")
+          .font(.footnote).foregroundStyle(.secondary) }
         if let summary = call.summary { Text(summary).font(.body) }
         if call.supersededBy != nil { Text("This booking was changed. Open the newer task for the current appointment.").font(.footnote) }
         if let slot = call.bookedSlot {
@@ -132,7 +134,7 @@ struct CallReview: View {
         if reminderSaved { Label("Reminder saved in Mochi", systemImage: "checkmark.circle").font(.footnote) }
         if let failure = model.failure { Text(failure).font(.footnote) }
         if call.status == "pending", !model.confirmationUnknown(for: call) {
-          Text("Mochi will call this number as your AI assistant and share these booking details only after you approve.")
+          Text(call.isConversation ? "Mochi will call as your AI assistant and speak on your behalf using the instruction above, only after you approve." : "Mochi will call this number as your AI assistant and share these booking details only after you approve.")
             .font(.footnote).foregroundStyle(.secondary)
           VStack(spacing: 8) {
             ReviewButton("Approve and call", prominent: true) { model.callCommand("confirm", callID: call.id) }
@@ -141,27 +143,27 @@ struct CallReview: View {
         } else {
           Text(call.status.replacingOccurrences(of: "_", with: " ")).font(.headline)
           if call.status == "uncertain" || model.confirmationUnknown(for: call) && call.status == "pending" {
-            Text("The result could not be verified. Check with the business before making another booking. Mochi will not redial automatically.").font(.footnote)
+            Text("The result could not be verified. Check with the recipient before trying again. Mochi will not redial automatically.").font(.footnote)
           }
           VStack(spacing: 8) {
             if call.active || call.status == "uncertain" || model.confirmationUnknown(for: call) && call.status == "pending" {
               ReviewButton(call.status == "uncertain" ? "Try stopping call" : "Stop call", role: .destructive) { model.callCommand("stop", callID: call.id) }
             }
-            if (call.booked || call.bookingCancelled) && call.supersededBy == nil {
+            if !call.isConversation && (call.booked || call.bookingCancelled) && call.supersededBy == nil {
               ReviewButton(call.bookingCancelled ? "Review Calendar removal" : "Review Calendar event", prominent: true) { model.callCommand("calendar", callID: call.id) }
                 .disabled(model.hasProposal)
               if model.hasProposal {
                 Text("Finish your current proposal review before preparing this Calendar event.").font(.footnote)
               }
             }
-            if call.booked && call.supersededBy == nil {
+            if !call.isConversation && call.booked && call.supersededBy == nil {
               ReviewButton("Reschedule booking") { changingTime = true }.disabled(model.hasProposal)
               ReviewButton("Cancel booking", role: .destructive) { cancellingBooking = true }.disabled(model.hasProposal)
             }
-            if call.followUp?.canAddReminder == true {
+            if !call.isConversation && call.followUp?.canAddReminder == true {
               ReviewButton(call.booked ? "Remind me before my appointment" : "Remind me to follow up") { addingReminder = true }
             }
-            if call.followUp?.canRetry == true {
+            if !call.isConversation && call.followUp?.canRetry == true {
               ReviewButton("Choose times and try again") { retrying = true }.disabled(model.hasProposal)
             }
             ReviewButton("Refresh status") { model.callCommand("refresh", callID: call.id) }
@@ -171,7 +173,7 @@ struct CallReview: View {
         if model.callUpdating { ProgressView("Updating…").frame(maxWidth: .infinity) }
       }.padding().frame(maxWidth: .infinity, alignment: .leading)
         .fixedSize(horizontal: false, vertical: true).disabled(model.callUpdating)
-    }.onAppear { model.resumeCalls(); model.loadLinkedCalendarAction(call) }
+    }.onAppear { model.resumeCalls(); if !call.isConversation { model.loadLinkedCalendarAction(call) } }
       .sheet(isPresented: $changingTime) {
         NavigationStack {
           Form {
@@ -260,7 +262,7 @@ struct BookingCompletionCard: View {
         }
       }.multilineTextAlignment(.center)
       VStack(spacing: 8) {
-        ReviewButton("review booking", prominent: true, action: review)
+        ReviewButton(call.isConversation ? "review call" : "review booking", prominent: true, action: review)
         ReviewButton("done", action: dismiss)
       }
     }

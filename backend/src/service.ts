@@ -4,6 +4,7 @@ import {
   AppError,
   memoryInputSchema,
   type Memory,
+  type ContactLookupResponse,
   eventSchema,
   planSchema,
   type Action,
@@ -25,6 +26,15 @@ type CachedTurn = {
   status: "processing" | "done" | "failed" | "cancelled";
   result?: TurnResult;
 };
+type ContactLookup = {
+  id: string;
+  sessionId: string;
+  query: string;
+  instruction: string;
+  expiresAt: number;
+  requestId?: string;
+  responseHash?: string;
+};
 export class Service {
   private locks = new Set<string>();
   private activeTurns = new Map<
@@ -38,10 +48,25 @@ export class Service {
     if (active) {
       active.controller.abort();
       await active.done;
-      return { cancelled: true };
     }
     const cached = this.store.get<CachedTurn>("turn", key);
-    if (cached?.status === "done") return { cancelled: false, completed: true };
+    const lookup = this.store
+      .list<ContactLookup>("contact-lookup")
+      .find(
+        ({ value }) => value.sessionId === id && value.requestId === requestId,
+      )?.value;
+    if (lookup) {
+      const session = this.session(id);
+      if (session.selectedContact?.lookupId === lookup.id)
+        session.selectedContact = undefined;
+      if (session.pendingContactLookupId === lookup.id)
+        session.pendingContactLookupId = undefined;
+      this.store.put("session", id, session);
+      const call = cached?.result?.callAction;
+      if (call && this.calls?.get(id, call.id).status === "pending")
+        await this.calls.decide(id, call.id, "cancel");
+    } else if (cached?.status === "done")
+      return { cancelled: false, completed: true };
     this.store.put("turn", key, {
       hash: cached?.hash || "",
       status: "cancelled",
@@ -201,17 +226,49 @@ export class Service {
       this.locks.delete(id);
     }
   }
+  async continueContactLookup(
+    id: string,
+    lookupId: string,
+    response: ContactLookupResponse,
+  ) {
+    const lookup = this.store.get<ContactLookup>("contact-lookup", lookupId);
+    if (!lookup || lookup.sessionId !== id)
+      throw new AppError(404, "not_found", "Contact lookup not found.");
+    return this.turn(
+      id,
+      response.requestId,
+      { text: lookup.instruction },
+      {
+        contactLookupSupported: true,
+        contactContinuation: { lookupId, response },
+      },
+    );
+  }
   async turn(
     id: string,
     requestId: string,
     input: { text: string } | { audio: Buffer },
-    options: { signal?: AbortSignal; onText?: (text: string) => void } = {},
+    options: {
+      signal?: AbortSignal;
+      onText?: (text: string) => void;
+      contactLookupSupported?: boolean;
+      contactContinuation?: {
+        lookupId: string;
+        response: ContactLookupResponse;
+      };
+    } = {},
   ) {
     return this.locked(id, async () => {
       const session = this.session(id),
         key = `${id}:${requestId}`,
         hash = createHash("sha256")
           .update("text" in input ? "text:" + input.text : input.audio)
+          .update(
+            JSON.stringify({
+              supported: options.contactLookupSupported ?? false,
+              continuation: options.contactContinuation,
+            }),
+          )
           .digest("hex");
       const cached = this.store.get<CachedTurn>("turn", key);
       if (cached?.status === "cancelled" || options.signal?.aborted)
@@ -223,6 +280,51 @@ export class Service {
           "use a new request ID for different input",
         );
       if (cached?.status === "done") return cached.result!;
+      const continuation = options.contactContinuation;
+      if (continuation) {
+        const lookup = this.store.get<ContactLookup>(
+          "contact-lookup",
+          continuation.lookupId,
+        );
+        if (!lookup || lookup.sessionId !== id)
+          throw new AppError(404, "not_found", "Contact lookup not found.");
+        if (
+          lookup.requestId &&
+          (lookup.requestId !== requestId || lookup.responseHash !== hash)
+        )
+          throw new AppError(
+            409,
+            "idempotency_conflict",
+            "This contact lookup already has a response.",
+          );
+        if (
+          lookup.expiresAt <= Date.now() ||
+          session.pendingContactLookupId !== lookup.id
+        )
+          throw new AppError(
+            409,
+            "contact_lookup_closed",
+            "This contact lookup expired or was superseded. Please ask again.",
+          );
+        lookup.requestId = requestId;
+        lookup.responseHash = hash;
+        this.store.put("contact-lookup", lookup.id, lookup);
+        session.selectedContact = continuation.response.contact
+          ? {
+              lookupId: lookup.id,
+              contact: continuation.response.contact,
+              expiresAt: lookup.expiresAt,
+            }
+          : undefined;
+      } else {
+        session.pendingContactLookupId = undefined;
+      }
+      if (
+        session.selectedContact &&
+        session.selectedContact.expiresAt <= Date.now()
+      )
+        session.selectedContact = undefined;
+      this.store.put("session", id, session);
       this.store.put("turn", key, { hash, status: "processing" });
       const controller = new AbortController();
       const signal = options.signal
@@ -237,6 +339,7 @@ export class Service {
         if (signal.aborted)
           throw new AppError(409, "turn_cancelled", "request cancelled");
       };
+      let generatedCallId: string | undefined;
       try {
         check();
         let text: string;
@@ -254,34 +357,52 @@ export class Service {
         const memories = this.memories();
         const latestCall = this.calls?.listAll()[0];
         const plan = planSchema.parse(
-          /^(?:how(?:’s|'s| is) (?:the |my )?(?:booking|call)(?: going)?|(?:is|has) (?:the |my )?(?:booking|call) (?:done|finished|completed)|did (?:they|the business) (?:answer|confirm|book it)|what(?:’s|'s| is) (?:the )?(?:call|booking) (?:status|progress))\??$/i.test(
-            text.trim(),
-          )
-            ? { kind: "call_status" }
-            : await this.planner.plan(messages, session.timeZone, {
-                signal,
-                onText: options.onText,
-                memories,
-                bookingProfile: this.daily?.profiles?.get() ?? null,
-                reminders: this.daily?.reminders
-                  .list()
-                  .slice(0, 50)
-                  .map(({ id, title, dueAt, status }) => ({
-                    id,
-                    title,
-                    dueAt,
-                    status,
-                  })),
-                latestCall: latestCall
-                  ? {
-                      id: latestCall.id,
-                      status: latestCall.status,
-                      progress: latestCall.progress?.text,
-                      summary: latestCall.summary,
-                      destinationName: latestCall.booking.destinationName,
-                    }
-                  : undefined,
-              }),
+          continuation && continuation.response.status !== "selected"
+            ? {
+                kind: "reply",
+                text: (
+                  {
+                    not_found:
+                      "I couldn’t find that contact. Please provide their number, including country code.",
+                    denied:
+                      "Contacts access was denied. You can provide the number instead.",
+                    unavailable:
+                      "Contacts aren’t available here. Please use your iPhone or provide the number.",
+                    cancelled:
+                      "Contact selection cancelled. I haven’t prepared a call.",
+                  } as const
+                )[continuation.response.status],
+              }
+            : /^(?:how(?:’s|'s| is) (?:the |my )?(?:booking|call)(?: going)?|(?:is|has) (?:the |my )?(?:booking|call) (?:done|finished|completed)|did (?:they|the business) (?:answer|confirm|book it)|what(?:’s|'s| is) (?:the )?(?:call|booking) (?:status|progress))\??$/i.test(
+                  text.trim(),
+                )
+              ? { kind: "call_status" }
+              : await this.planner.plan(messages, session.timeZone, {
+                  signal,
+                  selectedContact: session.selectedContact?.contact,
+                  contactLookupSupported: options.contactLookupSupported,
+                  onText: options.onText,
+                  memories,
+                  bookingProfile: this.daily?.profiles?.get() ?? null,
+                  reminders: this.daily?.reminders
+                    .list()
+                    .slice(0, 50)
+                    .map(({ id, title, dueAt, status }) => ({
+                      id,
+                      title,
+                      dueAt,
+                      status,
+                    })),
+                  latestCall: latestCall
+                    ? {
+                        id: latestCall.id,
+                        status: latestCall.status,
+                        progress: latestCall.progress?.text,
+                        summary: latestCall.summary,
+                        destinationName: latestCall.booking.destinationName,
+                      }
+                    : undefined,
+                }),
         );
         check();
         if (["create_event", "list_events", "availability"].includes(plan.kind))
@@ -299,7 +420,45 @@ export class Service {
                 status: "cancelled",
               });
         };
-        if (plan.kind === "daily_briefing") {
+        if (plan.kind === "lookup_contact") {
+          session.selectedContact = undefined;
+          if (continuation) {
+            result = this.result(
+              id,
+              "clarify",
+              "Please provide the call’s purpose and your name, or give the destination number directly.",
+            );
+          } else if (!options.contactLookupSupported) {
+            result = this.result(
+              id,
+              "clarify",
+              "Please use the iPhone app to look up Contacts, or provide the number including country code.",
+            );
+          } else {
+            this.calls?.supersede(id);
+            const lookup: ContactLookup = {
+              id: randomUUID(),
+              sessionId: id,
+              query: plan.query,
+              instruction: text,
+              expiresAt: Date.now() + 600000,
+            };
+            this.store.put("contact-lookup", lookup.id, lookup);
+            session.pendingContactLookupId = lookup.id;
+            result = this.result(
+              id,
+              "clarify",
+              `Choose the contact and number for ${plan.query}.`,
+              {
+                contactLookup: {
+                  id: lookup.id,
+                  query: lookup.query,
+                  expiresAt: lookup.expiresAt,
+                },
+              },
+            );
+          }
+        } else if (plan.kind === "daily_briefing") {
           if (!this.daily)
             throw new AppError(
               503,
@@ -417,15 +576,42 @@ export class Service {
           );
           result = { ...result, sessionId: id };
           check();
-        } else if (plan.kind === "call_booking") {
+        } else if (
+          plan.kind === "call_booking" ||
+          plan.kind === "call_delegate"
+        ) {
+          const request =
+            plan.kind === "call_booking" ? plan.booking : plan.request;
           if (!this.calls)
             throw new AppError(
               409,
               "calls_unavailable",
               "Booking calls are not configured yet.",
             );
+          const selected = session.selectedContact?.contact;
+          const explicitCurrentNumber =
+            !continuation &&
+            (
+              text.replace(/[\s().-]/g, "").match(/\+[1-9]\d{7,14}(?!\d)/g) ??
+              []
+            ).some((number) => number === request.phoneNumber);
+          if (
+            selected &&
+            !explicitCurrentNumber &&
+            (request.phoneNumber !== selected.phoneNumber ||
+              request.destinationName !== selected.displayName)
+          )
+            throw new AppError(
+              422,
+              "phone_required",
+              "Please use the selected contact, or explicitly provide a different destination number.",
+            );
           const phoneSources = [
             this.daily?.profiles?.get()?.phoneNumber ?? "",
+            session.selectedContact?.contact.displayName ===
+            request.destinationName
+              ? session.selectedContact.contact.phoneNumber
+              : "",
             ...messages.filter((m) => m.role === "user").map((m) => m.content),
             ...memories.map((memory) => `${memory.title} ${memory.text}`),
           ];
@@ -434,7 +620,7 @@ export class Service {
               content
                 .replace(/[\s().-]/g, "")
                 .match(/\+[1-9]\d{7,14}(?!\d)/g) || []
-            ).some((number) => number === plan.booking.phoneNumber),
+            ).some((number) => number === request.phoneNumber),
           );
           if (!supplied)
             throw new AppError(
@@ -444,7 +630,11 @@ export class Service {
             );
           this.calls.supersede(id);
           supersede();
-          result = await this.calls.prepare(id, plan.booking, signal);
+          result =
+            plan.kind === "call_booking"
+              ? await this.calls.prepare(id, plan.booking, signal)
+              : this.calls.prepareConversation(id, plan.request);
+          generatedCallId = result.callAction?.id;
           check();
         } else if (plan.kind === "social_task") {
           if (!this.social)
@@ -544,6 +734,8 @@ export class Service {
               : {},
           );
         }
+        if (continuation) session.pendingContactLookupId = undefined;
+        if (plan.kind !== "clarify") session.selectedContact = undefined;
         session.messages =
           plan.kind === "remember" || plan.kind === "forget"
             ? []
@@ -560,6 +752,18 @@ export class Service {
         });
         return result;
       } catch (error) {
+        if (signal.aborted && continuation) {
+          if (session.selectedContact?.lookupId === continuation.lookupId)
+            session.selectedContact = undefined;
+          if (session.pendingContactLookupId === continuation.lookupId)
+            session.pendingContactLookupId = undefined;
+          this.store.put("session", id, session);
+          if (
+            generatedCallId &&
+            this.calls?.get(id, generatedCallId).status === "pending"
+          )
+            await this.calls.decide(id, generatedCallId, "cancel");
+        }
         this.store.put("turn", key, {
           hash,
           status: signal.aborted ? "cancelled" : "failed",
@@ -827,6 +1031,11 @@ export class Service {
           if (value.sessionId === id) this.store.delete("action", key);
         for (const { id: key } of this.store.list("turn"))
           if (key.startsWith(id + ":")) this.store.delete("turn", key);
+        for (const { id: lookupId, value } of this.store.list<ContactLookup>(
+          "contact-lookup",
+        ))
+          if (value.sessionId === id)
+            this.store.delete("contact-lookup", lookupId);
         this.store.delete("timeline", id);
         this.store.delete("session", id);
       });

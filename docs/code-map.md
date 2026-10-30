@@ -22,6 +22,7 @@ Reviewed 29 October 2026. Entry points and ownership, not a replacement for sour
 
 - `native/MochiCore/`: shared Codable models, HTTP client, WAV and conversation rules. Package tests run without device installation.
 - `native/Shared/`: conversation model, audio, realtime transcription, Keychain connection storage, WatchConnectivity, character renderer, action review and notifications.
+- Contact lookup: `native/Shared/DeviceContacts.swift` searches the device's Contacts store; `ContactSearch.swift` defines the injectable search boundary and `ContactSelectionView.swift` reviews local matches. `service.ts` binds the selected contact to an expiring conversation lookup. `calls.ts` distinguishes general delegated calls from appointment operations.
 - `native/iPhone/`: onboarding/pairing, connections, memories and task management.
 - `native/Watch/`: wrist UI, approvals and task progress.
 - `preview/emulator/`: browser voice lifecycle, streaming, tasks, booking/daily support and connector views. Its local Node gateway lives in `backend/scripts/emulator-server.mjs`.

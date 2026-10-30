@@ -140,3 +140,9 @@ The shared iPhone/Watch call review shows the server's next-step guidance. Verif
 The Connection screen is available in Release builds. Enter your private backend HTTPS origin and its short-lived one-time pairing code; the backend issues a revocable device token that is saved in Keychain and synced to your paired Watch. Pairing rejects unsafe origins and never follows redirects with the code. Obtain codes through the backend's authenticated administrator tooling. Legacy connection-file and root-token import remain Debug-only. No credentials are embedded in the app.
 
 Pairing, APNs delivery and physical-device behavior still require owner acceptance. Unsigned SDK builds do not install or provision either device.
+
+## Calling a contact
+
+Phone and Watch search their own OS-synced contacts using Contacts.framework. After asking Mochi to call someone, tap **Search device contacts**, grant access if prompted, then explicitly choose a person and number, even for one match. Limited access searches only the contacts shared with Mochi. Add an explicit `+country code` in Contacts when needed; Mochi does not guess it from your locale. Only the selected name, phone label and number are sent for call review. Search candidates stay in memory and clear on cancellation, backgrounding, interruption or connection change. A contact selection never approves dialing or changes the recipient allowlist. Review the exact instruction and number, then approve the call separately. See [contact calling](../docs/contact-calling.md).
+
+Synthetic host tests and SDK builds do not prove contact permission, syncing or calls on a physical device. No device installation or personal-contact access is needed for these checks.

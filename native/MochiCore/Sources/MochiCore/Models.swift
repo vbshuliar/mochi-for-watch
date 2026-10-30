@@ -79,6 +79,7 @@ public struct TurnResult: Decodable, Sendable {
   public let gmailDraftAction: GmailDraftAction?
   public let callAction: CallAction?
   public let sources: [SearchSource]?
+  public let contactLookup: ContactLookup?
 }
 public struct StreamEvent: Decodable, Sendable {
   public let type: String
@@ -130,10 +131,10 @@ public struct CallBooking: Codable, Sendable {
   public let purpose: String
   public let customerName: String
   public let timeZone: String
-  public let window: BookingWindow
+  public let window: BookingWindow?
   public let windows: [BookingWindow]?
-  public var allowedWindows: [BookingWindow] { windows ?? [window] }
-  public let durationMinutes: Int
+  public var allowedWindows: [BookingWindow] { windows ?? window.map { [$0] } ?? [] }
+  public let durationMinutes: Int?
 }
 public struct CallProgress: Codable, Sendable {
   public let stage: String
@@ -179,7 +180,9 @@ public struct CallAction: Codable, Identifiable, Sendable {
   public let followUp: BookingFollowUp?
   public var booked: Bool { status == "completed" && ["booked", "rescheduled"].contains(outcome ?? "") }
   public var bookingCancelled: Bool { status == "completed" && outcome == "booking_cancelled" }
+  public var isConversation: Bool { operation == "conversation" }
   public var resultTitle: String {
+    if isConversation { return "call update" }
     if bookingCancelled { return "booking cancelled" }
     if booked { return outcome == "rescheduled" ? "booking rescheduled" : "booking confirmed" }
     return "booking update"
@@ -302,4 +305,10 @@ public struct DemoReadiness: Decodable, Sendable {
     public let unverifiedCalls: Int
     public let notes: String
   }
+}
+
+public struct ContactLookup: Decodable, Identifiable, Sendable {
+  public let id: String
+  public let query: String
+  public let expiresAt: Double
 }

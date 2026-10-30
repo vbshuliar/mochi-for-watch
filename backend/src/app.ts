@@ -1,3 +1,4 @@
+import { contactLookupResponseSchema } from "./domain.ts";
 import { isWebsiteRequest, registerWebsite } from "./website.ts";
 import { PassThrough } from "node:stream";
 import Fastify, { type FastifyRequest } from "fastify";
@@ -396,13 +397,29 @@ export async function buildApp(
       const input = z
         .object({
           requestId: z.uuid(),
+          contactLookupSupported: z.boolean().optional(),
           text: z.string().trim().min(1).max(4000),
         })
         .strict()
         .parse(req.body);
-      return service.turn(id, input.requestId, { text: input.text });
+      return service.turn(
+        id,
+        input.requestId,
+        { text: input.text },
+        { contactLookupSupported: input.contactLookupSupported },
+      );
     },
   );
+  app.post("/v1/sessions/:id/contact-lookups/:lookupId", async (req) => {
+    const { id, lookupId } = z
+      .object({ id: z.uuid(), lookupId: z.uuid() })
+      .parse(req.params);
+    return service.continueContactLookup(
+      id,
+      lookupId,
+      contactLookupResponseSchema.parse(req.body),
+    );
+  });
   app.post("/v1/sessions/:id/turns/:requestId/cancel", async (req) => {
     const { id, requestId } = z
       .object({ id: z.uuid(), requestId: z.uuid() })
@@ -432,6 +449,7 @@ export async function buildApp(
       const input = z
         .object({
           requestId: z.uuid(),
+          contactLookupSupported: z.boolean().optional(),
           text: z.string().trim().min(1).max(4000),
         })
         .strict()
@@ -459,6 +477,7 @@ export async function buildApp(
           input.requestId,
           { text: input.text },
           {
+            contactLookupSupported: input.contactLookupSupported,
             signal: controller.signal,
             onText: (text) => send({ type: "text", text }),
           },
@@ -473,6 +492,10 @@ export async function buildApp(
                 ? "couldn’t verify that online; please try again"
                 : error instanceof AppError &&
                     [
+                      "number_not_allowed",
+                      "phone_required",
+                      "contact_lookup_closed",
+                      "calls_unavailable",
                       "connection_required",
                       "notion_destination_required",
                       "connection_changed",
@@ -509,7 +532,15 @@ export async function buildApp(
       if (!Buffer.isBuffer(req.body))
         throw new AppError(415, "invalid_audio", "send audio/wav");
       validateWav(req.body);
-      return service.turn(id, requestId, { audio: req.body });
+      return service.turn(
+        id,
+        requestId,
+        { audio: req.body },
+        {
+          contactLookupSupported:
+            req.headers["x-contact-lookup-supported"] === "true",
+        },
+      );
     },
   );
   app.get("/v1/sessions/:id/actions/:actionId", async (req) => {
