@@ -9,7 +9,9 @@
 
 [Website](https://mochi-for-watch.fly.dev/) · [Quick start](#quick-start) · [Features](#beyond-booking) · [Architecture](#architecture) · [Documentation](docs/README.md)
 
-<img align="right" src="docs/design/mochi-watch-preview.png" alt="Product illustration of Mochi on Apple Watch, with the tap-to-talk interface" width="260" />
+<p align="center">
+  <img src="docs/design/mochi-watch-preview.png" alt="Product illustration of Mochi on Apple Watch, with the tap-to-talk interface" width="300" />
+</p>
 
 ## Ask for a haircut. Let Mochi make the call.
 
@@ -22,8 +24,6 @@ Mochi checks your preferences and Calendar, prepares a booking request, and asks
 - **Pick up where you left off.** Shared tasks retain progress, receipts and uncertain results across conversations.
 
 Built for one owner, with native Watch/iPhone apps, a browser emulator and a self-hosted backend.
-
-<br clear="both" />
 
 > **Prototype status:** automated checks cover the implemented flows; complete live haircut booking and latest physical-device acceptance are still pending. The Watch image is a product illustration. [Status and limits ↓](#status-and-limits)
 
@@ -89,7 +89,7 @@ sequenceDiagram
     Mochi->>Calendar: Check availability
     Mochi-->>You: Review recipient, service and times
     You->>Mochi: Approve call
-    Mochi->>Business: Identify as AI assistant; request consent
+    Mochi->>Business: Identify as AI assistant and request consent
     Mochi->>Business: Negotiate within approved times
     alt Appointment confirmed
         Business-->>Mochi: Confirm appointment details
@@ -97,7 +97,7 @@ sequenceDiagram
         You->>Mochi: Approve Calendar save
         Mochi->>Calendar: Create appointment
     else Unavailable or uncertain
-        Mochi-->>You: Report outcome; review next steps
+        Mochi-->>You: Report outcome and review next steps
     end
 ```
 
