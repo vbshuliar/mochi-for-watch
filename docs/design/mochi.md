@@ -11,3 +11,7 @@ The concept was generated with the built-in image tool from a written brief desc
 ## Animation contract
 
 Use a 1000 × 1000 reference canvas. Eye centres are (335, 487) and (665, 487), neutral radii approximately 39. Mouth baseline is y=548; multiply the state-driven width by 1.25. Preserve blinking, gaze, speaking, joy, sleep, pose blending and reduced motion. Never draw animated features over the static portrait: use the blank plate.
+
+## Watch preview
+
+`mochi-watch-preview.png` is a browser capture of the deployed website on 30 October 2026, combining the original Mochi character with the generated watch illustration described in [the watch asset provenance](../../website/IMAGE-PROMPT.md). It is a product preview, not a physical-device photograph or evidence of on-device testing. The README uses it to show Mochi in the Watch interface.
