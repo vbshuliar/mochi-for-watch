@@ -1125,3 +1125,10 @@ footer a { display: inline-flex; align-items: center; min-height: 44px; }
   -webkit-user-drag: none;
   pointer-events: none;
 }
+
+/* Give the broader promise room without crowding the Watch. */
+.hero h1 { font-size: clamp(36px, 4.1vw, 56px); }
+.availability-note { max-width: 780px; margin: 8px 0 0; color: var(--muted); font-size: 14px; }
+@media (max-width: 760px) {
+  .hero h1 { font-size: clamp(34px, 9vw, 43px); }
+}

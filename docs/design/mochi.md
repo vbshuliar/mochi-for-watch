@@ -16,4 +16,4 @@ Use a 1000 × 1000 reference canvas. Eye centres are (335, 487) and (665, 487), 
 
 `mochi-website-capture.png` is a direct browser screenshot of the deployed website on 30 October 2026. It shows the actual Mochi face plate, coded eyes and mouth, and tap-to-talk interface rendered by the website. No generative retouching was applied. The surrounding watch hardware is the project-generated illustration documented in [the watch asset provenance](../../website/IMAGE-PROMPT.md); this is not a photograph of a physical device or evidence of device testing.
 
-The README uses this screenshot instead of the independently generated watch/character composition. Character proportions and expressions therefore match the website renderer.
+The README uses `mochi-website-cutout.png`, derived from this screenshot with the built-in image editing tool on 30 October 2026 to remove the outer background and clean the silhouette. It preserves the website composition and interface, but is an edited cutout rather than an unretouched screenshot. The original capture remains available for comparison.

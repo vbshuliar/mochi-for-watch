@@ -1,6 +1,6 @@
 # Mochi for Watch
 
-A voice companion for Apple Watch, built to handle everyday tasks.
+Your AI secretary on the Apple Watch you already own. Mochi is an autonomous AI companion for everyday questions, memory and approved tasks, including supported calls on your behalf. Calls are one capability, not the whole product.
 
 Website: https://mochi-for-watch.fly.dev/
 Repository: https://github.com/vbshuliar/mochi-for-watch

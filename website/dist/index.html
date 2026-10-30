@@ -9,12 +9,12 @@
     <meta name="theme-color" content="#ffffff" />
     <meta
       name="description"
-      content="An AI companion for Apple Watch, built to handle everyday tasks."
+      content="Your AI secretary on the Apple Watch you already own. Ask questions, remember what matters, and hand off approved tasks."
     />
     <meta property="og:title" content="Mochi for Watch" />
     <meta
       property="og:description"
-      content="An expressive AI companion on your wrist. Your personal assistant, on your wrist."
+      content="Your AI secretary. On the Apple Watch you already own. From quick answers to calls on your behalf."
     />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://mochi-for-watch.fly.dev/" />
@@ -57,16 +57,17 @@
       <main id="main">
         <section class="hero wrap" aria-labelledby="hero-title">
           <div class="hero-copy">
-            <h1 id="hero-title">Mochi for Watch</h1>
+            <p class="eyebrow">Mochi for Watch</p>
+            <h1 id="hero-title">Your AI secretary.<br />Already on your wrist.</h1>
             <p class="intro">
-              Talk to Mochi on Apple Watch. Ask questions, save preferences, or
-              check your Calendar.
+              Turn the Apple Watch you already own into a little help for your
+              whole day. Ask a question. Hand off a task. Get back to living.
             </p>
             <div class="hero-actions">
               <a class="button" href="/" data-scroll-to="try-it">Get started</a>
             </div>
             <p class="inspired">
-              Your personal assistant, on your wrist.
+              From quick answers to calls on your behalf.
             </p>
           </div>
           <div
@@ -175,38 +176,67 @@
             aria-labelledby="how-title"
           >
             <div class="section-heading">
-              <h2 id="how-title">How to use it</h2>
+              <h2 id="how-title">A little help. A lot less to do.</h2>
             </div>
             <ul class="steps">
               <li>
-                <h3>Talk</h3>
+                <h3>Ask what’s on your mind</h3>
                 <p>
-                  Tap Mochi to speak. Pause or tap again to finish. Tap during a
-                  reply to interrupt.
+                  A quick explanation, a question, or a look at your day. Tap to
+                  talk, and let Mochi help you find your next step.
                 </p>
               </li>
               <li>
-                <h3>Memory</h3>
+                <h3>Keep the little things</h3>
                 <p>
-                  Ask Mochi to remember a preference. View, edit, or delete
-                  saved memories on iPhone.
+                  Remember a preference, set a reminder, or prepare an email draft.
+                  Less to hold in your head. More room for your day.
                 </p>
               </li>
               <li>
-                <h3>Calendar and calls</h3>
+                <h3>Hand off the busywork</h3>
                 <p>
-                  Connect Calendar on iPhone to check availability. You approve
-                  calls and Calendar changes before they happen.
+                  Ask Mochi to make a supported call on your behalf or find time
+                  in your Calendar. Review the plan, approve the action,
+                  and get the result.
                 </p>
               </li>
             </ul>
           </section>
         </div>
+        <section class="how-section wrap" aria-labelledby="handoff-title">
+          <div class="section-heading">
+            <h2 id="handoff-title">You ask. Mochi takes it from there.</h2>
+          </div>
+          <ol class="steps">
+            <li>
+              <h3>1. Say what you need</h3>
+              <p>Tap to talk. Ask a simple question or explain a task in your own
+                words. Pause or tap again to finish; tap during a reply to interrupt.</p>
+            </li>
+            <li>
+              <h3>2. Stay in control</h3>
+              <p>Get an answer, or review a proposed action. Calls and Calendar
+                changes need your approval. Email drafts stay unsent.</p>
+            </li>
+            <li>
+              <h3>3. Get back to your day</h3>
+              <p>Mochi handles the approved task and reports what happened.
+                Your saved preferences are yours to view, edit or delete.</p>
+            </li>
+          </ol>
+          <p class="availability-note">Close at hand, not always listening. Tap to start a conversation.
+            This website is an interactive preview; conversations run in the app or emulator.
+            Capabilities depend on the services you connect.</p>
+        </section>
         <section class="try-section" id="try-it" aria-labelledby="try-title">
           <div class="wrap try-inner">
             <div class="try-copy">
-              <h2 id="try-title">Get started</h2>
-              <p>Set up Mochi on your Apple Watch, or try it in your browser.</p>
+              <h2 id="try-title">Meet your everyday plus-one.</h2>
+              <p>No extra wearable to buy or carry. Try the browser emulator,
+              or set up Mochi on your Apple Watch.</p>
+              <p>Currently an open-source prototype with self-hosted setup.
+              Live features need an internet connection and connected services.</p>
             </div>
             <div class="setup" id="standard-setup">
               <details open>
@@ -268,7 +298,7 @@ npm start</code></pre>
                   </p>
                   <a
                     class="text-link"
-                    href="https://github.com/vbshuliar/mochi-for-watch#run-it-locally"
+                    href="https://github.com/vbshuliar/mochi-for-watch#run-the-browser-demo"
                     >Voice setup</a
                   >
                 </div>
@@ -301,7 +331,7 @@ npm start</code></pre>
           class="markdown-source"
         ><!-- AGENT_MARKDOWN_START --># Mochi for Watch
 
-A voice companion for Apple Watch, built to handle everyday tasks.
+Your AI secretary on the Apple Watch you already own. Mochi is an autonomous AI companion for everyday questions, memory and approved tasks, including supported calls on your behalf. Calls are one capability, not the whole product.
 
 Website: https://mochi-for-watch.fly.dev/
 Repository: https://github.com/vbshuliar/mochi-for-watch

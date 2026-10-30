@@ -7,7 +7,7 @@ Ask a question. Hand off a task. Get back to your day.
 [Explore Mochi](https://mochi-for-watch.fly.dev/) · [What you can do](#a-little-help-throughout-your-day) · [How it works](#from-can-you-to-taken-care-of) · [Try it](#try-mochi)
 
 <p align="center">
-  <img src="docs/design/mochi-website-capture.png" alt="Screenshot of the actual Mochi website interface: sage character on an Apple Watch with tap to talk" width="300" />
+  <img src="docs/design/mochi-website-cutout.png" alt="Background-removed capture of the Mochi website interface: sage character on an Apple Watch with tap to talk" width="300" />
 </p>
 
 Mochi is an autonomous AI companion for everyday life: a quick answer when you’re curious, a memory when something matters, and a secretary to take care of an approved task. From a simple explanation to a phone call on your behalf, the idea is simple: **spend less of your day managing your day.**
