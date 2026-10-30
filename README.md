@@ -13,7 +13,7 @@
 
 </div>
 
-<img align="right" src="docs/design/mochi-watch-preview.png" alt="Mochi on Apple Watch — website product preview" width="260" />
+<img align="right" src="docs/design/mochi-watch-preview.png" alt="Mochi on Apple Watch — transparent product illustration" width="260" />
 
 ### Your personal secretary, on your wrist.
 

@@ -14,4 +14,4 @@ Use a 1000 × 1000 reference canvas. Eye centres are (335, 487) and (665, 487), 
 
 ## Watch preview
 
-`mochi-watch-preview.png` is a browser capture of the deployed website on 30 October 2026, combining the original Mochi character with the generated watch illustration described in [the watch asset provenance](../../website/IMAGE-PROMPT.md). It is a product preview, not a physical-device photograph or evidence of on-device testing. The README uses it to show Mochi in the Watch interface.
+`mochi-watch-preview.png` is a high-resolution RGBA product illustration generated on 30 October 2026 with the built-in image tool. References were the original Mochi portrait, the project-generated watch hardware described in [the watch asset provenance](../../website/IMAGE-PROMPT.md), and a capture of our website layout. The brief requested the same sage character and ivory watch, a 9:41 clock, a “tap to talk” caption, and a transparent background with no external shadow. A second pass refined the cutout. It is an illustrative product mockup, not a physical-device photograph or evidence of on-device testing. The README uses the PNG unchanged with its alpha channel intact.
