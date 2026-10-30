@@ -2,6 +2,7 @@
 
 Start with the [project README](../README.md), then the relevant guide below. The application source is Apache-2.0; external services have separate accounts, terms and costs.
 
+- [Product positioning and market research](product-positioning.md)
 - [Agent and developer setup](agent-setup.md)
 - [Environment and provider configuration](configuration.md)
 - [Architecture](architecture.md)

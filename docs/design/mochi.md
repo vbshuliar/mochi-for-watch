@@ -12,6 +12,8 @@ The concept was generated with the built-in image tool from a written brief desc
 
 Use a 1000 × 1000 reference canvas. Eye centres are (335, 487) and (665, 487), neutral radii approximately 39. Mouth baseline is y=548; multiply the state-driven width by 1.25. Preserve blinking, gaze, speaking, joy, sleep, pose blending and reduced motion. Never draw animated features over the static portrait: use the blank plate.
 
-## Watch preview
+## Website screenshot
 
-`mochi-watch-preview.png` is a high-resolution RGBA product illustration generated on 30 October 2026 with the built-in image tool. References were the original Mochi portrait, the project-generated watch hardware described in [the watch asset provenance](../../website/IMAGE-PROMPT.md), and a capture of our website layout. The brief requested the same sage character and ivory watch, a 9:41 clock, a “tap to talk” caption, and a transparent background with no external shadow. A second pass refined the cutout. It is an illustrative product mockup, not a physical-device photograph or evidence of on-device testing. The README uses the PNG unchanged with its alpha channel intact.
+`mochi-website-capture.png` is a direct browser screenshot of the deployed website on 30 October 2026. It shows the actual Mochi face plate, coded eyes and mouth, and tap-to-talk interface rendered by the website. No generative retouching was applied. The surrounding watch hardware is the project-generated illustration documented in [the watch asset provenance](../../website/IMAGE-PROMPT.md); this is not a photograph of a physical device or evidence of device testing.
+
+The README uses this screenshot instead of the independently generated watch/character composition. Character proportions and expressions therefore match the website renderer.

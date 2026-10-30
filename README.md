@@ -1,33 +1,108 @@
 # Mochi for Watch
 
-**An Apple Watch assistant that makes booking calls for you.**
+**Your AI secretary. On the Apple Watch you already own.**
 
-[![Checks](https://github.com/vbshuliar/mochi-for-watch/actions/workflows/checks.yml/badge.svg)](https://github.com/vbshuliar/mochi-for-watch/actions/workflows/checks.yml)
-[![License](https://img.shields.io/badge/license-Apache--2.0-61806b?style=flat-square)](LICENSE)
-![Node](https://img.shields.io/badge/Node-24-339933?style=flat-square)
-![Devices](https://img.shields.io/badge/iOS_17%2B-watchOS_10%2B-007AFF?style=flat-square)
+Ask a question. Hand off a task. Get back to your day.
 
-[Website](https://mochi-for-watch.fly.dev/) · [Quick start](#quick-start) · [Features](#beyond-booking) · [Architecture](#architecture) · [Documentation](docs/README.md)
+[Explore Mochi](https://mochi-for-watch.fly.dev/) · [What you can do](#a-little-help-throughout-your-day) · [How it works](#from-can-you-to-taken-care-of) · [Try it](#try-mochi)
 
 <p align="center">
-  <img src="docs/design/mochi-watch-preview.png" alt="Product illustration of Mochi on Apple Watch, with the tap-to-talk interface" width="300" />
+  <img src="docs/design/mochi-website-capture.png" alt="Screenshot of the actual Mochi website interface: sage character on an Apple Watch with tap to talk" width="300" />
 </p>
 
-## Ask for a haircut. Let Mochi make the call.
+Mochi is an autonomous AI companion for everyday life: a quick answer when you’re curious, a memory when something matters, and a secretary to take care of an approved task. From a simple explanation to a phone call on your behalf, the idea is simple: **spend less of your day managing your day.**
+
+Tap Mochi, say what you need, and carry on. He remembers the preferences you choose to share, works with your connected services, and keeps you in control of actions that matter.
+
+## Your next AI device may already be on your wrist
+
+AI is finding new homes: pendants, wristbands, glasses and pocket companions. [Bee](https://bee.computer/), [Omi](https://www.omi.me/) and [Muse Charm](https://about.fb.com/news/2026/09/the-biggest-news-from-connect-2026/) are examples of this move toward dedicated AI hardware.
+
+For someone who already wears an Apple Watch, there is another starting point: a microphone, a screen and a familiar device already close at hand. **Mochi turns that familiar place into a place to ask for help.** No additional wearable to buy or carry.
+
+The opportunity is everyday convenience: catch a thought before it disappears, get an answer without falling into your phone, or hand off the small task you've been putting off. Mochi combines that access with memory, a friendly face and follow-through.
+
+## A little help throughout your day
+
+| When you need… | Say something like… | Mochi helps by… |
+| --- | --- | --- |
+| **A quick answer** | “Explain that in plain English.” | Talking it through, with web search and source links when current information is needed. |
+| **A clearer morning** | “What does my day look like?” | Bringing together your Calendar, booking progress, reminders and recent inbox context. |
+| **One less thing to remember** | “Remind me to pick up the parcel at six.” | Saving a reminder you can complete, snooze or repeat. |
+| **Help with the admin** | “Draft an email about moving our meeting.” | Helping prepare a message for you to review and save as an unsent Gmail draft. |
+| **Someone to make the call** | “Book my usual haircut next week.” | Preparing the details, then calling and negotiating within the instructions you approve. |
+| **Continuity** | “Remember that I prefer afternoon appointments.” | Keeping a preference you can inspect, change or delete. |
+
+Connected accounts and permissions determine what's available. You can also turn ideas or selected emails into reviewed Notion pages, and ask for summaries or reply suggestions for supported social accounts. [Explore the capabilities](docs/integrations-and-models.md).
+
+## A familiar face, ready when you need a hand
+
+Mochi blinks, looks around and reacts as you talk. You can interrupt a reply, ask a follow-up or change your mind. The personality gives everyday help a familiar face.
+
+A question can stay a question. A task can keep moving after the conversation ends. Watch and iPhone share task progress, so you can check what happened without starting over.
+
+## From “can you?” to “taken care of”
+
+Autonomy means Mochi can carry out an approved task and bring back the result. You set the intent and boundaries; he handles the steps within them.
+
+```mermaid
+flowchart LR
+    Ask[Say what you need] --> Prepare[Mochi works out the next step]
+    Prepare --> Answer[Get an answer]
+    Prepare --> Review[Review a proposed action]
+    Review --> Do[Mochi carries it out]
+    Do --> Result[See the result or next steps]
+```
+
+### One example: the haircut you've been meaning to book
 
 > “Book my usual haircut next week. Any afternoon except Thursday.”
 
-Mochi checks your preferences and Calendar, prepares a booking request, and asks you to approve the call. Then he speaks with the business, negotiates within your instructions and reports the outcome.
+1. **Mochi prepares.** He uses your saved preferences, checks Calendar availability and asks for anything missing.
+2. **You approve.** Review the business, number, service and acceptable times.
+3. **Mochi calls.** He introduces himself as your AI assistant, asks for consent and negotiates within your instructions.
+4. **You carry on.** The call runs in the background while you keep chatting or check progress later.
+5. **Mochi reports back.** Review the outcome and separately approve adding a confirmed appointment to Calendar.
 
-- **Keep doing your thing.** The call runs in the background while you keep chatting or check progress from Watch or iPhone.
-- **Stay in control.** Review the recipient and allowed times before dialing. Saving the appointment to Calendar gets a separate approval.
-- **Pick up where you left off.** Shared tasks retain progress, receipts and uncertain results across conversations.
+If a booking cannot be confirmed, Mochi reports that instead of presenting an uncertain outcome as success. Booking is one demonstration of the larger promise: **help that follows through.**
 
-Built for one owner, with native Watch/iPhone apps, a browser emulator and a self-hosted backend.
+[How calling works](docs/booking-calls.md) · [Booking preferences](docs/booking-experience.md)
 
-> **Prototype status:** automated checks cover the implemented flows; complete live haircut booking and latest physical-device acceptance are still pending. The Watch image is a product illustration. [Status and limits ↓](#status-and-limits)
+## Close at hand. Under your control.
 
-## Quick start
+| Your choice | What it means |
+| --- | --- |
+| **When to talk** | Tap to start a conversation. Mochi is not an always-listening recorder. |
+| **What to share** | Choose the services you connect and the preferences you save. |
+| **What to approve** | Review calls, Calendar changes, Gmail drafts and Notion saves before they happen. Drafts are not sent automatically. |
+| **What to remember** | Inspect, edit or delete saved memories from iPhone. |
+| **Where it runs** | The open-source app uses your private backend and configured cloud services. Internet access is required. |
+
+Mochi needs an internet connection and a running backend. Connected providers process relevant audio and text under their own terms. [Privacy and data handling](docs/operations-readiness.md) · [Memory controls](docs/memory.md).
+
+## Try Mochi
+
+| Start here | What to expect |
+| --- | --- |
+| [**Meet Mochi on the website**](https://mochi-for-watch.fly.dev/) | An interactive character preview and setup guidance. |
+| [**Explore the browser emulator**](#run-the-browser-demo) | Try the interface and simulated approval flow without owning a Watch or connecting paid services. |
+| [**Run it on your Watch**](native/README.md) | Build from source with a Mac and Xcode, set up your backend and pair your iPhone and Watch. |
+
+**Mochi is an open-source prototype.** Native apps and connected workflows are implemented, with automated tests. Complete live haircut booking and latest physical-device acceptance remain pending. It is not yet an App Store download or a shared hosted service. Live providers may charge for usage; push alerts require Apple provisioning.
+
+Today, briefings are requested on demand; reminders live in Mochi rather than Apple Reminders. Phone-menu navigation, payments/deposits and automatically trying multiple businesses are outside scope. [Current acceptance checklist](docs/development-acceptance.md).
+
+## For builders
+
+[![Checks](https://github.com/vbshuliar/mochi-for-watch/actions/workflows/checks.yml/badge.svg)](https://github.com/vbshuliar/mochi-for-watch/actions/workflows/checks.yml)
+[![License](https://img.shields.io/badge/license-Apache--2.0-61806b?style=flat-square)](LICENSE)
+
+Mochi is built with SwiftUI, TypeScript, Fastify and SQLite, with configured model, speech and calling providers. The source is available to inspect, adapt and run for yourself.
+
+<a id="run-the-browser-demo"></a>
+<details>
+<summary><strong>Run the browser demo</strong> — no Watch or provider keys required</summary>
+
 
 Try the mock flow without a Watch, API keys or paid services. You need **Git, Node.js 24 and npm**. Native development additionally requires macOS with Xcode.
 
@@ -77,51 +152,12 @@ Open **[127.0.0.1:4174/preview/emulator/](http://127.0.0.1:4174/preview/emulator
 
 Mock mode does not provide arbitrary spoken conversation. The lunch example validates the approval mechanism; it is not a telephone booking demo.
 
-## The booking flow
 
-```mermaid
-sequenceDiagram
-    actor You
-    participant Mochi
-    participant Business
-    participant Calendar
-    You->>Mochi: Book my usual haircut
-    Mochi->>Calendar: Check availability
-    Mochi-->>You: Review recipient, service and times
-    You->>Mochi: Approve call
-    Mochi->>Business: Identify as AI assistant and request consent
-    Mochi->>Business: Negotiate within approved times
-    alt Appointment confirmed
-        Business-->>Mochi: Confirm appointment details
-        Mochi-->>You: Booking result + Calendar proposal
-        You->>Mochi: Approve Calendar save
-        Mochi->>Calendar: Create appointment
-    else Unavailable or uncertain
-        Mochi-->>You: Report outcome and review next steps
-    end
-```
+</details>
 
-Mochi asks for missing booking details before dialing. Live destinations must be on the configured allowlist. A call ending is not proof of an appointment, and an uncertain result is retained for reconciliation rather than blindly retried.
+<details>
+<summary><strong>Connect live services and native apps</strong></summary>
 
-[Set up calling](docs/booking-calls.md) · [Save your usual haircut preferences](docs/booking-experience.md) · [Live acceptance checklist](docs/development-acceptance.md)
-
-## Beyond booking
-
-| Ask Mochi to… | What you get |
-| --- | --- |
-| **Remember your preferences** | Persistent memory with iPhone controls to view, edit and delete facts. |
-| **Find current information** | Web-backed answers with source links through the configured provider. |
-| **Brief you on today** | Booking progress, Calendar events, due reminders and recent inbox context, on demand. |
-| **Remind you later** | Shared reminders with snooze and daily/weekly recurrence; optional push alerts. |
-| **Draft an email** | Review the recipient, subject and message, then save an **unsent** Gmail draft. |
-| **Turn ideas or email into a document** | Review a Notion page before saving to an authorized destination. |
-| **Summarize social activity** | Read selected Facebook Page / linked professional Instagram activity and suggest replies. |
-
-Voice replies are interruptible, and Mochi's face responds with gaze, blinking and speech animation. Reminders live in Mochi, not Apple Reminders. Briefings are on demand; social content is not published automatically.
-
-[All connection capabilities](docs/integrations-and-models.md) · [Briefings, reminders and drafts](docs/daily-support.md)
-
-## Connect live services
 
 In `backend/.env`, set the following and restart the backend. Replace the placeholder keys with your own credentials:
 
@@ -145,7 +181,12 @@ Keep live and mock databases separate. Provider credentials stay on the server. 
 
 [Full environment template](backend/.env.example) · [Push notification setup](docs/task-notifications.md)
 
-## Architecture
+
+</details>
+
+<details>
+<summary><strong>Architecture and source map</strong></summary>
+
 
 ```mermaid
 flowchart TD
@@ -174,38 +215,12 @@ The backend owns credentials, action state and approval checks. Model output can
 
 [Architecture guide](docs/architecture.md) · [Code map](docs/code-map.md) · [Hosting and recovery](docs/operations-readiness.md)
 
-## Privacy and control
 
-- **Private pairing:** expiring one-time codes and revocable device tokens. One owner per deployment.
-- **Encrypted stored values:** credentials, histories and action records use AES-256-GCM. Record identifiers remain database metadata; this is not whole-disk encryption.
-- **Audio handling:** the app does not store microphone audio or record calls. Generated telephone reply clips are encrypted and served through expiring links.
-- **Provider processing:** relevant audio and text go to connected providers under their own retention policies.
-- **Data deletion:** removing a conversation does not delete shared memories or undo external actions. Disconnecting a service removes local credentials, not documents or events already created there.
+</details>
 
-[Memory controls](docs/memory.md) · [Call safeguards](docs/booking-calls.md) · [Security policy](SECURITY.md)
+<details>
+<summary><strong>Contributing and validation</strong></summary>
 
-## Status and limits
-
-| Available in source | Still requires validation or setup |
-| --- | --- |
-| Backend, browser and native task flows with automated tests | Complete live haircut booking and booking-change acceptance. |
-| Watch/iPhone clients and shared task state | Latest physical-device installation and acceptance. |
-| Reminder and completion alerts | Apple push provisioning and device delivery checks. |
-
-This is a **single-owner prototype**, not an App Store release or multi-user service. Phone-menu navigation, payments/deposits and automatically trying multiple businesses are outside scope. The haircut demo focuses on calling and Calendar; Gmail and Notion remain optional and outside that demo.
-
-## Troubleshooting
-
-| Symptom | Check first |
-| --- | --- |
-| Backend won't start | Run `npm run doctor` from `backend/`; check Node 24, configuration, database permissions and port 8787. |
-| Emulator cannot connect | Keep the backend running and launch `npm run emulator` from the same `backend/` directory. Use the `127.0.0.1` URL above. |
-| Voice does not behave like a conversation | Check `APP_MODE`. Mock mode is deterministic; live conversation needs valid provider credentials and microphone permission. |
-| Reminders appear but no push arrives | Apple push provisioning and notification permission are required; reminders remain visible without push. |
-
-[Full troubleshooting guide](docs/troubleshooting.md) · [Report an issue](https://github.com/vbshuliar/mochi-for-watch/issues)
-
-## Contributing
 
 Start with [CONTRIBUTING.md](CONTRIBUTING.md). Coding agents should also read [AGENTS.md](AGENTS.md) and the [agent setup guide](docs/agent-setup.md). Develop against mock providers and preserve approval, consent and recovery behavior.
 
@@ -223,7 +238,13 @@ The shared checks cover formatting, TypeScript, builds, backend tests, browser b
 
 [Release runbook](docs/runbook.md) · [Changelog](CHANGELOG.md) · [Support](SUPPORT.md)
 
+
+</details>
+
+[Documentation](docs/README.md) · [Agent setup](docs/agent-setup.md) · [Troubleshooting](docs/troubleshooting.md) · [Report an issue](https://github.com/vbshuliar/mochi-for-watch/issues)
+
 ## License
+
 
 Original project code and artwork are available under [Apache-2.0](LICENSE), to the extent applicable rights are held. Hosted models and services require separate accounts and terms. Apple Watch is a compatibility reference; provider names do not imply endorsement.
 
