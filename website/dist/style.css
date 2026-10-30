@@ -87,18 +87,22 @@ pre:focus-visible {
   font-weight: 400;
 }
 .brand-face {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 29px;
-  margin-right: 5px;
-  border: 1.5px solid var(--ink);
-  border-radius: 10px;
-  font-size: 15px;
-  letter-spacing: 4px;
-  padding-left: 4px;
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  margin-right: 2px;
 }
+.brand-face img,
+.brand-face svg {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 nav {
   display: flex;
   align-items: center;
