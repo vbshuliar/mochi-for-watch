@@ -16,7 +16,7 @@ A partial conversational sentence can have been heard if the provider later fail
 
 `POST /v1/sessions/:id/turns/:requestId/cancel` cancels that request only. It aborts in-flight Meta requests, applicable Calendar reads and pending speech synthesis when the browser drops the speech request. The server waits for the turn to unwind, releases its session lock, and does not persist cancelled conversation results. A cancellation arriving before dispatch creates a request-ID tombstone, preventing a late request from starting. A completed turn reports completed instead of pretending it was undone.
 
-The client aborts the old stream immediately and awaits cancellation acknowledgement before submitting the next turn. Old response callbacks still lose ownership as a second line of defence. Calendar confirmation/write endpoints are outside this cancellation route: an approved write must still be verified or recovered, never described as undone by interrupting Jolly.
+The client aborts the old stream immediately and awaits cancellation acknowledgement before submitting the next turn. Old response callbacks still lose ownership as a second line of defence. Calendar confirmation/write endpoints are outside this cancellation route: an approved write must still be verified or recovered, never described as undone by interrupting Mochi.
 
 A cancelled partial answer is not added to conversation history. “Continue” after interruption may therefore need clarification; only completed turns are durable context. Token-refresh work can finish independently, but cancelled reads cannot proceed to publish a turn result.
 

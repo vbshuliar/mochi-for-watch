@@ -9,7 +9,7 @@ Implemented 27 October 2026 for the existing private, single-user deployment.
 - “Remember that I now live in Bristol.”
 - “Forget where I live.”
 
-Jolly uses Meta to interpret explicit save/update/forget requests. Ordinary conversation does not automatically populate a profile. The planner is instructed not to store secrets or third-party personal details; this is model guidance, not a deterministic secret detector. Do not store credentials in memories.
+Mochi uses Meta to interpret explicit save/update/forget requests. Ordinary conversation does not automatically populate a profile. The planner is instructed not to store secrets or third-party personal details; this is model guidance, not a deterministic secret detector. Do not store credentials in memories.
 
 On iPhone, open **Memory** from the home screen. Tap an entry to edit or delete it, use **Add** for a new fact, or **Forget everything** with confirmation. The list refreshes on opening, pull-to-refresh and returning to the app. Native UI changes require an updated app installation; the existing Watch app can use the deployed backend's memory actions without a new Watch build.
 

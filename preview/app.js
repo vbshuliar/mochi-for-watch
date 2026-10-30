@@ -13,7 +13,7 @@ const states = [
 const $ = (q) => document.querySelector(q);
 const player = $('#player');
 let selected='idle', current='idle', timer, failNext=false, zoom=1, blinkTimer;
-function head(){return '<div class="head"><img class="eyes-open" src="../docs/design/tuck-portrait.png" alt="Smiling plush mascot"><svg class="eyes-closed" viewBox="0 0 1000 1000" aria-hidden="true"><image href="../docs/design/tuck-face-plate.png" width="1000" height="1000"/><g fill="none" stroke="#291a14" stroke-width="9" stroke-linecap="round"><path d="M296 487 Q335 509 374 487 M626 487 Q665 509 704 487"/><path d="M439 548 C463 582 537 582 561 548"/></g></svg></div>';}
+function head(){return '<div class="head"><img class="eyes-open" src="../docs/design/mochi-portrait.png" alt="Smiling plush mascot"><svg class="eyes-closed" viewBox="0 0 1000 1000" aria-hidden="true"><image href="../docs/design/mochi-face-plate.png" width="1000" height="1000"/><g fill="none" stroke="#291a14" stroke-width="9" stroke-linecap="round"><path d="M296 487 Q335 509 374 487 M626 487 Q665 509 704 487"/><path d="M439 548 C463 582 537 582 561 548"/></g></svg></div>';}
 function watch(state){
  let content=head();
  if(state.id==='listening') content+='<div class="wave" aria-label="Simulated voice activity">'+Array.from({length:7},(_,i)=>`<i style="--i:${i}"></i>`).join('')+'</div>';

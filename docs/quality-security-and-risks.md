@@ -4,7 +4,6 @@ Updated: 26 October 2026.
 
 > **Status:** Planned checks and risks, not completed test results. API access, watch audio/networking and integration permissions are early validation priorities.
 
-[Documentation index](README.md) · [Original brief](sources/original-project-brief.md) · [Open questions](open-questions.md)
 
 ## Testing and Quality Assurance
 
@@ -46,7 +45,7 @@ The watch should never display false success messages.
 
 Agents must operate within their assigned tool permissions.
 
-Jolly must have explicit Calendar permissions before modifying events. A Calendar connection does not authorise social publishing, and research tools must not send messages. Enforce service-specific permissions even though all capabilities share one companion.
+Mochi must have explicit Calendar permissions before modifying events. A Calendar connection does not authorise social publishing, and research tools must not send messages. Enforce service-specific permissions even though all capabilities share one companion.
 
 The model's instructions should not substitute for backend permission enforcement.
 
@@ -134,17 +133,6 @@ Instagram account types, permissions and app configuration can delay development
 
 **Mitigation:** Validate a developer-controlled professional account early and maintain a simpler integration as a fallback.
 
-### Existing Muse personal-agent integration
-
-**Severity: High if treated as a requirement**
-
-Meta's public Model API enables developers to build applications using Muse models.
-
-It does not establish unrestricted access to an individual's existing personal Muse conversations, memories or connected applications.
-
-**Mitigation:** Build our own specialised agents with their own memory and permissions.
-
-We should not describe the app as an official Apple Watch client for existing Muse accounts.
 
 ### Background activity
 

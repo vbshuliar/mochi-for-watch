@@ -1,5 +1,5 @@
 import Foundation
-import MuseCore
+import MochiCore
 import WatchConnectivity
 
 @MainActor final class PhoneWatchBridge: NSObject, WCSessionDelegate {

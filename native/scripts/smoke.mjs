@@ -17,7 +17,7 @@ try {
   await new Promise(r=>setTimeout(r,100));
  }
  if(!ready)throw new Error('Fixture backend timed out.');
- const child=spawn('/usr/bin/xcrun',['swift','run','--package-path',root+'native','MuseSmoke'],{env:{...process.env,DEVELOPER_DIR:process.env.DEVELOPER_DIR||'/Applications/Xcode.app/Contents/Developer',MUSE_SMOKE_ORIGIN:origin,MUSE_SMOKE_TOKEN:token},stdio:'inherit'});
+ const child=spawn('/usr/bin/xcrun',['swift','run','--package-path',root+'native','MochiSmoke'],{env:{...process.env,DEVELOPER_DIR:process.env.DEVELOPER_DIR||'/Applications/Xcode.app/Contents/Developer',MOCHI_SMOKE_ORIGIN:origin,MOCHI_SMOKE_TOKEN:token},stdio:'inherit'});
  const code=await new Promise((resolve,reject)=>{child.on('error',reject);child.on('exit',resolve);});
  if(code!==0)throw new Error('Native smoke check failed.');
 } finally {

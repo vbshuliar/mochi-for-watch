@@ -219,7 +219,7 @@ server.on("upgrade", (req, socket, head) => {
   });
 });
 server.listen(port, "127.0.0.1", () =>
-  console.log(`Muse for Watch emulator: ${origin}/preview/emulator/`),
+  console.log(`Mochi for Watch emulator: ${origin}/preview/emulator/`),
 );
 for (const signal of ["SIGINT", "SIGTERM"])
   process.once(signal, () => {

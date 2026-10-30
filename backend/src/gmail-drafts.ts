@@ -175,7 +175,7 @@ export class GmailDrafts {
       id,
       sessionId,
       epoch,
-      messageId: `<jolly-${id}@muse-for-watch.invalid>`,
+      messageId: `<mochi-${id}@mochi-for-watch.invalid>`,
       status: "pending",
       createdAt: now,
       updatedAt: now,

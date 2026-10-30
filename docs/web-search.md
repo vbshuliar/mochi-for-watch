@@ -4,9 +4,9 @@ Implemented and checked on 27 October 2026.
 
 ## Experience
 
-Ask Jolly a current-information question, such as “search online for the latest Apple announcement” or “what's the weather in London today?” The Meta planner chooses search for current facts, recommendations and explicit lookups, resolves follow-ups from recent conversation, and asks for a location when needed. Ordinary conversation keeps its existing streaming path. Calendar questions continue to use Calendar tools.
+Ask Mochi a current-information question, such as “search online for the latest Apple announcement” or “what's the weather in London today?” The Meta planner chooses search for current facts, recommendations and explicit lookups, resolves follow-ups from recent conversation, and asks for a location when needed. Ordinary conversation keeps its existing streaming path. Calendar questions continue to use Calendar tools.
 
-Jolly stays in the existing thinking animation while searching, then speaks a short answer. Search does not add extra visible processing states. Citation markers and URLs are removed from speech; source titles and links travel separately with the answer.
+Mochi stays in the existing thinking animation while searching, then speaks a short answer. Search does not add extra visible processing states. Citation markers and URLs are removed from speech; source titles and links travel separately with the answer.
 
 - Browser emulator: sources appear in a compact expandable log row.
 - Updated iPhone app: source links appear in conversation activity.
@@ -35,7 +35,6 @@ Replies add optional `sources: [{title, url}]`. Session history and idempotent r
 - Two model stages (routing, then search) make current-information answers slower than ordinary chat. Partial search drafts are deliberately not spoken before citation validation.
 - The planner decides when to search; test realistic phrasing and follow-ups on-device. Sources improve checkability, but search results and generated summaries can still be wrong.
 
-Related: [Meta capability research](research/muse-charm-opportunities.md), [private deployment](private-deployment.md), [native setup](../native/README.md).
 
 ## Reliability follow-up — 27 October 2026
 

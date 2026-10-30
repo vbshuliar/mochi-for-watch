@@ -1,5 +1,5 @@
 'use strict';
-// Proposed Muse for Watch states, informed by public Moment workflows; all services simulated.
+// Proposed Mochi for Watch states, informed by public Moment workflows; all services simulated.
 const workflowStates={
  connecting:{name:'Connect',icon:'↗',sub:'Finding the service',status:'connecting…',pose:{eye:.85,gx:18,gy:-15,angle:-4,smile:10}},
  transcribe:{name:'Understand',icon:'≋',sub:'Making sense of speech',status:'got it, one moment…',pose:{eye:.85,gy:9,angle:3,smile:15,brow:5}},

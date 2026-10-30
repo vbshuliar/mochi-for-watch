@@ -9,8 +9,8 @@ Implemented 27 October 2026. New deployments require provider OAuth credentials 
 ## End-user experience
 
 1. Open **Connections → Gmail → Connect with Google** and grant read access. Enable draft permission explicitly when unsent drafts are wanted; Google groups this with sending permission, but this app implements no sending endpoint.
-2. Open **Connections → Notion → Connect with Notion**, share the pages Muse may access, then choose a destination under **Save pages under**. Page search is by title, with up to 50 results; narrow the query if more are available.
-3. Ask Jolly:
+2. Open **Connections → Notion → Connect with Notion**, share the pages Mochi may access, then choose a destination under **Save pages under**. Page search is by title, with up to 50 results; narrow the query if more are available.
+3. Ask Mochi:
    - “Summarize my unread emails from this week.”
    - “Find my trip bookings and create a travel brief in Notion.”
    - “Create a Notion page with three weekend photography project ideas.”
@@ -38,7 +38,7 @@ Create a public OAuth connection in Notion's developer portal. Configure read-co
 
 Set `NOTION_CLIENT_ID`, `NOTION_CLIENT_SECRET`, and `NOTION_REDIRECT_URI` on the backend. The callback exchanges the code using HTTP Basic authentication. Tokens are encrypted in the existing SQLite Store, refresh tokens rotate when returned, and 401 responses trigger one refresh attempt. Notion API requests pin `Notion-Version: 2025-09-03`.
 
-The end user shares allowed pages in Notion's OAuth picker, then selects one destination in Muse. A destination change or account reconnection invalidates an old pending proposal's save authorization. Keep source email content out of shared destinations unless that is intended: access follows Notion's page permissions.
+The end user shares allowed pages in Notion's OAuth picker, then selects one destination in Mochi. A destination change or account reconnection invalidates an old pending proposal's save authorization. Keep source email content out of shared destinations unless that is intended: access follows Notion's page permissions.
 
 Fly configuration already contains the two hosted redirect URLs. Install the four OAuth credentials using the existing secure Fly-secret workflow; do not paste them into chat. OAuth app registration and live consent are still needed. Ordinary users only see connection buttons, not developer setup fields.
 

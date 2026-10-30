@@ -1,11 +1,11 @@
 import Foundation
-import MuseCore
+import MochiCore
 import XCTest
 
-#if canImport(MusePhone)
-  @testable import MusePhone
+#if canImport(MochiPhone)
+  @testable import MochiPhone
 #else
-  @testable import MuseConversation
+  @testable import MochiConversation
 #endif
 
 private final class PhoneFixture: URLProtocol, @unchecked Sendable {
@@ -40,7 +40,7 @@ private final class PhoneFixture: URLProtocol, @unchecked Sendable {
       if let request = PhoneFixture.queue.take() { return request }
       try await Task.sleep(for: .milliseconds(5))
     }
-    throw MuseError.message("Test request did not arrive")
+    throw MochiError.message("Test request did not arrive")
   }
   private func status(_ calendar: String) -> String {
     #"{"mode":"live","calendar":"\#(calendar)","calendarEnabled":true,"calendarConfigured":true,"speechOutput":"voice"}"#

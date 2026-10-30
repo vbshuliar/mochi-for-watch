@@ -1,17 +1,19 @@
-# Third-party materials and attribution
+# Third-party notices
 
-This project is independently built and is not an official Meta, Apple, Google, Notion, ElevenLabs or Twilio product. Provider names and connector icons identify integrations; they do not imply endorsement.
+Mochi for Watch is an independent project. Its original code, documentation and project-created artwork are licensed under Apache-2.0, to the extent applicable rights are held. See [LICENSE](LICENSE) and [NOTICE](NOTICE). This grant does not relicense third-party material in earlier commits.
 
-## Dependencies
+## Software dependencies
 
-The exact JavaScript dependency versions and package metadata are recorded in `backend/package-lock.json`. Distributed packages retain their upstream license files in `node_modules`. Principal runtime dependencies are Fastify, `@fastify/rate-limit`, `ws` and Zod. Node.js, Swift and Apple SDKs have separate upstream licenses or developer terms. Do not treat this inventory as permission to redistribute every bundled dependency or asset.
+Exact JavaScript dependencies are pinned in `backend/package-lock.json`. Fastify, @fastify/rate-limit, ws and Zod retain their upstream licences; retain applicable notices when distributing their code. Node.js, Swift and Apple SDKs have their own licences and developer terms. Dependency package licence files are included by their upstream distributions, not replaced by this project's licence.
 
-## Art and screenshots
+## Hosted services
 
-- `docs/design/` contains historical concepts, generated artwork and design studies; filenames do not establish ownership or commercial reuse rights.
-- `native/Verification/` contains dated simulator captures. They are not physical-device acceptance evidence for the current build.
-- `preview/` contains browser-client and character-playground captures. Booking-result examples may contain synthetic appointments.
-- `website/IMAGE-PROMPT.md` records the generated watch illustration's prompt. The illustration is not a product photograph.
-- Apple, Google, Notion and Meta product marks remain their owners' marks. The active Mochi character uses the user-selected generated concept; see `docs/design/tuck.md`. Historical Jolly studies and the Muse product name remain unresolved rights questions. Replacing the runtime mascot is not a complete branding clearance.
+The implementation connects to Meta Model API, ElevenLabs, Twilio, Google and Notion, and optionally Facebook Pages / Instagram. These services and their model weights are not part of this open-source grant. Users must supply their own accounts, credentials and any required permissions. Their terms, costs and privacy obligations continue to apply. Keeping accurate provider names in adapter code and setup documentation does not imply endorsement.
 
-Before external distribution, resolve the asset rights question and choose an explicit software license. Keep original attribution and upstream notices with redistributed materials.
+## Graphics
+
+The current Mochi portrait and animation plate were generated for this project and selected by the owner; provenance is recorded in [the character guide](docs/design/mochi.md). Any rights held in these assets are included in the project licence; AI-generated material may not attract exclusive copyright protection in every jurisdiction.
+
+Connection icons are original generic functional drawings, not provider logos. The website's generated watch illustration is documented in `website/IMAGE-PROMPT.md`; it depicts compatible hardware, is not a product photograph and grants no Apple trademark rights. Apple Watch is a compatibility reference. No third-party character artwork is included in the current release tree.
+
+Older public commits may contain materials that are not covered by this licence. This release does not claim to clear or relicense those historical materials.

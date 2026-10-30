@@ -1,5 +1,5 @@
 import Foundation
-import MuseCore
+import MochiCore
 
 @MainActor final class RealtimeTranscriber {
   private var generation = UUID()
@@ -49,7 +49,7 @@ import MuseCore
           case "final":
             complete(.success(event.text ?? ""))
             return
-          case "error": throw MuseError.message("Live transcription is unavailable.")
+          case "error": throw MochiError.message("Live transcription is unavailable.")
           default: break
           }
         }
@@ -59,7 +59,7 @@ import MuseCore
   func append(_ pcm: Data) {
     guard !ending, outcome == nil else { return }
     guard pendingBytes + pcm.count <= 256000 else {
-      complete(.failure(MuseError.message("Transcription couldn’t keep up.")))
+      complete(.failure(MochiError.message("Transcription couldn’t keep up.")))
       return
     }
     pending.append(pcm)
@@ -91,7 +91,7 @@ import MuseCore
     let timeout = Task { [weak self] in
       try? await Task.sleep(for: .seconds(12))
       if !Task.isCancelled && self?.generation == ticket {
-        self?.complete(.failure(MuseError.message("Transcription timed out.")))
+        self?.complete(.failure(MochiError.message("Transcription timed out.")))
       }
     }
     defer { timeout.cancel() }

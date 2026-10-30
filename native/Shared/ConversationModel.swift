@@ -1,6 +1,6 @@
 import Foundation
 import CryptoKit
-import MuseCore
+import MochiCore
 import Observation
 
 struct Activity: Identifiable {
@@ -284,7 +284,7 @@ struct Activity: Identifiable {
     }
     try Task.checkCancellation()
     guard let connection = store.connection else {
-      throw MuseError.message("Open Muse on your iPhone to connect.")
+      throw MochiError.message("Open Mochi on your iPhone to connect.")
     }
     let client = makeClient(connection)
     activeClient = client

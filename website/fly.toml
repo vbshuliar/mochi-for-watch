@@ -1,4 +1,4 @@
-app = "muse-for-watch"
+app = "mochi-for-watch"
 primary_region = "lhr"
 
 [build]

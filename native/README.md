@@ -1,4 +1,4 @@
-# Muse for Watch · native apps
+# Mochi for Watch · native apps
 
 Two SwiftUI applications, one shared conversation engine. The iPhone handles connections and pairing; the Watch presents Mochi and a single status line. This is a private single-user hackathon client for the existing backend, not an App Store release or a multi-user authentication system.
 
@@ -6,10 +6,10 @@ See the [native simulator captures and verification record](Verification/README.
 
 ## Open and run
 
-Open `MuseForWatch.xcodeproj` in Xcode. The generated project is committed; XcodeGen is only needed after editing `project.yml` (`xcodegen generate --spec native/project.yml` from the repository root).
+Open `MochiForWatch.xcodeproj` in Xcode. The generated project is committed; XcodeGen is only needed after editing `project.yml` (`xcodegen generate --spec native/project.yml` from the repository root).
 
-- **MusePhone** builds the iPhone app and embeds the Watch app.
-- **MuseWatch** runs the Watch app directly.
+- **MochiPhone** builds the iPhone app and embeds the Watch app.
+- **MochiWatch** runs the Watch app directly.
 - Minimum deployment targets: iOS 17 and watchOS 10. The Watch layout is designed for Apple Watch SE 2, 44 mm (184 × 224 points / 368 × 448 pixels); it adapts to the space SwiftUI provides, including system safe areas.
 - Choose your Apple development team in both targets for physical-device signing. Change both bundle IDs and the Watch’s `WKCompanionAppBundleIdentifier` together if your team needs unique identifiers.
 - Install the iOS and watchOS simulator runtimes in Xcode Settings → Components before running simulators.
@@ -18,7 +18,7 @@ Open `MuseForWatch.xcodeproj` in Xcode. The generated project is committed; Xcod
 
 Use one-time pairing for new devices in both Debug and Release. Provider keys remain on the backend; the phone receives a revocable device credential, stored in Keychain and synced to the paired Watch.
 
-1. Build/install the MusePhone scheme with your development team, or run paired simulators. Device installation requires the owner's availability and authorization.
+1. Build/install the MochiPhone scheme with your development team, or run paired simulators. Device installation requires the owner's availability and authorization.
 2. On a trusted administrator machine load the intended backend's owner environment privately and set `BACKEND_URL` to its reachable HTTPS origin.
 3. Run `node backend/scripts/pairing.mjs issue My iPhone and Watch` from the repository root. Enter the resulting code privately within five minutes; it can be redeemed only once.
 4. Open **Connection** on iPhone, enter the backend address and pairing code, then open both apps. Use **Sync with Apple Watch** if delivery needs retrying.
@@ -32,13 +32,13 @@ Debug builds retain the old owner-token import for controlled development only. 
 
 ## What is native
 
-- `Shared/JollyView.swift`: Canvas renderer using the same plush face plate, bead-eye contours, mouth shapes, head movement, blinking and looking around. One heart burst per affectionate turn, retained across speech start. A 1.4-second speech-to-idle settle and quicker 0.4-second mouth closure. Reduced motion and inactive-scene pausing.
+- `Shared/MochiView.swift`: Canvas renderer using the same plush face plate, bead-eye contours, mouth shapes, head movement, blinking and looking around. One heart burst per affectionate turn, retained across speech start. A 1.4-second speech-to-idle settle and quicker 0.4-second mouth closure. Reduced motion and inactive-scene pausing.
 - `Shared/ConversationModel.swift`: tap-to-talk flow, context-bearing sessions, bounded activity log, streamed sentence scheduling, interruption ownership, local repeat/stop commands, Calendar proposal review, and minimum one-second captions.
 - `Shared/AudioController.swift`: native audio session, 24 kHz mono PCM conversion, input-driven head scale, Jessica MP3 playback. Microphone permission is requested only when the user taps to talk.
 - `Shared/RealtimeTranscriber.swift`: authenticated WebSocket transcription while speaking. Partial text never executes an action. Recorded WAV is an in-memory fallback if final live transcription fails. No microphone recordings are written to disk.
 - `iPhone/`: native inset-grouped Lists, NavigationStack, actual connector logos, Calendar switch, Google browser sign-in, reconnect/disconnect. Each connector displays its actual authorization and setup state.
 - `Watch/`: one head and one caption. Calendar proposals open a separate review sheet with title, start/end, timezone and explicit confirmation.
-- `MuseCore/`: Foundation-only models, API client, endpoint detector, sentence splitter, reaction rules, WAV encoder and motion math with unit tests.
+- `MochiCore/`: Foundation-only models, API client, endpoint detector, sentence splitter, reaction rules, WAV encoder and motion math with unit tests.
 
 ## Calendar
 
@@ -105,12 +105,12 @@ Both clients load the private account's task feed from authenticated `GET /v1/ta
 
 Confirmed bookings offer **Reschedule booking** and **Cancel booking**. These prepare a new call proposal; they never dial immediately. A reschedule selects an allowed window in the booking's timezone. Review shows the original appointment and the requested change. Mochi must obtain a verified result from the business; any Calendar update or removal has its own clearly labelled approval. Superseded bookings link conceptually to the newer task and no longer offer change controls.
 
-Push delivery is implemented for both iPhone and independent Watch tokens, with explicit notification permission and task refresh on tap. Alerts contain generic task text, never the business, phone number or appointment details. The default development build has `MUSE_PUSH_ENVIRONMENT=disabled` and honestly reports that provisioning is needed. It continues to show task results in-app. Remote delivery has **not** been verified on hardware.
+Push delivery is implemented for both iPhone and independent Watch tokens, with explicit notification permission and task refresh on tap. Alerts contain generic task text, never the business, phone number or appointment details. The default development build has `MOCHI_PUSH_ENVIRONMENT=disabled` and honestly reports that provisioning is needed. It continues to show task results in-app. Remote delivery has **not** been verified on hardware.
 
 To enable actual push delivery later:
 
 1. Enable Push Notifications for both app identifiers in the Apple developer account and create compatible signing profiles. Use the app's actual bundle identifiers as the server topics.
-2. Set each target's `MUSE_PUSH_ENVIRONMENT` to `development` for sandbox signing or `production` for distribution, and `CODE_SIGN_ENTITLEMENTS` to `Resources/Push.entitlements`. The environment must match the signing profile and backend `APNS_ENVIRONMENT`. Do not set this on an unsigned or unprovisioned build.
+2. Set each target's `MOCHI_PUSH_ENVIRONMENT` to `development` for sandbox signing or `production` for distribution, and `CODE_SIGN_ENTITLEMENTS` to `Resources/Push.entitlements`. The environment must match the signing profile and backend `APNS_ENVIRONMENT`. Do not set this on an unsigned or unprovisioned build.
 3. Configure the backend APNs signing key, team/key IDs and separate iOS/watchOS topics. Keys stay server-side.
 4. Install both signed clients. Enable updates from Tasks → Notifications on each device. Test with the apps inactive and confirm tapping an alert opens the correct refreshed task without granting any approval. System routing determines which paired device presents an alert; simultaneous delivery is not guaranteed.
 5. Disable updates and confirm server registration removal. Revoking notification permission in system Settings also removes the registration on the next app refresh.

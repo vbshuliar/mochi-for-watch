@@ -1,10 +1,10 @@
-import MuseCore
+import MochiCore
 import XCTest
 
-#if canImport(MusePhone)
-  @testable import MusePhone
+#if canImport(MochiPhone)
+  @testable import MochiPhone
 #else
-  @testable import MuseConversation
+  @testable import MochiConversation
 #endif
 
 @MainActor private final class FakeAudio: AudioIO {
@@ -15,7 +15,7 @@ import XCTest
   var denyMicrophone = false
   var finish: CheckedContinuation<Void, Error>?
   func startRecording() async throws {
-    if denyMicrophone { throw MuseError.message("Microphone permission denied.") }
+    if denyMicrophone { throw MochiError.message("Microphone permission denied.") }
     recording = true
   }
   func stopRecording() { recording = false }
@@ -717,7 +717,7 @@ extension NativeConversationTests {
     let connection = try Connection(baseURL: URL(string: "https://example.com")!, token: String(repeating: "x", count: 32))
     let model = DailySupportModel(store: ConnectionStore(connection: connection))
     model.briefing = try JSONDecoder().decode(DailyBriefing.self, from: Data(#"{"summary":"Private meeting","date":"2026-10-29","timeZone":"Europe/London","simulated":false,"sources":{"calendar":"available","gmail":"unavailable"}}"#.utf8))
-    model.reminders = [try JSONDecoder().decode(JollyReminder.self, from: Data(#"{"id":"1","title":"Private reminder","dueAt":"2026-10-30T10:00:00Z","timeZone":"Europe/London","status":"pending","recurrence":"daily"}"#.utf8))]
+    model.reminders = [try JSONDecoder().decode(MochiReminder.self, from: Data(#"{"id":"1","title":"Private reminder","dueAt":"2026-10-30T10:00:00Z","timeZone":"Europe/London","status":"pending","recurrence":"daily"}"#.utf8))]
     model.error = "Old account error"
     model.busy = true
     model.reset()

@@ -11,8 +11,8 @@ coverage/
 native/Local/
 native/DerivedData/
 native/DerivedDataSigned/
-native/MuseCore/.build/
-native/MuseCore/.swiftpm/
+**/.build/
+**/.swiftpm/
 **/xcuserdata/
 native/.build/
 native/.swiftpm/

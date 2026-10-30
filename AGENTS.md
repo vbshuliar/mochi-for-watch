@@ -8,7 +8,7 @@ Read [the agent setup guide](docs/agent-setup.md), [code map](docs/code-map.md),
 - Use one-time device pairing; legacy owner-token import is Debug-only. The service is single-owner, not multi-tenant.
 - Keep the haircut demo focused on calls and Calendar. Gmail and Notion are optional integrations outside that demo.
 - Label design fixtures, simulator captures and live evidence accurately. Never claim live/device acceptance from automated checks.
-- Do not choose a permissive software/asset license without an owner decision; character/name permission is pending.
+- Preserve the owner-selected Apache-2.0 licence and third-party notices. Keep provider terms distinct from the open-source application. Do not reintroduce third-party character art.
 
 # Required validation
 

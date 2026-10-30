@@ -1,5 +1,5 @@
 import Foundation
-import MuseCore
+import MochiCore
 import Observation
 
 @MainActor @Observable final class PhoneModel {
@@ -31,7 +31,7 @@ import Observation
   }
   private func client() throws -> APIClient {
     guard let connection = store.connection else {
-      throw MuseError.message("Connect this app to your demo first.")
+      throw MochiError.message("Connect this app to your demo first.")
     }
     return makeClient(connection)
   }
@@ -105,7 +105,7 @@ import Observation
       let bytes = try await client().data("v1/integrations/\(provider)/connect", method: "POST", body: body)
       guard current(connection, ticket) else { return nil }
       let url = try JSONDecoder().decode(Link.self, from: bytes).url
-      guard IntegrationSignIn.isAllowed(url, provider: provider) else { throw MuseError.message("Invalid sign-in link.") }
+      guard IntegrationSignIn.isAllowed(url, provider: provider) else { throw MochiError.message("Invalid sign-in link.") }
       error = nil; return url
     } catch {
       guard current(connection, ticket) else { return nil }
@@ -201,7 +201,7 @@ import Observation
       guard current(connection, ticket) else { return nil }
       let url = try JSONDecoder().decode(Link.self, from: bytes).url
       guard IntegrationSignIn.isAllowed(url, provider: "google") else {
-        throw MuseError.message("The sign-in link was not valid.")
+        throw MochiError.message("The sign-in link was not valid.")
       }
       error = nil
       return url

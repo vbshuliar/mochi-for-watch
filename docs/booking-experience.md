@@ -4,11 +4,11 @@
 
 Open Tasks → My usual haircut on iPhone, or Booking setup & follow-through in the browser. Save the business, user-verified international phone number, service, booking name, duration, timezone, weekdays and local hours. Overnight windows are rejected explicitly. This structured profile takes precedence over older free-form memory; a current spoken instruction takes precedence over the profile. Removing the profile removes its authority for future requests.
 
-Ask “Book my usual haircut next week.” Jolly combines the requested dates with the saved preferences, checks Calendar and prepares the existing call approval. Saving a profile does not expand the server's destination allowlist or place a call. If no week/date is supplied, Jolly asks rather than inventing a booking date. For an unfamiliar business, use web search to research it and review contact details before saving a new profile; search results alone do not authorize calls.
+Ask “Book my usual haircut next week.” Mochi combines the requested dates with the saved preferences, checks Calendar and prepares the existing call approval. Saving a profile does not expand the server's destination allowlist or place a call. If no week/date is supplied, Mochi asks rather than inventing a booking date. For an unfamiliar business, use web search to research it and review contact details before saving a new profile; search results alone do not authorize calls.
 
 ## Result and recovery
 
-Confirmed bookings expose Calendar review, exact-time reminder creation, rescheduling and cancellation. Reminder creation requires a future time before the appointment; Jolly does not guess a travel interval. A verified reschedule/cancellation completes stale pending reminders tied to the old appointment. It does not invent a replacement reminder.
+Confirmed bookings expose Calendar review, exact-time reminder creation, rescheduling and cancellation. Reminder creation requires a future time before the appointment; Mochi does not guess a travel interval. A verified reschedule/cancellation completes stale pending reminders tied to the old appointment. It does not invent a replacement reminder.
 
 A busy/no-answer call, pre-dial failure or explicit no-booking outcome can produce a new call proposal with newly supplied future availability. The original source session and previous attempt remain linked. Repeated retry requests reuse the same pending proposal. Each new call requires approval and counts toward the daily attempt limit. Silence, interruption, uncertain confirmation and post-connect failures require verification rather than blind redial. Payment/deposit requests are handed back to the owner.
 

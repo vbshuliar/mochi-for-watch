@@ -1,0 +1,732 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		02826161BD7D7F873D7851CC /* MochiWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 606D6C67A3457BFC9B4232BE /* MochiWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		0A0FCDD93F79238FDA9E7095 /* VoiceInterfaces.swift in Sources */ = {isa = PBXBuildFile; fileRef = 800501A57C9213A35045E0E1 /* VoiceInterfaces.swift */; };
+		0E9795A23B44E7625376368B /* PhoneModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0EC6906F20CDCEAF74A4A55 /* PhoneModel.swift */; };
+		13E266343EABC41085805360 /* DailySupportModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0C24F25296E34641642FE9C /* DailySupportModel.swift */; };
+		18B89D8FF5AA40858FF385DF /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8CFFCAEDB4762BF8D29A2F24 /* Assets.xcassets */; };
+		23D5CE365C0D3C9A769D0052 /* DailySupportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 390250C7FAB85F08587CB5E0 /* DailySupportView.swift */; };
+		25C9935A39592A2649681C07 /* TaskNotifications.swift in Sources */ = {isa = PBXBuildFile; fileRef = 790878D28D5CD904E1060F9B /* TaskNotifications.swift */; };
+		29D6092940EBF8917028EF3E /* MochiCore in Frameworks */ = {isa = PBXBuildFile; productRef = 26FA3D6F69D857DBE705B263 /* MochiCore */; };
+		2E8D6A9399E2A5FF503A640C /* ConversationModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BCFB686159F3D28E0EB5610 /* ConversationModel.swift */; };
+		35A949DC1752A4C8AD585CE0 /* DailySupportModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0C24F25296E34641642FE9C /* DailySupportModel.swift */; };
+		382688F283A96BB37257016D /* RealtimeTranscriber.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29A4F5ACAD59FA67859ADE1F /* RealtimeTranscriber.swift */; };
+		435E732BCA09286F1EB61468 /* PhoneWatchBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18FFFDB037B1DB5BBDE7C1BB /* PhoneWatchBridge.swift */; };
+		47D5A184D1B249E7E36A9CBE /* ConversationModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BCFB686159F3D28E0EB5610 /* ConversationModel.swift */; };
+		4BF9AFA17E195E28D1F3FDF5 /* TasksView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B27B4601DFA6332CF1EC843 /* TasksView.swift */; };
+		54CC2999B4AA91683E37A5F8 /* AudioController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 068B4FF030B2512BBDB5CA18 /* AudioController.swift */; };
+		5BA42E04C7195D6B559DBFC4 /* PhoneModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AB07E80F695993EE0667A1E /* PhoneModelTests.swift */; };
+		5E3B22CB4CE13A01DCD32394 /* VoiceInterfaces.swift in Sources */ = {isa = PBXBuildFile; fileRef = 800501A57C9213A35045E0E1 /* VoiceInterfaces.swift */; };
+		5F6BAD941814877E7CFD07F8 /* MochiCore in Frameworks */ = {isa = PBXBuildFile; productRef = 4AC30B9F3E8914F95A35B4F8 /* MochiCore */; };
+		61D4123EDA7E4BDFF4FCD84F /* AudioController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 068B4FF030B2512BBDB5CA18 /* AudioController.swift */; };
+		622C7760AF501D34D21997A7 /* ConnectionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7CC661164AD274C5B266CA3 /* ConnectionStore.swift */; };
+		6535F3DE1A770C0D45F10239 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8CFFCAEDB4762BF8D29A2F24 /* Assets.xcassets */; };
+		6E1B730485C4F124E7656030 /* MochiCore in Frameworks */ = {isa = PBXBuildFile; productRef = 00AEA5F70FBE6F258F8C3609 /* MochiCore */; };
+		8667C4998F34DBC29A48E03B /* SerialRegistrationQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86B5EC8DA1935E4E96F31F32 /* SerialRegistrationQueue.swift */; };
+		9A984059D6CFF38CEC640F9C /* ConnectionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7CC661164AD274C5B266CA3 /* ConnectionStore.swift */; };
+		9C780E3463BA6225887DD99A /* ActionReview.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFB8C50B9AAF82E6ECFBEC5B /* ActionReview.swift */; };
+		9F75DB33BCB1F3014F16F447 /* DailySupportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 390250C7FAB85F08587CB5E0 /* DailySupportView.swift */; };
+		AB276E98A45F22813C4723F3 /* SerialRegistrationQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86B5EC8DA1935E4E96F31F32 /* SerialRegistrationQueue.swift */; };
+		AFFC2AA9EF4DD9E09A2AE999 /* DemoSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26B79FCB9B908C4C257BFE66 /* DemoSetup.swift */; };
+		B4997002F25DD3A49DF55319 /* NativeConversationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B57EB68D65F91537C5CBF05A /* NativeConversationTests.swift */; };
+		B6ED3D6DDC78C3217AA28119 /* PhoneWatchBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18FFFDB037B1DB5BBDE7C1BB /* PhoneWatchBridge.swift */; };
+		BCC26C722B8A7B2AA9624E8D /* PlatformBootstrap.swift in Sources */ = {isa = PBXBuildFile; fileRef = E567D8744F192CCB3C54B999 /* PlatformBootstrap.swift */; };
+		BEB10525BD2D8040D1C87AA8 /* MochiWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 197C39D0BDD0E49ABDA5FFC0 /* MochiWatchApp.swift */; };
+		BF281BB425B133516A391338 /* ActionReview.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFB8C50B9AAF82E6ECFBEC5B /* ActionReview.swift */; };
+		C0252A2394F6FBA1D493FC75 /* MochiPhoneApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D18E5BBB71A41EC20BBE98C8 /* MochiPhoneApp.swift */; };
+		C04A4055AD8A073250EE4AB4 /* MochiView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0833E711F93D580A24FCCDF /* MochiView.swift */; };
+		C2AB4AE61276E9F1DAA2F2ED /* PlatformBootstrap.swift in Sources */ = {isa = PBXBuildFile; fileRef = E567D8744F192CCB3C54B999 /* PlatformBootstrap.swift */; };
+		CC57A64745293538C4C9C73A /* TaskNotifications.swift in Sources */ = {isa = PBXBuildFile; fileRef = 790878D28D5CD904E1060F9B /* TaskNotifications.swift */; };
+		D136F6BBA85EC54AF0BE5CD1 /* RealtimeTranscriber.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29A4F5ACAD59FA67859ADE1F /* RealtimeTranscriber.swift */; };
+		D6A1E6F7718DB44EE4AF3375 /* MemoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 591449F0493C3108F29868AF /* MemoryView.swift */; };
+		D9E034DF7B54E1FB6DF21DC9 /* MochiView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0833E711F93D580A24FCCDF /* MochiView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		A1AFBD4F2CD9BAB641943F82 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CF6D8415F5D9CE8461FC35E8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F8AFC43D32B5C73EAB06CF64;
+			remoteInfo = MochiPhone;
+		};
+		A2673259EEE676EEA7DA2EC1 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CF6D8415F5D9CE8461FC35E8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 2930C55EA5827E255B4CEC97;
+			remoteInfo = MochiWatch;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		083A7EEE3778DEE1B9A9C9B1 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				02826161BD7D7F873D7851CC /* MochiWatch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		068B4FF030B2512BBDB5CA18 /* AudioController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioController.swift; sourceTree = "<group>"; };
+		0AB07E80F695993EE0667A1E /* PhoneModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneModelTests.swift; sourceTree = "<group>"; };
+		18FFFDB037B1DB5BBDE7C1BB /* PhoneWatchBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneWatchBridge.swift; sourceTree = "<group>"; };
+		197C39D0BDD0E49ABDA5FFC0 /* MochiWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MochiWatchApp.swift; sourceTree = "<group>"; };
+		26B79FCB9B908C4C257BFE66 /* DemoSetup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoSetup.swift; sourceTree = "<group>"; };
+		29A4F5ACAD59FA67859ADE1F /* RealtimeTranscriber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealtimeTranscriber.swift; sourceTree = "<group>"; };
+		2B27B4601DFA6332CF1EC843 /* TasksView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TasksView.swift; sourceTree = "<group>"; };
+		390250C7FAB85F08587CB5E0 /* DailySupportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailySupportView.swift; sourceTree = "<group>"; };
+		3BCFB686159F3D28E0EB5610 /* ConversationModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationModel.swift; sourceTree = "<group>"; };
+		3EED1919B1C4AAA54A12D188 /* MochiNativeTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MochiNativeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		591449F0493C3108F29868AF /* MemoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryView.swift; sourceTree = "<group>"; };
+		606D6C67A3457BFC9B4232BE /* MochiWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MochiWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		790878D28D5CD904E1060F9B /* TaskNotifications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskNotifications.swift; sourceTree = "<group>"; };
+		800501A57C9213A35045E0E1 /* VoiceInterfaces.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceInterfaces.swift; sourceTree = "<group>"; };
+		86B5EC8DA1935E4E96F31F32 /* SerialRegistrationQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SerialRegistrationQueue.swift; sourceTree = "<group>"; };
+		8CFFCAEDB4762BF8D29A2F24 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		B0C24F25296E34641642FE9C /* DailySupportModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailySupportModel.swift; sourceTree = "<group>"; };
+		B57EB68D65F91537C5CBF05A /* NativeConversationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeConversationTests.swift; sourceTree = "<group>"; };
+		BFB8C50B9AAF82E6ECFBEC5B /* ActionReview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionReview.swift; sourceTree = "<group>"; };
+		D0833E711F93D580A24FCCDF /* MochiView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MochiView.swift; sourceTree = "<group>"; };
+		D18E5BBB71A41EC20BBE98C8 /* MochiPhoneApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MochiPhoneApp.swift; sourceTree = "<group>"; };
+		E0F539E1977DFC2772A99AF5 /* MochiPhone.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = MochiPhone.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E567D8744F192CCB3C54B999 /* PlatformBootstrap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlatformBootstrap.swift; sourceTree = "<group>"; };
+		E7CC661164AD274C5B266CA3 /* ConnectionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionStore.swift; sourceTree = "<group>"; };
+		F0EC6906F20CDCEAF74A4A55 /* PhoneModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneModel.swift; sourceTree = "<group>"; };
+		F71639B57719A50DE232510F /* MochiCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = MochiCore; path = MochiCore; sourceTree = SOURCE_ROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		778FFE5E8429AE8A987B9F0F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6E1B730485C4F124E7656030 /* MochiCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A09F48517DFF200A5970CDC5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				29D6092940EBF8917028EF3E /* MochiCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AB453564F19502997E6E548A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5F6BAD941814877E7CFD07F8 /* MochiCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		0931BB764F71147D2DA46C3A /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				F71639B57719A50DE232510F /* MochiCore */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		3584B0B256C8EBDE44AD7E2E /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				3EED1919B1C4AAA54A12D188 /* MochiNativeTests.xctest */,
+				E0F539E1977DFC2772A99AF5 /* MochiPhone.app */,
+				606D6C67A3457BFC9B4232BE /* MochiWatch.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		4D0E7EF93C6FC8FF6ADDB58E /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				B57EB68D65F91537C5CBF05A /* NativeConversationTests.swift */,
+				0AB07E80F695993EE0667A1E /* PhoneModelTests.swift */,
+			);
+			path = Tests;
+			sourceTree = "<group>";
+		};
+		4F9A744B1EFB28278682D7BC /* iPhone */ = {
+			isa = PBXGroup;
+			children = (
+				26B79FCB9B908C4C257BFE66 /* DemoSetup.swift */,
+				591449F0493C3108F29868AF /* MemoryView.swift */,
+				D18E5BBB71A41EC20BBE98C8 /* MochiPhoneApp.swift */,
+				F0EC6906F20CDCEAF74A4A55 /* PhoneModel.swift */,
+				2B27B4601DFA6332CF1EC843 /* TasksView.swift */,
+			);
+			path = iPhone;
+			sourceTree = "<group>";
+		};
+		B2C19B5095FE29DEAC1B22C0 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				8CFFCAEDB4762BF8D29A2F24 /* Assets.xcassets */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		BFC98BD431BE1ADC0A109A2E /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				BFB8C50B9AAF82E6ECFBEC5B /* ActionReview.swift */,
+				068B4FF030B2512BBDB5CA18 /* AudioController.swift */,
+				E7CC661164AD274C5B266CA3 /* ConnectionStore.swift */,
+				3BCFB686159F3D28E0EB5610 /* ConversationModel.swift */,
+				B0C24F25296E34641642FE9C /* DailySupportModel.swift */,
+				390250C7FAB85F08587CB5E0 /* DailySupportView.swift */,
+				D0833E711F93D580A24FCCDF /* MochiView.swift */,
+				18FFFDB037B1DB5BBDE7C1BB /* PhoneWatchBridge.swift */,
+				E567D8744F192CCB3C54B999 /* PlatformBootstrap.swift */,
+				29A4F5ACAD59FA67859ADE1F /* RealtimeTranscriber.swift */,
+				86B5EC8DA1935E4E96F31F32 /* SerialRegistrationQueue.swift */,
+				790878D28D5CD904E1060F9B /* TaskNotifications.swift */,
+				800501A57C9213A35045E0E1 /* VoiceInterfaces.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		D50B9DF424B955DE2B48FEFF = {
+			isa = PBXGroup;
+			children = (
+				4F9A744B1EFB28278682D7BC /* iPhone */,
+				0931BB764F71147D2DA46C3A /* Packages */,
+				B2C19B5095FE29DEAC1B22C0 /* Resources */,
+				BFC98BD431BE1ADC0A109A2E /* Shared */,
+				4D0E7EF93C6FC8FF6ADDB58E /* Tests */,
+				D6DA21EE9897C2F393B4797F /* Watch */,
+				3584B0B256C8EBDE44AD7E2E /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		D6DA21EE9897C2F393B4797F /* Watch */ = {
+			isa = PBXGroup;
+			children = (
+				197C39D0BDD0E49ABDA5FFC0 /* MochiWatchApp.swift */,
+			);
+			path = Watch;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		2930C55EA5827E255B4CEC97 /* MochiWatch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 808F92E37867B9E1FB62E982 /* Build configuration list for PBXNativeTarget "MochiWatch" */;
+			buildPhases = (
+				F5E737A8664CBCF1C730B2E9 /* Sources */,
+				AB09A4F4E2147DB68A9B2516 /* Resources */,
+				A09F48517DFF200A5970CDC5 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = MochiWatch;
+			packageProductDependencies = (
+				26FA3D6F69D857DBE705B263 /* MochiCore */,
+			);
+			productName = MochiWatch;
+			productReference = 606D6C67A3457BFC9B4232BE /* MochiWatch.app */;
+			productType = "com.apple.product-type.application";
+		};
+		6987A039B022AE29A8A8696B /* MochiNativeTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2B4D02BFCA5E67C12E7B82CF /* Build configuration list for PBXNativeTarget "MochiNativeTests" */;
+			buildPhases = (
+				B05C251793E1F994603A6887 /* Sources */,
+				AB453564F19502997E6E548A /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				4B81507998E9E81243B1442C /* PBXTargetDependency */,
+			);
+			name = MochiNativeTests;
+			packageProductDependencies = (
+				4AC30B9F3E8914F95A35B4F8 /* MochiCore */,
+			);
+			productName = MochiNativeTests;
+			productReference = 3EED1919B1C4AAA54A12D188 /* MochiNativeTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		F8AFC43D32B5C73EAB06CF64 /* MochiPhone */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C72B4A67409537970F891D6B /* Build configuration list for PBXNativeTarget "MochiPhone" */;
+			buildPhases = (
+				540B606FAB3E479BF1E407FE /* Sources */,
+				E254C163A6265A35E4EF3A80 /* Resources */,
+				778FFE5E8429AE8A987B9F0F /* Frameworks */,
+				083A7EEE3778DEE1B9A9C9B1 /* Embed Watch Content */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				26548249C97BA1094B05751D /* PBXTargetDependency */,
+			);
+			name = MochiPhone;
+			packageProductDependencies = (
+				00AEA5F70FBE6F258F8C3609 /* MochiCore */,
+			);
+			productName = MochiPhone;
+			productReference = E0F539E1977DFC2772A99AF5 /* MochiPhone.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		CF6D8415F5D9CE8461FC35E8 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					2930C55EA5827E255B4CEC97 = {
+						ProvisioningStyle = Automatic;
+					};
+					6987A039B022AE29A8A8696B = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+					};
+					F8AFC43D32B5C73EAB06CF64 = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = BB6766092FF43F6EBB84E698 /* Build configuration list for PBXProject "MochiForWatch" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = D50B9DF424B955DE2B48FEFF;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				51AC60C506A4DF3289EF4504 /* XCLocalSwiftPackageReference "MochiCore" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 3584B0B256C8EBDE44AD7E2E /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				F8AFC43D32B5C73EAB06CF64 /* MochiPhone */,
+				2930C55EA5827E255B4CEC97 /* MochiWatch */,
+				6987A039B022AE29A8A8696B /* MochiNativeTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		AB09A4F4E2147DB68A9B2516 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6535F3DE1A770C0D45F10239 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E254C163A6265A35E4EF3A80 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				18B89D8FF5AA40858FF385DF /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		540B606FAB3E479BF1E407FE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9C780E3463BA6225887DD99A /* ActionReview.swift in Sources */,
+				54CC2999B4AA91683E37A5F8 /* AudioController.swift in Sources */,
+				622C7760AF501D34D21997A7 /* ConnectionStore.swift in Sources */,
+				47D5A184D1B249E7E36A9CBE /* ConversationModel.swift in Sources */,
+				35A949DC1752A4C8AD585CE0 /* DailySupportModel.swift in Sources */,
+				23D5CE365C0D3C9A769D0052 /* DailySupportView.swift in Sources */,
+				AFFC2AA9EF4DD9E09A2AE999 /* DemoSetup.swift in Sources */,
+				C04A4055AD8A073250EE4AB4 /* MochiView.swift in Sources */,
+				D6A1E6F7718DB44EE4AF3375 /* MemoryView.swift in Sources */,
+				C0252A2394F6FBA1D493FC75 /* MochiPhoneApp.swift in Sources */,
+				0E9795A23B44E7625376368B /* PhoneModel.swift in Sources */,
+				B6ED3D6DDC78C3217AA28119 /* PhoneWatchBridge.swift in Sources */,
+				C2AB4AE61276E9F1DAA2F2ED /* PlatformBootstrap.swift in Sources */,
+				D136F6BBA85EC54AF0BE5CD1 /* RealtimeTranscriber.swift in Sources */,
+				8667C4998F34DBC29A48E03B /* SerialRegistrationQueue.swift in Sources */,
+				25C9935A39592A2649681C07 /* TaskNotifications.swift in Sources */,
+				4BF9AFA17E195E28D1F3FDF5 /* TasksView.swift in Sources */,
+				5E3B22CB4CE13A01DCD32394 /* VoiceInterfaces.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B05C251793E1F994603A6887 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B4997002F25DD3A49DF55319 /* NativeConversationTests.swift in Sources */,
+				5BA42E04C7195D6B559DBFC4 /* PhoneModelTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F5E737A8664CBCF1C730B2E9 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BF281BB425B133516A391338 /* ActionReview.swift in Sources */,
+				61D4123EDA7E4BDFF4FCD84F /* AudioController.swift in Sources */,
+				9A984059D6CFF38CEC640F9C /* ConnectionStore.swift in Sources */,
+				2E8D6A9399E2A5FF503A640C /* ConversationModel.swift in Sources */,
+				13E266343EABC41085805360 /* DailySupportModel.swift in Sources */,
+				9F75DB33BCB1F3014F16F447 /* DailySupportView.swift in Sources */,
+				D9E034DF7B54E1FB6DF21DC9 /* MochiView.swift in Sources */,
+				BEB10525BD2D8040D1C87AA8 /* MochiWatchApp.swift in Sources */,
+				435E732BCA09286F1EB61468 /* PhoneWatchBridge.swift in Sources */,
+				BCC26C722B8A7B2AA9624E8D /* PlatformBootstrap.swift in Sources */,
+				382688F283A96BB37257016D /* RealtimeTranscriber.swift in Sources */,
+				AB276E98A45F22813C4723F3 /* SerialRegistrationQueue.swift in Sources */,
+				CC57A64745293538C4C9C73A /* TaskNotifications.swift in Sources */,
+				0A0FCDD93F79238FDA9E7095 /* VoiceInterfaces.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		26548249C97BA1094B05751D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 2930C55EA5827E255B4CEC97 /* MochiWatch */;
+			targetProxy = A2673259EEE676EEA7DA2EC1 /* PBXContainerItemProxy */;
+		};
+		4B81507998E9E81243B1442C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = F8AFC43D32B5C73EAB06CF64 /* MochiPhone */;
+			targetProxy = A1AFBD4F2CD9BAB641943F82 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		036ADB89BD27C3FFFA4DB905 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				DEVELOPMENT_TEAM = 59T623DV9Y;
+				INFOPLIST_FILE = "Generated/Watch-Info.plist";
+				PRODUCT_BUNDLE_IDENTIFIER = com.museforwatch.app.watchkitapp;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = 4;
+			};
+			name = Debug;
+		};
+		0C42AD27A6BEDCFD7985ACE5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = 59T623DV9Y;
+				INFOPLIST_KEY_CFBundleDisplayName = "Mochi for Watch";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Connect to your Mochi backend on your local network.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Talk to Mochi using your microphone. Audio is sent to Meta for transcription.";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_FILE = "Generated/Phone-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.museforwatch.app;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		1A106098517F5BD83E67F768 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				MOCHI_PUSH_ENVIRONMENT = disabled;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = targeted;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Debug;
+		};
+		3EDF79F9DBEA4AEF63763A1B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.museforwatch.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MochiPhone.app/MochiPhone";
+			};
+			name = Release;
+		};
+		76E7D300835EABF8F7339AD7 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.museforwatch.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MochiPhone.app/MochiPhone";
+			};
+			name = Debug;
+		};
+		C48B529223AE8340EB7DA638 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				DEVELOPMENT_TEAM = 59T623DV9Y;
+				INFOPLIST_FILE = "Generated/Watch-Info.plist";
+				PRODUCT_BUNDLE_IDENTIFIER = com.museforwatch.app.watchkitapp;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = 4;
+			};
+			name = Release;
+		};
+		C66C019A942D19A7BF01E9C0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = 59T623DV9Y;
+				INFOPLIST_KEY_CFBundleDisplayName = "Mochi for Watch";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Connect to your Mochi backend on your local network.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Talk to Mochi using your microphone. Audio is sent to Meta for transcription.";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_FILE = "Generated/Phone-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.museforwatch.app;
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		CB0E2BD874575D07B9366619 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				MOCHI_PUSH_ENVIRONMENT = disabled;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = targeted;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		2B4D02BFCA5E67C12E7B82CF /* Build configuration list for PBXNativeTarget "MochiNativeTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				76E7D300835EABF8F7339AD7 /* Debug */,
+				3EDF79F9DBEA4AEF63763A1B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		808F92E37867B9E1FB62E982 /* Build configuration list for PBXNativeTarget "MochiWatch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				036ADB89BD27C3FFFA4DB905 /* Debug */,
+				C48B529223AE8340EB7DA638 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		BB6766092FF43F6EBB84E698 /* Build configuration list for PBXProject "MochiForWatch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1A106098517F5BD83E67F768 /* Debug */,
+				CB0E2BD874575D07B9366619 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		C72B4A67409537970F891D6B /* Build configuration list for PBXNativeTarget "MochiPhone" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0C42AD27A6BEDCFD7985ACE5 /* Debug */,
+				C66C019A942D19A7BF01E9C0 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		51AC60C506A4DF3289EF4504 /* XCLocalSwiftPackageReference "MochiCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = MochiCore;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		00AEA5F70FBE6F258F8C3609 /* MochiCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = MochiCore;
+		};
+		26FA3D6F69D857DBE705B263 /* MochiCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = MochiCore;
+		};
+		4AC30B9F3E8914F95A35B4F8 /* MochiCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = MochiCore;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = CF6D8415F5D9CE8461FC35E8 /* Project object */;
+}

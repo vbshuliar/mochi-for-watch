@@ -1,5 +1,5 @@
 import Foundation
-import MuseCore
+import MochiCore
 import Observation
 import UserNotifications
 #if os(iOS)
@@ -34,7 +34,7 @@ import WatchKit
     set { defaults.set(newValue, forKey: "muse.push.optedIn") }
   }
   private var environment: String? {
-    switch Bundle.main.object(forInfoDictionaryKey: "MusePushEnvironment") as? String {
+    switch Bundle.main.object(forInfoDictionaryKey: "MochiPushEnvironment") as? String {
     case "development": return "sandbox"
     case "production": return "production"
     default: return nil

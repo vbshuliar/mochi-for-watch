@@ -1,6 +1,6 @@
 # Daily briefing, reminders and Gmail drafts
 
-These supporting tools keep autonomous calling and booking as Jolly's main experience. “Book me a haircut” prepares a booking call using authoritative saved preferences; Jolly asks for missing details and presents the existing call approval. It does not replace arranging the appointment with a reminder or Calendar event. No call is placed until approval, and Calendar changes retain their separate review.
+These supporting tools keep autonomous calling and booking as Mochi's main experience. “Book me a haircut” prepares a booking call using authoritative saved preferences; Mochi asks for missing details and presents the existing call approval. It does not replace arranging the appointment with a reminder or Calendar event. No call is placed until approval, and Calendar changes retain their separate review.
 
 ## Today
 
@@ -8,9 +8,9 @@ The iPhone Tasks screen, Watch and browser emulator expose Today. Ask “Brief m
 
 The briefing is on demand; it is not a scheduled morning message. Gmail uses up to ten recent inbox messages, not a complete unread count. Calendar and booking results remain explicitly simulated in mock mode.
 
-## Jolly reminders
+## Mochi reminders
 
-Create a reminder with a title, future time and timezone; optionally repeat daily or weekly. Complete, snooze or delete from Today. These reminders are stored in Jolly's encrypted backend and shared across the paired clients. They do not sync with Apple Reminders.
+Create a reminder with a title, future time and timezone; optionally repeat daily or weekly. Complete, snooze or delete from Today. These reminders are stored in Mochi's encrypted backend and shared across the paired clients. They do not sync with Apple Reminders.
 
 Due processing survives restart. Recurrence preserves local wall time across daylight saving transitions, shifting nonexistent times forward and choosing the earlier occurrence for repeated times. Missed recurring occurrences are aggregated rather than replayed as an alert storm. Stable creation IDs prevent duplicate reminders after a lost response.
 
@@ -18,7 +18,7 @@ When APNs is configured and the user has enabled notifications, due reminders en
 
 ## Gmail drafts
 
-Gmail remains read-only by default. Enable draft access explicitly in the iPhone Gmail connection settings or the browser Today panel and complete Google's OAuth consent. The OAuth app must allow `https://www.googleapis.com/auth/gmail.compose` alongside `gmail.readonly`. Google's compose scope includes sending, but Jolly's Gmail transport only permits the draft-create mutation and exposes no send endpoint.
+Gmail remains read-only by default. Enable draft access explicitly in the iPhone Gmail connection settings or the browser Today panel and complete Google's OAuth consent. The OAuth app must allow `https://www.googleapis.com/auth/gmail.compose` alongside `gmail.readonly`. Google's compose scope includes sending, but Mochi's Gmail transport only permits the draft-create mutation and exposes no send endpoint.
 
 Ask for a draft with an exact recipient email address, subject and body, or use the browser composer. Review the full recipient, subject and body, then choose **Save draft** or **Cancel**. Preparation is local; Save draft creates an unsent draft and verifies its returned content. The saved result never claims an email was sent. Gmail drafts require live mode and a connected account with the explicit draft grant.
 

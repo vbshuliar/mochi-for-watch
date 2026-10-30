@@ -31,7 +31,7 @@ export class Pairing {
   }
   authorized(token: string) {
     if (this.isOwner(token)) return true;
-    if (!/^jolly_[A-Za-z0-9_-]{43}$/.test(token)) return false;
+    if (!/^(?:mochi|jolly)_[A-Za-z0-9_-]{43}$/.test(token)) return false;
     const device = this.store.get<Device>("paired-device", digest(token));
     return !!device && device.expiresAt > this.now();
   }
@@ -82,7 +82,7 @@ export class Pairing {
           "device_limit",
           "Remove an old paired device first.",
         );
-      const token = "jolly_" + randomBytes(32).toString("base64url"),
+      const token = "mochi_" + randomBytes(32).toString("base64url"),
         id = randomUUID(),
         expiresAt = this.now() + 90 * 86400000;
       const tokenHash = digest(token);

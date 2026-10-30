@@ -20,7 +20,7 @@ Reviewed 29 October 2026. Entry points and ownership, not a replacement for sour
 
 ## Clients
 
-- `native/MuseCore/`: shared Codable models, HTTP client, WAV and conversation rules. Package tests run without device installation.
+- `native/MochiCore/`: shared Codable models, HTTP client, WAV and conversation rules. Package tests run without device installation.
 - `native/Shared/`: conversation model, audio, realtime transcription, Keychain connection storage, WatchConnectivity, character renderer, action review and notifications.
 - `native/iPhone/`: onboarding/pairing, connections, memories and task management.
 - `native/Watch/`: wrist UI, approvals and task progress.

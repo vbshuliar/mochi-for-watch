@@ -10,7 +10,7 @@ Last reviewed: 29 October 2026. This guide describes the implementation, not a c
 4. The relevant feature guide from the [index](README.md).
 5. [Runbook](runbook.md) before touching hosting, credentials or persistence.
 
-`docs/agents.md` describes Jolly's personality, not instructions for coding agents. Historical research and verification notes do not override current code or user authorization.
+`docs/agents.md` describes Mochi's personality, not instructions for coding agents. Historical research and verification notes do not override current code or user authorization.
 
 ## Establish a safe baseline
 
@@ -44,7 +44,7 @@ Never infer permission to send mail, publish social content, call a phone, chang
 
 ## Native setup
 
-Open the committed `native/MuseForWatch.xcodeproj`; ordinary changes do not require XcodeGen. If `native/project.yml` changes, regenerate with XcodeGen and review the generated diff. Use the MusePhone scheme for the phone and embedded Watch app. Minimum targets are iOS 17/watchOS 10.
+Open the committed `native/MochiForWatch.xcodeproj`; ordinary changes do not require XcodeGen. If `native/project.yml` changes, regenerate with XcodeGen and review the generated diff. Use the MochiPhone scheme for the phone and embedded Watch app. Minimum targets are iOS 17/watchOS 10.
 
 Use one-time pairing for new devices. Load the intended backend's owner credentials privately, set `BACKEND_URL`, and run `node backend/scripts/pairing.mjs issue My iPhone`. Enter the returned short-lived code on iPhone and sync the Watch. Do not confuse local `.env` credentials with hosted credentials. See [native setup](../native/README.md).
 

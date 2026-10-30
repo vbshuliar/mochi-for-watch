@@ -11,7 +11,7 @@ export function summarizeLog(kind, path, data) {
   if (path.includes('/calls/') && path.endsWith('/calendar')) return 'preparing the booked appointment for Calendar review';
   if (path.includes('/calls/') && !path.endsWith('/decision')) return 'checking the phone call progress';
   if (path.endsWith('/speech')) return `giving Mochi a voice: ${short(data?.text)}`;
-  if (path.endsWith('/turns')) return `asking Muse: ${short(data?.text)}`;
+  if (path.endsWith('/turns')) return `asking the model: ${short(data?.text)}`;
   if (path.endsWith('/audio')) return `sending voice recording for transcription · ${Math.round((data?.bytes || 0) / 1024)} KB`;
   if (path.endsWith('/decision')) return `${data?.decision === 'confirm' ? 'confirming' : 'cancelling'} the proposed ${proposal}`;
   if (path.endsWith('/status')) return 'checking backend and Calendar connection';

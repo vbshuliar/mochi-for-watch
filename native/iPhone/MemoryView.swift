@@ -1,4 +1,4 @@
-import MuseCore
+import MochiCore
 import SwiftUI
 
 struct MemoryView: View {

@@ -1,6 +1,6 @@
 # Contributing
 
-Jolly is a private, single-owner assistant. Start with [AGENTS.md](AGENTS.md) and the [agent setup guide](docs/agent-setup.md). The signature workflow is approved autonomous booking; preserve its approval and recovery boundaries.
+Mochi is a private, single-owner assistant. Start with [AGENTS.md](AGENTS.md) and the [agent setup guide](docs/agent-setup.md). The signature workflow is approved autonomous booking; preserve its approval and recovery boundaries.
 
 ## Development loop
 
@@ -17,7 +17,7 @@ Use `codex/` for new agent-created branches. Do not force-push shared history. A
 
 - Validate external input at the API boundary; keep provider credentials on the server.
 - Preserve idempotent decisions and uncertain outcomes. Never retry a potentially completed external write blindly.
-- Keep `native/MuseCore/Sources/MuseCore/Models.swift` and browser consumers compatible with backend schemas.
+- Keep `native/MochiCore/Sources/MochiCore/Models.swift` and browser consumers compatible with backend schemas.
 - Keep npm checks and `.github/workflows/checks.yml` aligned.
 - Update the relevant topic guide, not only the root README. Dated verification records are historical evidence.
 - Label mocks, simulator screenshots, design studies and live results accurately.
@@ -29,4 +29,4 @@ Describe the problem, resulting behavior and relevant validation. State any chec
 
 ## Rights
 
-Read [LICENSE.md](LICENSE.md) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) before reusing or contributing assets. No open-source license has been selected for this repository.
+Read [LICENSE](LICENSE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) before reusing or contributing assets. Original contributions are licensed under Apache-2.0. Only contribute material you have the right to distribute under that licence.

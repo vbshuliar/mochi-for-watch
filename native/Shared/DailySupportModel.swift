@@ -1,12 +1,12 @@
 import Foundation
-import MuseCore
+import MochiCore
 import Observation
 
 @MainActor @Observable final class DailySupportModel {
   var readiness: DemoReadiness?
   var profile: BookingProfile?
   var briefing: DailyBriefing?
-  var reminders: [JollyReminder] = []
+  var reminders: [MochiReminder] = []
   var drafts: [GmailDraftAction] = []
   var error: String?
   var busy = false
@@ -28,7 +28,7 @@ import Observation
     let ticket = generation
     defer { if generation == ticket { busy = false } }
     do {
-      struct Reminders: Decodable, Sendable { let reminders: [JollyReminder] }
+      struct Reminders: Decodable, Sendable { let reminders: [MochiReminder] }
       struct Drafts: Decodable, Sendable { let drafts: [GmailDraftAction] }
       let client = makeClient(connection)
       async let report = client.get("v1/briefing", as: DailyBriefing.self, query: [URLQueryItem(name: "timeZone", value: TimeZone.current.identifier)])
@@ -100,10 +100,10 @@ import Observation
       self.error = error.localizedDescription; return false
     }
   }
-  func updateReminder(_ reminder: JollyReminder, values: [String: String]) async {
+  func updateReminder(_ reminder: MochiReminder, values: [String: String]) async {
     await mutate("v1/reminders/\(reminder.id)", method: "PATCH", values: values)
   }
-  func deleteReminder(_ reminder: JollyReminder) async {
+  func deleteReminder(_ reminder: MochiReminder) async {
     await mutate("v1/reminders/\(reminder.id)", method: "DELETE", values: [:])
   }
   func beginReminder() {

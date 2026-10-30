@@ -1,15 +1,15 @@
-# Booking calls — Jolly speaks on your behalf
+# Booking calls — Mochi speaks on your behalf
 
 Decision: 27 October 2026. The hackathon demo now prioritizes **memory + Calendar + one booking call**, rather than adding more generic connectors. Gmail and Notion code remains available, but account setup is paused.
 
 ## Intended demo
 
-“Jolly, call my barber and book a haircut tomorrow afternoon when I’m free.”
+“Mochi, call my barber and book a haircut tomorrow afternoon when I’m free.”
 
 1. Resolve the business, exact international phone number, booking name, duration and allowed time window. Ask for missing details; never invent a phone number. Saved memories may provide user-supplied preferences.
 2. Check Calendar when connected. Show whether availability was actually checked.
 3. Present the destination, number and booking instructions for explicit approval.
-4. Call the approved number. Introduce Jolly as an AI assistant calling on the user's behalf. Negotiate only within the approved scope and available time slots.
+4. Call the approved number. Introduce Mochi as an AI assistant calling on the user's behalf. Negotiate only within the approved scope and available time slots.
 5. Report the actual outcome. A completed phone connection alone is not evidence of a booking.
 6. If an appointment was explicitly confirmed, offer a Calendar proposal. A separate confirmation saves it.
 
@@ -20,7 +20,7 @@ The first live test must use a consenting demo participant. No calls to unrelate
 ```mermaid
 sequenceDiagram
     participant User as Watch / iPhone
-    participant API as Muse backend on Fly
+    participant API as Mochi backend on Fly
     participant Meta as Meta API
     participant Phone as Twilio
     participant Voice as ElevenLabs
@@ -32,7 +32,7 @@ sequenceDiagram
     API->>Phone: Place bounded outbound call
     Phone->>Business: Ring
     Phone->>API: Signed voice webhook
-    API->>Voice: Speak Jolly's introduction
+    API->>Voice: Speak Mochi's introduction
     API-->>Phone: Play audio, gather speech
     Business->>Phone: Response
     Phone->>API: Signed transcription callback
@@ -45,7 +45,7 @@ sequenceDiagram
     API-->>User: Review appointment before saving
 ```
 
-Meta remains the reasoning provider using the existing Meta account and credits. ElevenLabs synthesizes Jolly's voice; it does not supply another agent brain. Twilio handles the telephone connection and speech recognition. Twilio and ElevenLabs usage is separate from Meta credits.
+Meta remains the reasoning provider using the existing Meta account and credits. ElevenLabs synthesizes Mochi's voice; it does not supply another agent brain. Twilio handles the telephone connection and speech recognition. Twilio and ElevenLabs usage is separate from Meta credits.
 
 This initial implementation uses turn-based Twilio Gather, not a full-duplex audio bridge. It adds transcription, Meta and voice-generation latency per turn. Test that latency on a real call before describing the conversation as seamless. Asynchronous generation and short TwiML polling avoid holding a webhook open while generation runs; they do not eliminate model latency.
 
@@ -70,7 +70,7 @@ The public callback origin must be the deployed HTTPS backend, not localhost. Ca
 Before the demo, exercise:
 
 - Approve and cancel proposals; verify cancelling never dials.
-- Answer on a consenting test phone; verify the AI introduction and correct Jolly voice.
+- Answer on a consenting test phone; verify the AI introduction and correct Mochi voice.
 - Offer a valid time, an unavailable time, and a time outside the approved window.
 - Decline the booking, stay silent, hang up, and leave the phone unanswered.
 - Stop a running call from the app.
@@ -102,7 +102,7 @@ Verification: 83 backend tests, 41 browser tests, 18 native host tests and nativ
 
 ### First live test
 
-The user approved one test call to their verified demo phone. Twilio connected and completed a 93-second call. Jolly disclosed its AI identity and handled two recipient replies with real Meta and ElevenLabs; the third reply failed. The backend correctly did not report a confirmed booking or write a Calendar event, but its generic failure text incorrectly called every generation failure a timeout. The original exception was not retained, so its provider/stage could not be established. An exact-history Meta replay returned valid JSON; it did not reproduce the original failure.
+The user approved one test call to their verified demo phone. Twilio connected and completed a 93-second call. Mochi disclosed its AI identity and handled two recipient replies with real Meta and ElevenLabs; the third reply failed. The backend correctly did not report a confirmed booking or write a Calendar event, but its generic failure text incorrectly called every generation failure a timeout. The original exception was not retained, so its provider/stage could not be established. An exact-history Meta replay returned valid JSON; it did not reproduce the original failure.
 
 The repair adds safe stage/category/timing diagnostics, speaks concise natural start-time ranges, handles ordinal spoken dates and clarifies uncertain customer names. Malformed or truncated Meta responses get one bounded model-only retry; this never redials a telephone call. A replay with the failed transcript returned a concise clarification successfully. This does not establish the original failure cause or replace a live call test. Do not call this a successful end-to-end booking until a later live test completes.
 
@@ -114,7 +114,7 @@ The reviewed repair was deployed to Fly on 27 October 2026. Post-deployment chec
 
 The planner resolves business, phone, booking name, duration and time preferences from the authoritative saved-memory list. Current instructions override saved preferences; missing or ambiguous details still require clarification. Saved preferences never substitute for explicit call intent or approval.
 
-On the call Jolly leads with a dated 12-hour range, such as “between 2 pm and 4:30 pm on 5 November”. These are permitted **start times**, after subtracting Calendar conflicts and allowing for the appointment duration. Separate days and busy gaps stay separate; internal fifteen-minute candidates are never read aloud. A deterministic offer guard replaces numeric or spoken time enumerations with one safe range. Once the recipient chooses a time, confirmation remains specific. Consent, payment refusal and strict positive booking evidence checks remain in force.
+On the call Mochi leads with a dated 12-hour range, such as “between 2 pm and 4:30 pm on 5 November”. These are permitted **start times**, after subtracting Calendar conflicts and allowing for the appointment duration. Separate days and busy gaps stay separate; internal fifteen-minute candidates are never read aloud. A deterministic offer guard replaces numeric or spoken time enumerations with one safe range. Once the recipient chooses a time, confirmation remains specific. Consent, payment refusal and strict positive booking evidence checks remain in force.
 
 Validated on 28 October 2026: 89 backend tests, 42 browser tests, 19 native host tests and native SDK builds passed. Independent review caught and verified a fix for short-appointment gaps. A live Meta planner check with synthetic preferences correctly selected Monday, Tuesday, Wednesday and Friday afternoon windows, excluded Thursday, and used the current time preference over the saved one. This did not dial a number or write a Calendar event.
 
@@ -134,7 +134,7 @@ Progress questions use the `call_status` planner action and a server-generated f
 
 One active or uncertain call is allowed across the backend owner’s sessions. Confirmation claims `starting` synchronously before any provider await, and new proposals are rejected while a call is active or uncertain. Restarted calls remain uncertain and block new dialing until resolved. Stopping retains that guard until the provider acknowledges termination. These checks do not dial a phone during automated tests; live call and device acceptance remain pending.
 
-Completion cards display the appointment in the viewer’s local timezone with compact 12-hour am/pm formatting and no timezone identifier. They temporarily replace Jolly’s face; dismissing or starting a conversation restores it. The stored appointment instant and booking timezone remain unchanged.
+Completion cards display the appointment in the viewer’s local timezone with compact 12-hour am/pm formatting and no timezone identifier. They temporarily replace Mochi’s face; dismissing or starting a conversation restores it. The stored appointment instant and booking timezone remain unchanged.
 
 ## Booking changes and shared tasks — 28 October 2026
 

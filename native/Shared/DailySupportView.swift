@@ -1,5 +1,5 @@
 import SwiftUI
-import MuseCore
+import MochiCore
 
 struct GmailDraftReview: View {
   let action: GmailDraftAction

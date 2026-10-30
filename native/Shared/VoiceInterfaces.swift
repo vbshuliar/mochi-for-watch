@@ -1,5 +1,5 @@
 import Foundation
-import MuseCore
+import MochiCore
 
 @MainActor protocol AudioIO: AnyObject {
   var onPCM: ((Data, Double) -> Void)? { get set }

@@ -1,5 +1,5 @@
 import Foundation
-import MuseCore
+import MochiCore
 import Observation
 import Security
 
@@ -39,7 +39,7 @@ import Security
       status = SecItemAdd(query.merging(attributes) { _, new in new } as CFDictionary, nil)
     }
     guard status == errSecSuccess else {
-      throw MuseError.message("Couldn’t securely save your connection.")
+      throw MochiError.message("Couldn’t securely save your connection.")
     }
     self.connection = connection
     error = nil
@@ -63,7 +63,7 @@ import Security
     busy = true; error = nil
     defer { if generation == ticket { busy = false } }
     do {
-      guard let url = URL(string: address.trimmingCharacters(in: .whitespacesAndNewlines)) else { throw MuseError.message("Enter your backend HTTPS address.") }
+      guard let url = URL(string: address.trimmingCharacters(in: .whitespacesAndNewlines)) else { throw MochiError.message("Enter your backend HTTPS address.") }
       let connection = try await redeem(url, code)
       guard generation == ticket, !Task.isCancelled, store.connection == original else { return false }
       try store.save(connection)

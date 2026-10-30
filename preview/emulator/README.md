@@ -1,4 +1,4 @@
-# Muse for Watch — live web emulator
+# Mochi for Watch — live web emulator
 
 This is the browser integration harness for the Apple Watch SE 2, 44 mm experience. It reuses the approved animation renderer and its 368 × 448 canvas. Browser display scaling is responsive; this does not emulate watchOS performance, physical display characteristics, haptics or battery use.
 
@@ -69,7 +69,7 @@ See [backend configuration](../../backend/README.md#connect-live-providers) and 
 
 ## Conversation quality
 
-See [research, timing measurements and regression cases](../../docs/research/conversation-ux.md). An empty recording ends locally after eight seconds; incomplete phrases get more pause time. Interrupted replies cannot take over the current UI. Requests remain serial on the backend; interruption aborts the old turn and waits for cancellation acknowledgement before the next is submitted. It does not undo external actions.
+See research, timing measurements and regression cases. An empty recording ends locally after eight seconds; incomplete phrases get more pause time. Interrupted replies cannot take over the current UI. Requests remain serial on the backend; interruption aborts the old turn and waits for cancellation acknowledgement before the next is submitted. It does not undo external actions.
 
 Conversational replies now stream in sentence clips; exact repeat/stop commands skip Meta reasoning. See [streaming design and verification](../../docs/streaming-replies.md).
 

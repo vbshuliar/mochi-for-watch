@@ -177,3 +177,26 @@ test("re-pairing transfers alert ownership and expiry returns current registrati
   assert.equal(p.authorized(b.token), false);
   assert.equal(store.list("paired-device").length, 0);
 });
+
+test("rebrand mints Mochi tokens while retaining revocable legacy device access", async (t) => {
+  const { createHash } = await import("node:crypto");
+  const store = new Store(":memory:", config.ENCRYPTION_KEY);
+  t.after(() => store.close());
+  const pairing = new Pairing(store, config.API_TOKEN, () => 1000);
+  const issued = pairing.redeem({
+    code: pairing.issue({ name: "New device" }).code,
+  });
+  assert.match(issued.token, /^mochi_[A-Za-z0-9_-]{43}$/);
+  const legacy = "jolly_" + "a".repeat(43);
+  const tokenHash = createHash("sha256").update(legacy).digest("hex");
+  store.put("paired-device", tokenHash, {
+    id: "00000000-0000-4000-8000-000000000001",
+    name: "Existing device",
+    createdAt: 0,
+    expiresAt: 2000,
+    tokenHash,
+  });
+  assert.equal(pairing.authorized(legacy), true);
+  pairing.revoke("00000000-0000-4000-8000-000000000001");
+  assert.equal(pairing.authorized(legacy), false);
+});

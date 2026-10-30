@@ -389,7 +389,7 @@ const emotionsOnly=typeof location!=='undefined'&&new URLSearchParams(location.s
 if(emotionsOnly){
  document.documentElement.classList.add('emotions-only');
  $('#state-filter').value='emotions';
- document.title='Muse for Watch · emotions';
+ document.title='Mochi for Watch · emotions';
  $('.intro h1').textContent='every little feeling.';
  $('.intro>p:last-child').textContent='Choose an emotion to see Mochi react, then settle back to neutral.';
  $('aside>.description').textContent='All available emotions and reactions. Click one to preview its animation.';

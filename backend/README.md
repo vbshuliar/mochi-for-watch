@@ -1,6 +1,6 @@
-# Muse for Watch backend
+# Mochi for Watch backend
 
-Implemented 26 October 2026. This is the single-user Calendar MVP backend, runnable without an Apple Watch. It includes the real Meta and Google adapters plus an explicitly labelled local simulation. Live Meta reasoning and synthetic-audio transcription have been tested; Google Calendar is not connected. See [verification record](../docs/backend-verification.md). It is not a native watch app, public multi-user service, or an implementation of every stretch feature in the original brief.
+Implemented 26 October 2026. This is the single-user Calendar MVP backend, runnable without an Apple Watch. It includes the real Meta and Google adapters plus an explicitly labelled local simulation. Live Meta reasoning and synthetic-audio transcription have been tested; Google Calendar is not connected. See verification record. It is not a native watch app, public multi-user service, or an implementation of every stretch feature in the original brief.
 
 ## Run locally
 
@@ -171,7 +171,7 @@ Read-only Gmail retrieval and Notion draft/approval endpoints are implemented. T
 
 ## Outbound booking calls (consented private demo)
 
-Jolly can propose a booking call, with Meta as the only conversational planner. Twilio provides PSTN transport and Gather speech recognition; ElevenLabs generates Jolly’s speech. No ElevenLabs agent, alternate reasoning model, recordings, payments, or general-purpose tools are used in the call.
+Mochi can propose a booking call, with Meta as the only conversational planner. Twilio provides PSTN transport and Gather speech recognition; ElevenLabs generates Mochi’s speech. No ElevenLabs agent, alternate reasoning model, recordings, payments, or general-purpose tools are used in the call.
 
 Calling is disabled until live Meta/ElevenLabs configuration, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`, `CALLS_PUBLIC_URL` (public HTTPS origin), and `TWILIO_ALLOWED_NUMBERS` (comma-separated consented E.164 destinations) are present. Empty allowlists block every destination. `/v1/status` exposes `callsConfigured`. Configure the public origin exactly as Twilio will request it; signature checking deliberately ignores forwarded Host headers.
 
@@ -188,7 +188,7 @@ Call statuses are `pending`, `starting`, `queued`, `in_progress`, `completed`, `
 
 Signed public form callbacks at `/webhooks/calls/:actionId/{voice/:turn,gather/:turn,status}` verify HMAC-SHA1 over the configured canonical URL and sorted form fields, configured AccountSid, associated CallSid, callback sequence, and durable turn progression. Duplicate form fields are rejected. Audio uses opaque 256-bit per-clip tokens at `/call-audio/:token`, expires after six minutes, and never includes the app bearer token. Generated clips are encrypted at rest, pruned on later synthesis and restart; call transcripts persist encrypted until session deletion. These are generated clips, not telephone recordings.
 
-The first spoken prompt discloses that Jolly is an AI calling on the customer’s behalf and asks whether the recipient agrees to speak with an AI. Subsequent replies allow speech barge-in. Webhooks immediately return TwiML while bounded background Meta/TTS work completes; two-second polling stops after 45 seconds. Calls have a five-minute Twilio TimeLimit, a twelve-turn cap, and end on silence. Meta/TTS failure hangs up safely. No automatic external-call creation retry is made after ambiguous responses or restart; inspect Twilio before initiating another call. The current one-process encrypted SQLite runtime is required; pending background work is not a distributed worker queue.
+The first spoken prompt discloses that Mochi is an AI calling on the customer’s behalf and asks whether the recipient agrees to speak with an AI. Subsequent replies allow speech barge-in. Webhooks immediately return TwiML while bounded background Meta/TTS work completes; two-second polling stops after 45 seconds. Calls have a five-minute Twilio TimeLimit, a twelve-turn cap, and end on silence. Meta/TTS failure hangs up safely. No automatic external-call creation retry is made after ambiguous responses or restart; inspect Twilio before initiating another call. The current one-process encrypted SQLite runtime is required; pending background work is not a distributed worker queue.
 
 Mock tests cover authentication, session ownership, approval expiry/idempotency, signatures, callback reordering, replay deduplication, slot filtering, structured outcomes, silence/time limits, and separate Calendar approval. Live telephone latency, caller-ID eligibility, account/geographic permissions and actual recipient conversation still require a consented end-to-end test.
 

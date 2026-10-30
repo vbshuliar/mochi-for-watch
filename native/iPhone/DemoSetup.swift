@@ -1,6 +1,6 @@
   import SwiftUI
   import UniformTypeIdentifiers
-  import MuseCore
+  import MochiCore
 
   struct DemoSetup: View {
     let store: ConnectionStore
@@ -54,7 +54,7 @@
             Button("Save connection") {
               do {
                 guard let url = URL(string: address.trimmingCharacters(in: .whitespacesAndNewlines))
-                else { throw MuseError.message("Enter a valid backend address.") }
+                else { throw MochiError.message("Enter a valid backend address.") }
                 try store.save(
                   Connection(
                     baseURL: url, token: token.trimmingCharacters(in: .whitespacesAndNewlines)))
@@ -79,7 +79,7 @@
               defer { if access { url.stopAccessingSecurityScopedResource() } }
               let data = try Data(contentsOf: url)
               guard data.count < 16384 else {
-                throw MuseError.message("That isn’t a connection file.")
+                throw MochiError.message("That isn’t a connection file.")
               }
               try store.save(JSONDecoder().decode(Connection.self, from: data))
               saved()

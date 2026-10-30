@@ -159,7 +159,7 @@ test("ambiguous save survives restart and reconciles exact Message-ID without re
       throw Error("timeout after provider saved");
     }
     if (url.includes("drafts?")) {
-      assert.match(new URL(url).searchParams.get("q")!, /^rfc822msgid:<jolly-/);
+      assert.match(new URL(url).searchParams.get("q")!, /^rfc822msgid:<mochi-/);
       return Response.json({ drafts: found ? [{ id: "recovered" }] : [] });
     }
     return Response.json({ id: "recovered", message: { raw } });

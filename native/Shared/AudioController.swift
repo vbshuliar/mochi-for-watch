@@ -1,6 +1,6 @@
 import AVFoundation
 import Foundation
-import MuseCore
+import MochiCore
 
 // Conversion happens serially on the audio tap. Only Data and a scalar cross to MainActor.
 private final class PCMConverter: @unchecked Sendable {
@@ -11,7 +11,7 @@ private final class PCMConverter: @unchecked Sendable {
       let output = AVAudioFormat(
         commonFormat: .pcmFormatInt16, sampleRate: 24000, channels: 1, interleaved: true),
       let converter = AVAudioConverter(from: input, to: output)
-    else { throw MuseError.message("Microphone format is unavailable.") }
+    else { throw MochiError.message("Microphone format is unavailable.") }
     self.output = output
     self.converter = converter
   }
@@ -87,7 +87,7 @@ private final class PCMConverter: @unchecked Sendable {
           } else if success {
             continuation.resume()
           } else {
-            continuation.resume(throwing: MuseError.message("Audio is unavailable right now."))
+            continuation.resume(throwing: MochiError.message("Audio is unavailable right now."))
           }
         }
       }
@@ -98,7 +98,7 @@ private final class PCMConverter: @unchecked Sendable {
       AVAudioApplication.requestRecordPermission { continuation.resume(returning: $0) }
     }
     guard allowed else {
-      throw MuseError.message("Allow microphone access in Settings to talk to Mochi.")
+      throw MochiError.message("Allow microphone access in Settings to talk to Mochi.")
     }
     try Task.checkCancellation()
     try await activate()
@@ -107,7 +107,7 @@ private final class PCMConverter: @unchecked Sendable {
     let input = engine.inputNode
     let format = input.outputFormat(forBus: 0)
     guard format.sampleRate > 0, format.channelCount > 0 else {
-      throw MuseError.message("No microphone is available.")
+      throw MochiError.message("No microphone is available.")
     }
     let converter = try PCMConverter(input: format)
     let ticket = UUID()
@@ -143,7 +143,7 @@ private final class PCMConverter: @unchecked Sendable {
         onPlaybackStart?()
       } else {
         playback = nil
-        continuation.resume(throwing: MuseError.message("Couldn’t play Mochi’s voice."))
+        continuation.resume(throwing: MochiError.message("Couldn’t play Mochi’s voice."))
       }
     }
   }
@@ -153,7 +153,7 @@ private final class PCMConverter: @unchecked Sendable {
       if flag {
         playback?.resume()
       } else {
-        playback?.resume(throwing: MuseError.message("Voice playback stopped."))
+        playback?.resume(throwing: MochiError.message("Voice playback stopped."))
       }
       playback = nil
       self.player = nil
@@ -162,7 +162,7 @@ private final class PCMConverter: @unchecked Sendable {
   nonisolated func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
     Task { @MainActor in
       guard self.player === player else { return }
-      playback?.resume(throwing: MuseError.message("Couldn’t decode Mochi’s voice."))
+      playback?.resume(throwing: MochiError.message("Couldn’t decode Mochi’s voice."))
       playback = nil
       self.player = nil
     }

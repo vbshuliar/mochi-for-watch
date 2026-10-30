@@ -14,7 +14,7 @@ The implementation uses Facebook Login to select a managed Facebook Page or its 
    - `META_SOCIAL_REDIRECT_BASE=https://<your-backend>`
    - `GRAPH_API_VERSION=v24.0` (the implementation pin; verify app support before changing)
 4. For localhost development the default redirect base is `http://127.0.0.1:8787`. Register localhost callbacks separately if permitted by your app configuration.
-5. Sign in from Muse, grant the required access, return to Muse, refresh accounts and select the desired Page/Instagram account. A grant alone does not mark the connector connected.
+5. Sign in from Mochi, grant the required access, return to Mochi, refresh accounts and select the desired Page/Instagram account. A grant alone does not mark the connector connected.
 
 Instagram requests `pages_show_list`, `pages_read_engagement`, `instagram_basic`, `instagram_manage_comments`. Facebook requests `pages_show_list`, `pages_read_engagement`, `pages_read_user_content`. The Instagram comment scope is required for reading comments on this path; this implementation provides no write endpoint even if the provider scope includes moderation rights.
 

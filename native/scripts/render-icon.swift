@@ -6,7 +6,7 @@ import SwiftUI
   let root = URL(fileURLWithPath: CommandLine.arguments[1], isDirectory: true)
   guard
     let plate = NSImage(
-      contentsOf: root.appendingPathComponent("Resources/Assets.xcassets/Tuck.imageset/tuck.png"))
+      contentsOf: root.appendingPathComponent("Resources/Assets.xcassets/Mochi.imageset/mochi.png"))
   else { fatalError("Missing Mochi resource") }
   let content = ZStack {
     Color.black

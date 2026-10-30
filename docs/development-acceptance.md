@@ -35,7 +35,7 @@ Before any real attempt, confirm recipient readiness and obtain approval for tha
 
 1. Verify deployed health, authenticated status and connected Calendar using read-only checks.
 2. Request a booking from Watch, including allowed times and exclusions. Review the exact destination and window before approving the call.
-3. Confirm the recipient hears Jolly identify itself as an AI assistant and seeks consent.
+3. Confirm the recipient hears Mochi identify itself as an AI assistant and seeks consent.
 4. Offer one unavailable time, then one allowed time. Confirm the final appointment's date, time and duration verbally.
 5. Verify that the app reports success only after the recipient explicitly confirms. Compare with the recipient's account of the call.
 6. Review the separate Calendar proposal, approve it intentionally, then inspect the actual Calendar event and receipt. Retry the same request only to verify idempotency; it must not create duplicates.

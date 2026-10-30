@@ -647,8 +647,8 @@ export async function buildApp(
         .type("text/plain")
         .send(
           query.error
-            ? "Connection cancelled. Return to Muse to try again."
-            : "Sign-in complete. Return to Muse and choose the account Mochi should use.",
+            ? "Connection cancelled. Return to Mochi to try again."
+            : "Sign-in complete. Return to Mochi and choose the account Mochi should use.",
         );
     });
   }
@@ -695,8 +695,8 @@ export async function buildApp(
         .type("text/plain")
         .send(
           q.error
-            ? "Connection cancelled. You may return to Muse."
-            : "Connected. Return to Muse to finish setup.",
+            ? "Connection cancelled. You may return to Mochi."
+            : "Connected. Return to Mochi to finish setup.",
         );
     });
   }

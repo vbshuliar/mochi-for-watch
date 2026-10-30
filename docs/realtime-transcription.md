@@ -4,7 +4,7 @@ Implemented 27 October 2026 for the browser emulator.
 
 ## Flow
 
-Tap Jolly → microphone chunks → same-origin WebSocket gateway → authenticated backend → Meta realtime ASR. Meta receives mono signed 16-bit little-endian PCM at 24 kHz, `PUSH_TO_TALK`, and cumulative partial transcripts. The API key appears only in the server-to-Meta handshake.
+Tap Mochi → microphone chunks → same-origin WebSocket gateway → authenticated backend → Meta realtime ASR. Meta receives mono signed 16-bit little-endian PCM at 24 kHz, `PUSH_TO_TALK`, and cumulative partial transcripts. The API key appears only in the server-to-Meta handshake.
 
 The recorder emits chunks while capturing. A stateful resampler preserves sample counts across chunk boundaries if the browser chooses another rate. Audio captured during connection setup is buffered within a fixed limit. Partial text is logged as it arrives, while the watch retains its listening caption.
 

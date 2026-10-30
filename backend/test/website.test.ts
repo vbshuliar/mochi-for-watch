@@ -17,7 +17,7 @@ test("landing page is public while APIs and non-website files remain protected",
   const homepage = await app.inject("/");
   assert.equal(homepage.statusCode, 200);
   assert.match(homepage.headers["content-type"]!, /text\/html/);
-  assert.match(homepage.body, /Muse for Watch/);
+  assert.match(homepage.body, /Mochi for Watch/);
   assert.match(
     homepage.headers["content-security-policy"]!,
     /frame-ancestors 'none'/,
@@ -28,8 +28,8 @@ test("landing page is public while APIs and non-website files remain protected",
     "/site.js",
     "/mouse-gaze.js",
     "/style.css?v=1",
-    "/assets/tuck.png",
-    "/assets/tuck-face.png",
+    "/assets/mochi.png",
+    "/assets/mochi-face.png",
     "/assets/watch-3d.png",
   ]) {
     const response = await app.inject(url);
@@ -38,7 +38,7 @@ test("landing page is public while APIs and non-website files remain protected",
   const markdown = await app.inject("/agent.md");
   assert.equal(markdown.statusCode, 200);
   assert.match(markdown.headers["content-type"]!, /text\/plain/);
-  assert.match(markdown.body, /^# Muse for Watch/);
+  assert.match(markdown.body, /^# Mochi for Watch/);
   assert.match(markdown.body, /## Instructions for coding agents/);
   assert.equal(
     (await app.inject({ method: "POST", url: "/agent.md" })).statusCode,

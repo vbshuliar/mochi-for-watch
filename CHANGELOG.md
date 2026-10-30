@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-30 — Mochi for Watch
+
+- Adopt Apache-2.0 for original project code, documentation and artwork, with third-party service and historical-material exclusions documented.
+- Rename current app, website, native modules, repository links and assets to Mochi for Watch.
+- Remove legacy character art and event research from the current release tree; retain a private development archive.
+- Move the public website to mochi-for-watch.fly.dev and redirect the previous website.
+- Preserve installed-device identity, existing credentials and provider callbacks. New pairing tokens use the Mochi prefix while prior tokens remain revocable.
+
+
 This is a curated record of meaningful behavior changes, not a substitute for Git history or deployment verification.
 
 ## Unreleased — review and documentation polish

@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { api } from "./client.mjs";
 const status = await api("/v1/status");
 console.log(
-  `Muse for Watch — ${status.mode.toUpperCase()} mode. /yes confirms the displayed event; /no cancels it; /events shows progress; /quit exits.`,
+  `Mochi for Watch — ${status.mode.toUpperCase()} mode. /yes confirms the displayed event; /no cancels it; /events shows progress; /quit exits.`,
 );
 const session = await api("/v1/sessions", {
     timeZone: process.env.USER_TIMEZONE || "Europe/London",

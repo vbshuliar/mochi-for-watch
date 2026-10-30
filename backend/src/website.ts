@@ -13,10 +13,10 @@ const files = new Map([
   ["/", { file: "index.html", type: "text/html; charset=utf-8" }],
   ["/index.html", { file: "index.html", type: "text/html; charset=utf-8" }],
   ["/style.css", { file: "style.css", type: "text/css; charset=utf-8" }],
-  ["/assets/tuck.png", { file: "assets/tuck.png", type: "image/png" }],
+  ["/assets/mochi.png", { file: "assets/mochi.png", type: "image/png" }],
   [
-    "/assets/tuck-face.png",
-    { file: "assets/tuck-face.png", type: "image/png" },
+    "/assets/mochi-face.png",
+    { file: "assets/mochi-face.png", type: "image/png" },
   ],
 ]);
 

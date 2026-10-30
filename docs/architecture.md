@@ -1,10 +1,9 @@
 # Current architecture
 
-Updated: 28 October 2026. This describes implemented code. Product aspirations and historical alternatives belong in [the roadmap](roadmap.md) and [original brief](sources/original-project-brief.md).
 
 ## Runtime and boundaries
 
-Muse for Watch has native SwiftUI iPhone/Watch clients, a browser emulator and a TypeScript/Fastify backend. The private deployment uses one Fly.io Machine in London and one persistent SQLite volume. It is a single-user prototype, not a multi-tenant service.
+Mochi for Watch has native SwiftUI iPhone/Watch clients, a browser emulator and a TypeScript/Fastify backend. The private deployment uses one Fly.io Machine in London and one persistent SQLite volume. It is a single-user prototype, not a multi-tenant service.
 
 ```mermaid
 flowchart LR
@@ -74,4 +73,4 @@ Microphone audio is not persisted. Generated telephone reply clips are encrypted
 
 Automated tests use mocked provider responses to exercise failures, auth, cancellation, approvals, account races and recovery. They do not prove real speech quality or live booking success. Native host tests cover models and lifecycle; SDK builds check platform compilation; physical-device behavior requires separate acceptance testing.
 
-Use [the verification record](backend-verification.md) for dated results and [private deployment](private-deployment.md) for operating instructions. The remaining product gate is a successful end-to-end live booking followed by an approved Calendar save.
+Use the verification record for dated results and [private deployment](private-deployment.md) for operating instructions. The remaining product gate is a successful end-to-end live booking followed by an approved Calendar save.

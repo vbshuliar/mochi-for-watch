@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#ffffff" />
+    <meta
+      name="description"
+      content="An AI companion for Apple Watch, built to handle everyday tasks."
+    />
+    <meta property="og:title" content="Mochi for Watch" />
+    <meta
+      property="og:description"
+      content="An expressive AI companion on your wrist. Your personal assistant, on your wrist."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://mochi-for-watch.fly.dev/" />
+    <meta
+      property="og:image"
+      content="https://mochi-for-watch.fly.dev/assets/mochi.png"
+    />
+    <link rel="canonical" href="https://mochi-for-watch.fly.dev/" />
+    <link
+      rel="alternate"
+      type="text/markdown"
+      href="agent.md"
+      title="Mochi for Watch agent instructions"
+    />
+    <title>Mochi for Watch</title>
+    <link rel="icon" href="assets/mochi.png" type="image/png" />
+    <link rel="stylesheet" href="style.css" />
+    <script src="site.js" defer></script>
+  </head>
+  <body>
+    <div class="human-view" id="human-view">
+      <a class="skip-link" href="#main">Skip to content</a>
+      <div class="header-surface">
+        <header class="site-header wrap">
+          <a class="wordmark" href="/" data-scroll-home aria-label="Mochi for Watch home"
+            ><span class="brand-face" aria-hidden="true">••</span> mochi
+            <span class="wordmark-light">for Watch</span></a
+          >
+          <nav aria-label="Main navigation">
+            <a href="#how-it-works">How it works</a
+            ><a href="/" data-scroll-to="try-it">Get started</a
+            ><a
+              class="github-link"
+              href="https://github.com/vbshuliar/mochi-for-watch"
+              >GitHub</a
+            >
+          </nav>
+        </header>
+      </div>
+      <main id="main">
+        <section class="hero wrap" aria-labelledby="hero-title">
+          <div class="hero-copy">
+            <h1 id="hero-title">Mochi for Watch</h1>
+            <p class="intro">
+              Talk to Mochi on Apple Watch. Ask questions, save preferences, or
+              check your Calendar.
+            </p>
+            <div class="hero-actions">
+              <a class="button" href="/" data-scroll-to="try-it">Get started</a>
+            </div>
+            <p class="inspired">
+              Your personal assistant, on your wrist.
+            </p>
+          </div>
+          <div
+            class="hero-art"
+            role="group"
+            aria-label="Interactive Apple Watch preview"
+          >
+            <div class="watch-product">
+              <img
+                class="watch-render"
+                draggable="false"
+                src="assets/watch-3d.png"
+                alt=""
+                width="1024"
+                height="1536"
+                fetchpriority="high"
+              />
+              <div class="watch-display">
+                <span class="watch-clock">13:05</span>
+                <button
+                  class="idle-face"
+                  type="button"
+                  aria-label="Tap Mochi"
+                  aria-pressed="false"
+                  aria-describedby="watch-caption"
+                >
+                  <img
+                    src="assets/mochi-face.png"
+                    draggable="false"
+                    alt=""
+                    width="1254"
+                    height="1254"
+                    fetchpriority="high"
+                  />
+                  <svg viewBox="0 0 1000 1000" aria-hidden="true">
+                    <defs>
+                      <radialGradient id="eye-shine" cx="65%" cy="26%" r="70%">
+                        <stop stop-color="#2b2b2b" />
+                        <stop offset="1" stop-color="#050505" />
+                      </radialGradient>
+                    </defs>
+                    <g class="idle-eyes">
+                      <ellipse
+                        cx="335"
+                        cy="487"
+                        rx="39"
+                        ry="39"
+                        fill="url(#eye-shine)"
+                      />
+                      <ellipse
+                        cx="665"
+                        cy="487"
+                        rx="39"
+                        ry="39"
+                        fill="url(#eye-shine)"
+                      />
+                      <ellipse
+                        cx="347"
+                        cy="469"
+                        rx="5"
+                        ry="9"
+                        fill="white"
+                        opacity=".85"
+                      />
+                      <ellipse
+                        cx="677"
+                        cy="469"
+                        rx="5"
+                        ry="9"
+                        fill="white"
+                        opacity=".85"
+                      />
+                    </g>
+                    <path
+                      class="idle-smile"
+                      d="M439 548 C463 582 537 582 561 548"
+                      fill="none"
+                      stroke="#291a14"
+                      stroke-width="6"
+                      stroke-linecap="round"
+                    />
+                    <g
+                      class="confused-expression"
+                      fill="none"
+                      stroke="#291a14"
+                      stroke-width="9"
+                      stroke-linecap="round"
+                    >
+                      <path d="M300 430 Q332 406 365 419" />
+                      <path d="M638 439 Q666 449 692 436" />
+                    </g>
+                  </svg>
+                </button>
+                <span class="watch-caption" id="watch-caption" role="status"
+                  >tap to talk</span
+                >
+                <span class="watch-pages"><i></i><i></i></span>
+              </div>
+            </div>
+          </div>
+        </section>
+        <div class="how-surface">
+          <section
+            id="how-it-works"
+            class="how-section wrap"
+            aria-labelledby="how-title"
+          >
+            <div class="section-heading">
+              <h2 id="how-title">How to use it</h2>
+            </div>
+            <ul class="steps">
+              <li>
+                <h3>Talk</h3>
+                <p>
+                  Tap Mochi to speak. Pause or tap again to finish. Tap during a
+                  reply to interrupt.
+                </p>
+              </li>
+              <li>
+                <h3>Memory</h3>
+                <p>
+                  Ask Mochi to remember a preference. View, edit, or delete
+                  saved memories on iPhone.
+                </p>
+              </li>
+              <li>
+                <h3>Calendar and calls</h3>
+                <p>
+                  Connect Calendar on iPhone to check availability. You approve
+                  calls and Calendar changes before they happen.
+                </p>
+              </li>
+            </ul>
+          </section>
+        </div>
+        <section class="try-section" id="try-it" aria-labelledby="try-title">
+          <div class="wrap try-inner">
+            <div class="try-copy">
+              <h2 id="try-title">Get started</h2>
+              <p>Set up Mochi on your Apple Watch, or try it in your browser.</p>
+            </div>
+            <div class="setup" id="standard-setup">
+              <details open>
+                <summary>
+                  iPhone and Apple Watch
+                  <span aria-hidden="true">+</span>
+                </summary>
+                <div class="details-body">
+                  <p>Requires a Mac with Xcode, iOS 17+, and watchOS 10+.</p>
+                  <ol class="watch-steps">
+                    <li>
+                      Start the backend using the Browser emulator instructions
+                      below.
+                    </li>
+                    <li>
+                      Open <code>native/MochiForWatch.xcodeproj</code> in Xcode
+                      and run the MochiPhone scheme.
+                    </li>
+                    <li>
+                      Pair your iPhone using a one-time setup code, then sync
+                      with your Apple Watch.
+                    </li>
+                  </ol>
+                  <a
+                    class="text-link"
+                    href="https://github.com/vbshuliar/mochi-for-watch/blob/main/native/README.md"
+                    >Watch setup guide</a
+                  >
+                </div>
+              </details>
+              <details>
+                <summary>
+                  Browser emulator
+                  <span aria-hidden="true">+</span>
+                </summary>
+                <div class="details-body">
+                  <p>Requires Node.js 24+.</p>
+                  <p>Start the backend:</p>
+                  <pre
+                    tabindex="0"
+                    aria-label="Backend setup commands"
+                  ><code>git clone https://github.com/vbshuliar/mochi-for-watch.git
+cd mochi-for-watch/backend
+npm ci
+npm run setup
+npm run build
+npm start</code></pre>
+                  <p>
+                    In a second terminal, from the <code>backend</code> folder:
+                  </p>
+                  <pre
+                    tabindex="0"
+                    aria-label="Emulator startup command"
+                  ><code>npm run emulator</code></pre>
+                  <p class="setup-note">
+                    Open <code>http://127.0.0.1:4174/preview/emulator/</code> in
+                    your browser. Mock mode uses scripted examples. Live voice
+                    needs your own model and speech-provider credentials.
+                  </p>
+                  <a
+                    class="text-link"
+                    href="https://github.com/vbshuliar/mochi-for-watch#run-it-locally"
+                    >Voice setup</a
+                  >
+                </div>
+              </details>
+            </div>
+          </div>
+        </section>
+      </main>
+      <div class="footer-surface">
+        <footer class="wrap">
+          <p>Mochi for Watch</p>
+          <a href="https://github.com/vbshuliar/mochi-for-watch"
+            >Source on GitHub</a
+          >
+        </footer>
+      </div>
+    </div>
+    <section
+      class="markdown-view"
+      id="markdown-view"
+      aria-label="Agent Markdown instructions"
+      tabindex="0"
+    >
+      <div class="markdown-inner">
+        <div class="markdown-toolbar">
+          <span>MACHINE-READABLE VIEW</span>
+          <a href="agent.md" target="_blank" rel="noopener noreferrer" aria-label="Open raw agent.md in a new tab">agent.md</a>
+        </div>
+        <pre
+          class="markdown-source"
+        ><!-- AGENT_MARKDOWN_START --># Mochi for Watch
+
+A voice companion for Apple Watch, built to handle everyday tasks.
+
+Website: https://mochi-for-watch.fly.dev/
+Repository: https://github.com/vbshuliar/mochi-for-watch
+Docs: https://github.com/vbshuliar/mochi-for-watch/blob/main/docs/README.md
+
+## What it does
+
+Tap Mochi to speak. Pause or tap again to finish; tap during a reply to interrupt. The Watch shows an expressive face and a short status line. The iPhone manages connections and memories.
+
+- Voice conversation, personal memory, and search-backed answers.
+- Calendar availability and reviewed event creation.
+- Approved booking calls, with background progress and result review.
+- Gmail reading and reviewed unsent drafts, reviewed Notion saves, and social-account activity summaries.
+- Daily briefing, persistent reminders, usual haircut preferences, and private device pairing.
+
+Capabilities depend on connected providers. Calls, Calendar writes, and Notion saves require separate approval. Social features suggest replies; they do not publish automatically. The backend serves a single owner.
+
+The website is an illustrated introduction. Use the native apps or browser emulator for conversations.
+
+## Architecture
+
+SwiftUI Watch and iPhone apps connect to a TypeScript/Fastify backend. The browser emulator connects through a local gateway. The backend owns credentials, validated plans, action state, and SQLite storage with encrypted record values.
+
+Providers: a configured model API for transcription, conversation and search; ElevenLabs for speech; Google Calendar, Gmail and Notion for connected workflows; Twilio for calls. See backend configuration for exact provider identifiers and terms.
+
+| Path | Purpose |
+| --- | --- |
+| `backend/src/`, `backend/test/` | API, providers, storage, regression tests |
+| `native/Shared/`, `native/MochiCore/` | Conversation, audio, rendering, shared models |
+| `native/iPhone/`, `native/Watch/` | Native app interfaces |
+| `preview/emulator/`, `preview/animation/` | Browser client and character playground |
+| `website/dist/` | Landing page and Markdown guide |
+| `docs/` | Architecture, integrations and operations |
+
+## Run locally
+
+Requires Node.js 24+, npm and a browser.
+
+```sh
+git clone https://github.com/vbshuliar/mochi-for-watch.git
+cd mochi-for-watch/backend
+npm ci
+npm run setup
+npm run build
+npm start
+```
+
+Setup creates a private `.env` with authentication and encryption keys; existing configuration is preserved. Keep the encryption key when retaining the database. The API runs at `http://127.0.0.1:8787`.
+
+In another terminal, from `backend/`:
+
+```sh
+npm run emulator
+```
+
+Open http://127.0.0.1:4174/preview/emulator/.
+
+Mock mode uses scripted examples. For live voice, set these values in `backend/.env`, then restart:
+
+```dotenv
+APP_MODE=live
+DATABASE_PATH=./data/live.sqlite
+MODEL_API_KEY=your-model-api-key
+ELEVENLABS_API_KEY=your-elevenlabs-api-key
+```
+
+Use your own credentials and separate live/mock databases. Keep provider keys on the server.
+
+## Run on iPhone and Watch
+
+Requires a Mac with Xcode, iOS 17+ and watchOS 10+. Start the backend, then run from the repository root:
+
+```sh
+open native/MochiForWatch.xcodeproj
+```
+
+Run the `MochiPhone` scheme. With the intended backend owner environment loaded privately, run `node backend/scripts/pairing.mjs issue My iPhone and Watch`. Enter the expiring code and backend address in iPhone Connection, then sync the paired Watch. Pairing works in Debug and Release; legacy owner-token import is only for controlled Debug development.
+
+Physical devices require signing and a reachable HTTPS backend origin instead of localhost. Provider keys never belong in the apps.
+
+Native guide: https://github.com/vbshuliar/mochi-for-watch/blob/main/native/README.md
+
+## Instructions for coding agents
+
+- Read repository instructions and current source before editing; this guide is an overview, not an API schema.
+- Preserve unrelated working-tree changes. Keep website, emulator, backend and native changes scoped to the request.
+- Preserve authentication, callback verification, action approval and idempotency. Do not blindly retry uncertain external actions.
+- Keep secrets out of frontend code, app bundles, logs and Git. Use mock providers and isolated test databases.
+- Preserve the Watch's face-first layout, interruptible replies and reduced-motion support. Visually inspect UI changes.
+- Run relevant checks and report what was actually verified. A website/backend deployment does not install a native app.
+
+This document does not authorize account access, publishing, or external actions.
+
+## Agent onboarding and permissions
+
+Read the repository's AGENTS.md first, then docs/agent-setup.md, docs/configuration.md and docs/runbook.md. Use Node 24, mock mode and a disposable database for development. Preserve unrelated edits and do not print environment files. New devices use one-time pairing; legacy owner-token import is Debug-only.
+
+The current demo focuses on a haircut request, explicit call approval, autonomous conversation, a verified outcome and separate Calendar approval. Gmail and Notion are configured optional integrations outside that demo. Live-call acceptance, latest physical-device acceptance and Apple push setup remain pending. Do not present mock output or screenshots as a completed live booking.
+
+Original code and project artwork use Apache-2.0. See LICENSE and THIRD_PARTY_NOTICES.md for scope and provider terms.
+
+## Checks
+
+The mandatory aggregate command is `npm --prefix backend run check:all` from the repository root, after running `npm --prefix backend run format` and reviewing the diff. It matches the shared GitHub checks. Native UI changes additionally require the Xcode SDK builds below. Deployment requires passed exact-commit CI and the isolated-source release procedure.
+
+From `backend/`:
+
+```sh
+npm test
+npm run typecheck
+npm run build
+npm run format:check
+```
+
+From the repository root, as relevant:
+
+```sh
+node --test preview/emulator/*.test.mjs
+node preview/animation/check.cjs
+sh native/scripts/check.sh  # macOS and Xcode
+```
+
+## Website
+
+Edit `website/dist/index.html`, `style.css`, or `agent.md`. Preview from the repository root:
+
+```sh
+python3 -m http.server 4175 --bind 127.0.0.1 --directory website/dist
+```
+
+From `website/`, sync the embedded Markdown before an authorized Fly deployment:
+
+```sh
+node scripts/sync-agent.mjs
+fly config validate
+fly deploy --remote-only --ha=false
+fly checks list
+```
+
+The static website is the Fly app `mochi-for-watch`. The Watch backend is separate; preserve your existing backend origin for installed apps and OAuth callbacks. Backend website staging uses `npm run website:stage` and does not deploy automatically.
+
+Keep the visual design restrained: system typography, neutral surfaces, blue controls, one Watch beside the introduction, and gentle idle eye movement.
+
+## Further reading
+
+- Agent setup: https://github.com/vbshuliar/mochi-for-watch/blob/main/docs/agent-setup.md
+- Runbook: https://github.com/vbshuliar/mochi-for-watch/blob/main/docs/runbook.md
+- Troubleshooting: https://github.com/vbshuliar/mochi-for-watch/blob/main/docs/troubleshooting.md
+- Backend setup: https://github.com/vbshuliar/mochi-for-watch/blob/main/backend/README.md
+- Architecture: https://github.com/vbshuliar/mochi-for-watch/blob/main/docs/architecture.md
+- Connections: https://github.com/vbshuliar/mochi-for-watch/blob/main/docs/integrations-and-models.md
+- Booking calls: https://github.com/vbshuliar/mochi-for-watch/blob/main/docs/booking-calls.md
+- Deployment: https://github.com/vbshuliar/mochi-for-watch/blob/main/docs/private-deployment.md
+
+Return to the website: https://mochi-for-watch.fly.dev/
+<!-- AGENT_MARKDOWN_END --></pre>
+      </div>
+    </section>
+    <fieldset class="mode-dock">
+      <legend class="visually-hidden">Website view</legend>
+      <input
+        type="radio"
+        name="website-mode"
+        id="human-mode"
+        value="human"
+        checked
+        aria-controls="human-view"
+      />
+      <label for="human-mode">Human</label>
+      <input
+        type="radio"
+        name="website-mode"
+        id="agent-mode"
+        value="agent"
+        aria-controls="markdown-view"
+      />
+      <label for="agent-mode">Machine</label>
+      <span class="mode-indicator" aria-hidden="true"></span>
+    </fieldset>
+    <script src="mouse-gaze.js" defer></script>
+  </body>
+</html>
