@@ -1136,3 +1136,19 @@ footer a { display: inline-flex; align-items: center; min-height: 44px; }
 @media (max-width: 760px) {
   .hero h1 { font-size: clamp(34px, 9vw, 43px); }
 }
+
+/* Spacious product overview; setup details stay available on demand. */
+.hero { padding-block: 64px 72px; }
+.how-section { padding-block: 80px; gap: 44px; }
+.steps { gap: 48px; }
+.steps p { max-width: 270px; }
+.try-inner { padding-block: 96px; }
+.try-copy > p.setup-context { font-size: 14px; line-height: 1.6; }
+@media (max-width: 760px) {
+  .hero { padding-block: 48px 40px; gap: 28px; }
+  .how-section, .try-inner { padding-block: 56px; }
+  .steps { gap: 0; }
+  .steps li { padding-block: 28px; }
+  .steps p { max-width: 340px; }
+  .try-inner { gap: 32px; }
+}
