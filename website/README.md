@@ -4,7 +4,7 @@ The public landing page is **https://mochi-for-watch.fly.dev/**. It uses Apple-s
 
 ## Edit and preview
 
-Edit `dist/index.html`, `dist/style.css`, and `dist/agent.md`. There is no frontend build or dependency installation. Mochi's artwork comes from `docs/design/mascot-head-v3.png` in the parent repository.
+Edit `dist/index.html`, `dist/style.css`, and `dist/agent.md`. There is no frontend build or dependency installation. Mochi's artwork is exported from the current native renderer by `sh native/scripts/render-artwork.sh` at the repository root. This updates the icon, portrait and animation plates together.
 
 From this directory:
 

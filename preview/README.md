@@ -13,7 +13,7 @@ Open http://127.0.0.1:4173/preview/. Alternatively open `index.html` directly in
 ## Included
 
 - Figma-inspired canvas, layer selection, inspector on wide screens and zoom controls.
-- Nine watch states using the saved transparent plush head assets.
+- Nine watch states using the saved transparent native-rendered head assets.
 - Repeating breathing, listening waveform, thinking tilt, speech pulse, success bounce and error reaction.
 - Connected simulated Calendar flow, explicit approval/cancel, restart, interrupt-speaking and failure injection.
 - Motion toggle, intensity control, expression lab link, reduced-motion support and background-tab animation pause.
@@ -24,4 +24,4 @@ This is design/prototyping work, not the native watchOS app. Still validate size
 
 ## Character animation lab
 
-Open http://127.0.0.1:4173/preview/animation/ for a continuously blended SVG facial rig on static plush artwork. See [lab notes](animation/README.md). The old full-image blink is disabled to prevent dark flashes.
+Open http://127.0.0.1:4173/preview/animation/ for a continuously blended SVG facial rig on the current smooth acid-lime artwork. See [lab notes](animation/README.md). The old full-image blink is disabled to prevent dark flashes.

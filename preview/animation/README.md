@@ -17,15 +17,13 @@ Buttons may interrupt any pose. Play conversation sequences awake → listen →
 
 ## Animation decision
 
-Use a coded face on a persistent plush head image. SVG eyes, eyelids, mouth and gaze are interpolated independently; transitions start from the current pose rather than restarting a clip. The image remains visible while blinking. This fixes the earlier prototype's full-image opacity swapping.
+Use a coded face on a persistent smooth acid-lime head image. SVG eyes, eyelids, mouth and gaze are interpolated independently; transitions start from the current pose rather than restarting a clip. The image remains visible while blinking. This fixes the earlier prototype's full-image opacity swapping.
 
-For this interactive character, a coded rig is easier to interrupt and adapt to live voice amplitude than a set of videos. Videos can offer richer fur and lighting, but arbitrary transitions require matching poses and lighting, clip buffering and careful crossfades. Native watchOS rendering and performance still need validation on the Apple Watch SE 2. A future SwiftUI/Canvas rig can use the same state/pose model; this HTML is the visual reference.
+For this interactive character, a coded rig is easier to interrupt and adapt to live voice amplitude than a set of videos. Videos can offer richer fur and lighting, but arbitrary transitions require matching poses and lighting, clip buffering and careful crossfades. Native watchOS rendering and performance still need validation on the Apple Watch SE 2. The native app now uses a SwiftUI/Canvas rig with playback-driven mouth motion; this HTML remains a browser design preview.
 
 ## Asset provenance
 
-The active renderer uses `../../docs/design/mochi-face-plate.png`, a transparent, featureless animation plate derived from the user-selected Mochi concept. See [Mochi asset provenance](../../docs/design/mochi.md). Earlier Mochi studies are historical and are not the active character.
-
-Editing brief: preserve the fluffy cream head silhouette, peach face panel, rosy cheeks, lighting and transparency; remove eyes and mouth to provide a clean face plate for independently coded animated features. Use the existing head as the image reference. The eyes, glints, eyelids and mouth are drawn by the page, not baked into this plate.
+The active renderer uses `../../docs/design/mochi-face-plate.png`, a transparent blank head exported directly from the current native renderer. Its smooth acid-lime gradients and rounded contour match the app. The eyes, glints, eyelids and mouth are drawn by the page, not baked into this plate. Regenerate all current artwork with `sh native/scripts/render-artwork.sh`; see [Mochi asset provenance](../../docs/design/mochi.md).
 
 ## Validation
 
@@ -35,13 +33,13 @@ JavaScript syntax checked with `node --check`. Browser review covers rendered ar
 
 Speaking now uses a single morphing mouth contour rather than a smile plus a separate oval. Alternating vowel widths, syllable pulses and phrase pauses coordinate with brow lifts and head emphasis. This is synthetic speech animation, not phoneme-aligned lip sync. Thinking cycles through four held poses: wondering, weighing an alternative, concentration, and recognition. State-driven gaze eases faster than head movement; the browser preview adds gentle mouse-following eye movement, while native Watch gaze remains state-driven. Independent brow heights and eye openness add asymmetry; listening adds small acknowledgment nods. Curious and surprised states extend the expression palette. Celebration uses upturned closed-eye arcs. Tapping an awake head celebrates; tapping a sleeping head wakes it.
 
-Voice energy controls simulated speech amplitude. Expressiveness adjusts gaze travel, tilt and brow emphasis. Both are preview controls. Reduced Motion freezes cyclic speech shapes and decorative gestures while retaining readable state changes. The same plush plate stays visible throughout.
+Voice energy controls simulated speech amplitude. Expressiveness adjusts gaze travel, tilt and brow emphasis. Both are preview controls. Reduced Motion freezes cyclic speech shapes and decorative gestures while retaining readable state changes. The same smooth head plate stays visible throughout.
 
 ## Watch-first interaction and motion passes
 
 The watch viewport now contains only the head and one live status line. On load Mochi sleeps with “tap on me to wake up”. Tap → wake → Listening… automatically. Tap again to finish the simulated utterance → Thinking… → Looking into it… → Speaking… → All done! → Listening…. Tapping during a response interrupts it and returns to listening. The separate side panel is a design workbench and is not part of the watch UI. No microphone or generated speech is connected yet. Disconnected taps show “No connection”; reconnect explicitly restores the simulated flow.
 
-Three refinement passes: (1) watch-sized composition and tap state flow; (2) authored 8.4-second speech sequence with eased vowel shapes, closures, phrase rests and coordinated emphasis instead of free-running mouth pulses; (3) critically damped head movement that preserves velocity across interruptions, faster facial articulation, clipped tongue detail and a dedicated confused expression. The plush base remains continuously visible. Browser visual review checks sleep, wake/listen and response states. These are design iterations, not measured native Watch performance.
+Three refinement passes: (1) watch-sized composition and tap state flow; (2) authored 8.4-second speech sequence with eased vowel shapes, closures, phrase rests and coordinated emphasis instead of free-running mouth pulses; (3) critically damped head movement that preserves velocity across interruptions, faster facial articulation, clipped tongue detail and a dedicated confused expression. The smooth head base remains continuously visible. Browser visual review checks sleep, wake/listen and response states. These are design iterations, not measured native Watch performance.
 
 ## Open-mouth reference refinement
 

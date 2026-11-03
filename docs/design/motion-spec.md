@@ -1,3 +1,5 @@
+> Historical motion exploration. Current artwork and export instructions are in [Mochi artwork](mochi.md); old plush-image prompts below are retained only as design history.
+
 # Character motion — required app behaviour
 
 Updated: 26 October 2026. User requirement: the mascot must be animated, responsive and expressive in the app, with motion demonstrated in Figma before implementation. Static artwork alone does not satisfy the requirement.

@@ -74,7 +74,7 @@ Apple references: [WatchConnectivity](https://developer.apple.com/documentation/
 
 ## App icon
 
-The included launcher icon is a static render of the native Mochi component. To regenerate it on a Mac, run `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swift native/scripts/render-icon.swift "$PWD/native"` from the repository root.
+The included launcher icon is a static render of the native Mochi component. To regenerate it on a Mac, run `sh native/scripts/render-artwork.sh` from the repository root.
 
 ## Web-search sources
 

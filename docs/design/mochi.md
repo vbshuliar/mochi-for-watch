@@ -1,25 +1,29 @@
 # Mochi artwork and animation
 
-The owner selected the simple sage plush head on 29 October 2026 and named it Mochi. It has no tuft, stitches, ears, hood or inset face.
+## Current appearance — 3 November 2026
 
-## Provenance
+Mochi is a smooth acid-lime head on a black Watch canvas. The base colour is #D4F45C, with a pale upper-left highlight and soft olive-lime shading around the sides. There is no grain, fur, separate bottom rim, tuft, ears or inset face. Two uninterrupted convex lower arcs keep the silhouette rounded without cheek seams.
 
-The concept was generated with the built-in image tool from a written brief describing a sage short-pile plush squircle, head only, small dark eyes and a curved smile. The owner supplied that generated concept as the implementation reference. A transparent portrait was produced by removing the background; the blank animation plate was derived from that portrait by removing only eyes and mouth. No third-party character image was supplied to these generation/edit calls. This documents the process and is not a trademark-clearance claim.
+The canonical geometry, colour gradients, eyes and mouth are in `native/Shared/MochiView.swift`. Both the live character and asset exporter call `MochiView.drawHead`; icons and website artwork are not separate redraws.
 
-`mochi-portrait.png` is the static reference. `mochi-face-plate.png` is the blank surface for coded expressions. Runtime copies are in website assets and the native Mochi image set. Original project rights in these files are offered under the Apache-2.0 project licence; no exclusive ownership of AI-generated material is promised.
+Run `sh native/scripts/render-artwork.sh` to regenerate the 1024 × 1024 assets:
 
-## Native flat-color treatment — 3 November 2026
+- `mochi-portrait.png` and `website/dist/assets/mochi.png`: transparent smiling character for logos and previews.
+- `mochi-face-plate.png`, `website/dist/assets/mochi-face.png` and the native Mochi image set: transparent blank head for animated facial features.
+- Native `AppIcon.appiconset/icon.png`: smiling character on an opaque black background, shared by iPhone and Watch.
 
-At the owner's request, the native renderer now draws an original Bézier body in `native/Shared/MochiView.swift` rather than sampling the plush bitmap. Smooth acid-lime vector gradients retain the #D4F45C base colour, with a pale upper-left highlight, olive-lime shadow around the lower/right sides, and a narrow upper-left lit rim for rounded depth, with no separate dark bottom rim. The lower silhouette uses two continuous convex Bézier arcs with matching side/bottom tangent directions, removing the former lower-cheek joins; the Watch canvas is black (#000000). The existing animated eyes, mouth, motion and phone indicator remain code-drawn. Native movement simulates three-axis rotation: roll tilts the silhouette, yaw and pitch project the face across the rounded surface with foreshortening and near/far eye scaling, and the highlight shifts with each turn. Listening adds a gentle inquisitive head tilt; native speech-mouth opening follows playback audio energy and closes during pauses. Reduced motion disables these movements. Website/browser artwork and the reference portrait retain their previous treatment.
+Native motion simulates three-axis rotation with face projection, near/far eye scaling and shifting highlights. Speaking mouth movement follows playback energy; Reduced Motion disables decorative movement. Browser previews use the same current artwork with their existing preview animation and interaction models.
 
-This geometry was authored directly for the project using its existing original silhouette as reference, with no third-party artwork. Project-held rights are distributed under Apache-2.0. Two attempted built-in image-tool edits produced invalid transparency and were discarded; neither generated output is used or committed.
+## Provenance and redistribution
+
+The earlier sage plush concept was generated for this project on 29 October 2026. It informed the character identity but is no longer used in current assets. The current Bézier geometry and gradient treatment were authored in code for the project at the owner's direction, with no third-party character artwork. Project-held rights in the renderer and its exported assets are distributed under Apache-2.0. No exclusive rights in earlier AI-generated concepts are claimed.
 
 ## Animation contract
 
 Use a 1000 × 1000 reference canvas. Eye centres are (335, 487) and (665, 487), neutral radii approximately 39. Mouth baseline is y=548; multiply the state-driven width by 1.25. Preserve blinking, gaze, speaking, joy, sleep, pose blending and reduced motion. Never draw animated features over the static portrait: use the blank plate.
 
-## Website screenshot
+## Website screenshots
 
-`mochi-website-capture.png` is a direct browser screenshot of the deployed website on 30 October 2026. It shows the actual Mochi face plate, coded eyes and mouth, and tap-to-talk interface rendered by the website. No generative retouching was applied. The surrounding watch hardware is the project-generated illustration documented in [the watch asset provenance](../../website/IMAGE-PROMPT.md); this is not a photograph of a physical device or evidence of device testing.
+`mochi-website-capture.jpg` is a direct browser capture of the updated website, and `mochi-watch-preview.jpg` is a browser-cropped capture of its Watch illustration, both captured on 3 November 2026. The README uses the cropped capture. No generative retouching or background removal is applied. These show a website preview, not physical-device acceptance.
 
-The README uses `mochi-website-cutout.png`, derived from this screenshot with the built-in image editing tool on 30 October 2026 to remove the outer background and clean the silhouette. It preserves the website composition and interface, but is an edited cutout rather than an unretouched screenshot. The original capture remains available for comparison.
+The surrounding Watch hardware remains the project-generated illustration documented in [the watch asset provenance](../../website/IMAGE-PROMPT.md). It contains no character artwork; the current Mochi UI is rendered over it by the website.

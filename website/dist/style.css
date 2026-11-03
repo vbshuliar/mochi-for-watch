@@ -94,7 +94,7 @@ pre:focus-visible {
   height: 34px;
   margin-right: 2px;
 }
-.brand-face svg {
+.brand-face img {
   position: absolute;
   inset: 0;
   display: block;
