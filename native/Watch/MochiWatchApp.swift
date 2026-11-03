@@ -17,6 +17,7 @@ import WatchKit
 }
 struct WatchHome: View {
   private let canvasColor = Color.black
+  private let accentColor = Color(red: 212 / 255, green: 244 / 255, blue: 92 / 255)
   let model: ConversationModel
   let store: ConnectionStore
   @Environment(\.scenePhase) private var phase
@@ -149,10 +150,17 @@ struct WatchHome: View {
         .sorted { ($0.finishedAt ?? 0) > ($1.finishedAt ?? 0) }
       ScrollView {
         VStack(alignment: .leading, spacing: 12) {
-          Text("Tasks").font(.title3.bold())
-          Button("Refresh tasks") { model.resumeCalls(); Task { await notifications.refresh() } }.font(.caption)
-          Button("Today") { showingDaily = true }.font(.caption)
-          Button("Notifications") { notificationSettings = true }.font(.caption)
+          HStack {
+            Text("Menu").font(.system(.title3, design: .rounded).weight(.semibold))
+            Spacer()
+            Button { model.resumeCalls(); Task { await notifications.refresh() } } label: {
+              Image(systemName: "arrow.clockwise")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(.secondary)
+                .frame(width: 44, height: 44)
+                .contentShape(Circle())
+            }.buttonStyle(.plain).accessibilityLabel("Refresh tasks")
+          }
           taskSection("In progress", calls: active)
           if !attention.isEmpty || model.action != nil || model.documentAction != nil || model.gmailDraftAction != nil {
             Text("Needs you").font(.caption2).foregroundStyle(.secondary)
@@ -162,26 +170,53 @@ struct WatchHome: View {
                 taskLabel(action.event.title, detail: "Review Calendar event", icon: "calendar")
               }.buttonStyle(.plain)
             }
-            if let draft = model.gmailDraftAction { Button(draft.subject) { reviewing = true } }
+            if let draft = model.gmailDraftAction {
+              Button { reviewing = true } label: {
+                taskLabel(draft.subject, detail: "Review email draft", icon: "envelope")
+              }.buttonStyle(.plain)
+            }
             if let document = model.documentAction {
               Button { reviewing = true } label: {
                 taskLabel(document.title, detail: "Review Notion page", icon: "doc.text")
               }.buttonStyle(.plain)
             }
           }
-          taskSection("Recently completed", calls: recent)
+          taskSection("Recent", calls: recent)
           if active.isEmpty && attention.isEmpty && recent.isEmpty && !model.hasProposal && !model.tasksLoadFailed {
-            Text("No current tasks").font(.headline)
-            Text("Ask Mochi to help with a booking. Recent results appear here for 24 hours.")
-              .font(.caption2).foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 4) {
+              Text("All clear").font(.subheadline.weight(.medium))
+              Text("Your tasks will appear here.").font(.caption2).foregroundStyle(.secondary)
+            }.padding(.vertical, 8)
+              .accessibilityElement(children: .combine)
           }
           if model.tasksLoadFailed {
             Text("Couldn’t refresh tasks. Showing the last known status.")
               .font(.caption2).foregroundStyle(.secondary)
           }
-        }.padding(.horizontal, 10).padding(.top, 8).padding(.bottom, 24)
+          VStack(spacing: 6) {
+            menuButton("Today", icon: "sun.max") { showingDaily = true }
+            menuButton("Notifications", icon: "bell") { notificationSettings = true }
+          }.padding(.top, 4)
+        }.padding(.horizontal, 10).padding(.top, 2).padding(.bottom, 24)
+          .frame(maxWidth: .infinity, alignment: .leading)
       }
     }
+  }
+  private func menuButton(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
+    Button(action: action) {
+      HStack(spacing: 10) {
+        Image(systemName: icon).font(.system(size: 15, weight: .medium))
+          .foregroundStyle(accentColor).frame(width: 20)
+        Text(title).font(.system(.subheadline, design: .rounded).weight(.medium))
+          .foregroundStyle(.primary).fixedSize(horizontal: false, vertical: true)
+        Spacer(minLength: 0)
+        Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold))
+          .foregroundStyle(.tertiary)
+      }.padding(.horizontal, 12).padding(.vertical, 11)
+        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
+        .contentShape(RoundedRectangle(cornerRadius: 14))
+    }.buttonStyle(.plain)
   }
   @ViewBuilder private func taskSection(_ title: String, calls: [CallAction]) -> some View {
     if !calls.isEmpty {
@@ -199,15 +234,15 @@ struct WatchHome: View {
   }
   private func taskLabel(_ title: String, detail: String, icon: String, time: String? = nil) -> some View {
     HStack(alignment: .top, spacing: 8) {
-      Image(systemName: icon).font(.caption).foregroundStyle(.secondary).frame(width: 16)
+      Image(systemName: icon).font(.caption).foregroundStyle(accentColor).frame(width: 16)
       VStack(alignment: .leading, spacing: 3) {
-        Text(title).font(.subheadline.weight(.medium)).fixedSize(horizontal: false, vertical: true)
-        Text(detail).font(.caption2).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        Text(title).font(.subheadline.weight(.medium)).lineLimit(2)
+        Text(detail).font(.caption2).foregroundStyle(.secondary).lineLimit(2)
         if let time { Text(time).font(.caption2).foregroundStyle(.secondary) }
       }
       Spacer(minLength: 0)
     }.frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-      .padding(8).background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 12))
+      .padding(10).background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
       .contentShape(Rectangle())
   }
 }
