@@ -49,11 +49,13 @@ private final class PCMConverter: @unchecked Sendable {
   private var recordingID = UUID()
   private var engine: AVAudioEngine?
   private var player: AVAudioPlayer?
+  private var meterTask: Task<Void, Never>?
   private var playback: CheckedContinuation<Void, Error>?
   private var interruption: NSObjectProtocol?
   private var routeChange: NSObjectProtocol?
   var onPCM: ((Data, Double) -> Void)?
   var onPlaybackStart: (() -> Void)?
+  var onPlaybackLevel: ((Double) -> Void)?
   var onInterruption: (() -> Void)?
   override init() {
     super.init()
@@ -136,20 +138,42 @@ private final class PCMConverter: @unchecked Sendable {
     let player = try AVAudioPlayer(data: data)
     self.player = player
     player.delegate = self
+    player.isMeteringEnabled = true
     player.prepareToPlay()
     try await withCheckedThrowingContinuation { continuation in
       playback = continuation
       if player.play() {
         onPlaybackStart?()
+        startMetering(player)
       } else {
         playback = nil
+        self.player = nil
+        stopMetering()
         continuation.resume(throwing: MochiError.message("Couldn’t play Mochi’s voice."))
       }
     }
   }
+  private func startMetering(_ player: AVAudioPlayer) {
+    stopMetering()
+    meterTask = Task { [weak self, weak player] in
+      while !Task.isCancelled {
+        guard let self, let player, self.player === player, player.isPlaying else { return }
+        player.updateMeters()
+        let power = (0..<player.numberOfChannels).map { Double(player.averagePower(forChannel: $0)) }.max() ?? -160
+        onPlaybackLevel?(MochiMotion.playbackLevel(averagePower: power))
+        try? await Task.sleep(for: .milliseconds(33))
+      }
+    }
+  }
+  private func stopMetering() {
+    meterTask?.cancel()
+    meterTask = nil
+    onPlaybackLevel?(0)
+  }
   nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
     Task { @MainActor in
       guard self.player === player else { return }
+      stopMetering()
       if flag {
         playback?.resume()
       } else {
@@ -162,12 +186,14 @@ private final class PCMConverter: @unchecked Sendable {
   nonisolated func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
     Task { @MainActor in
       guard self.player === player else { return }
+      stopMetering()
       playback?.resume(throwing: MochiError.message("Couldn’t decode Mochi’s voice."))
       playback = nil
       self.player = nil
     }
   }
   func stop() {
+    stopMetering()
     stopRecording()
     player?.stop()
     player = nil

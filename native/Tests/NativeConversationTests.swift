@@ -10,6 +10,7 @@ import XCTest
 @MainActor private final class FakeAudio: AudioIO {
   var onPCM: ((Data, Double) -> Void)?
   var onPlaybackStart: (() -> Void)?
+  var onPlaybackLevel: ((Double) -> Void)?
   var onInterruption: (() -> Void)?
   var played = 0, recording = false
   var denyMicrophone = false
@@ -52,7 +53,9 @@ private final class NativeFixture: URLProtocol, @unchecked Sendable {
     if path.hasSuffix("/sessions") {
       body = #"{"id":"test-session"}"#
     } else if path.contains("/actions/") {
-      if path.hasSuffix("/stale/decision") {
+      if path.hasSuffix("/approved/decision") {
+        body = #"{"sessionId":"test-session","state":"idle","statusText":"Saved","speechText":"Saved.","simulated":true}"#
+      } else if path.hasSuffix("/stale/decision") {
         body = #"{"sessionId":"test-session","state":"approval","statusText":"Review event","speechText":"Private old conversation","simulated":true,"action":\#(calendarFixture(id: "stale", status: "pending"))}"#
       } else if path.hasSuffix("/decision") {
         responseStatus = 409
@@ -101,7 +104,7 @@ private final class NativeFixture: URLProtocol, @unchecked Sendable {
   override func stopLoading() {}
 }
 @MainActor final class NativeConversationTests: XCTestCase {
-  private func makeModel(defaults: UserDefaults? = nil, token: String = String(repeating: "t", count: 32)) throws -> (ConversationModel, FakeAudio) {
+  private func makeModel(listeningTimeout: TimeInterval = 30, defaults: UserDefaults? = nil, token: String = String(repeating: "t", count: 32)) throws -> (ConversationModel, FakeAudio) {
     let connection = try Connection(
       baseURL: URL(string: "https://native.fixture")!, token: token)
     let config = URLSessionConfiguration.ephemeral
@@ -111,6 +114,7 @@ private final class NativeFixture: URLProtocol, @unchecked Sendable {
     let model = ConversationModel(
       store: ConnectionStore(connection: connection), audio: audio, transcriber: FakeTranscript(),
       defaults: defaults ?? UserDefaults(suiteName: "native-tests-" + UUID().uuidString)!,
+      listeningTimeout: listeningTimeout,
       makeClient: { APIClient(connection: $0, session: session) })
     return (model, audio)
   }
@@ -120,6 +124,57 @@ private final class NativeFixture: URLProtocol, @unchecked Sendable {
       try? await Task.sleep(for: .milliseconds(20))
     }
     XCTFail("Timed out waiting for native conversation state")
+  }
+  func testApprovalPausesListeningAndExplicitDecisionResumesIt() async throws {
+    let (model, audio) = try makeModel()
+    defer { model.suspend() }
+    model.action = try JSONDecoder().decode(Action.self, from: Data(calendarFixture(id: "approved", status: "pending").utf8))
+    model.tap()
+    try await Task.sleep(for: .milliseconds(350))
+    XCTAssertFalse(audio.recording)
+    XCTAssertTrue(model.isAwake)
+    model.decide(true)
+    await eventually { audio.played == 1 }
+    XCTAssertFalse(audio.recording)
+    audio.complete()
+    await eventually { audio.recording }
+    XCTAssertNil(model.action)
+  }
+  func testHushRetainsApprovedDecisionWithoutSpeakingOrListening() async throws {
+    let (model, audio) = try makeModel()
+    defer { model.suspend() }
+    model.action = try JSONDecoder().decode(Action.self, from: Data(calendarFixture(id: "approved", status: "pending").utf8))
+    model.tap()
+    model.decide(true)
+    model.tap()
+    await eventually { !model.deciding }
+    XCTAssertNil(model.action)
+    XCTAssertFalse(audio.recording)
+    XCTAssertEqual(audio.played, 0)
+    XCTAssertEqual(model.mood, .sleep)
+  }
+  func testSilencePutsAwakeMochiToSleep() async throws {
+    let (model, audio) = try makeModel(listeningTimeout: 0.15)
+    defer { model.suspend() }
+    model.tap()
+    await eventually { audio.recording }
+    await eventually { model.mood == .sleep }
+    XCTAssertFalse(audio.recording)
+    XCTAssertFalse(model.isAwake)
+    XCTAssertEqual(audio.played, 0)
+  }
+  func testBackgroundDuringReplyGapCannotRestartMicrophone() async throws {
+    let (model, audio) = try makeModel()
+    model.tap()
+    await eventually { audio.recording }
+    model.sendText("hello")
+    await eventually { audio.played == 1 }
+    audio.complete()
+    model.suspend()
+    try await Task.sleep(for: .milliseconds(500))
+    XCTAssertFalse(audio.recording)
+    XCTAssertFalse(model.isAwake)
+    XCTAssertEqual(model.mood, .sleep)
   }
   func testHeartsStartBeforeSpeechAndIdleWaitsForPlayback() async throws {
     let (model, audio) = try makeModel()
@@ -134,16 +189,20 @@ private final class NativeFixture: URLProtocol, @unchecked Sendable {
     XCTAssertNotNil(
       model.heartStart, "The clock stays stable so finishing speech cannot restart the burst")
   }
-  func testTapInterruptsPlaybackAndBeginsListening() async throws {
+  func testTapHushesPlaybackAndSleepsUntilNextTap() async throws {
     let (model, audio) = try makeModel()
     defer { model.suspend() }
     model.sendText("hello")
     await eventually { audio.played == 1 }
     model.tap()
+    XCTAssertEqual(model.mood, .sleep)
+    XCTAssertFalse(model.recording)
+    XCTAssertNil(audio.finish)
+    try await Task.sleep(for: .milliseconds(400))
+    XCTAssertFalse(audio.recording)
+    model.tap()
     await eventually { model.recording }
     XCTAssertEqual(model.mood, .listen)
-    XCTAssertNil(audio.finish)
-    XCTAssertTrue(audio.recording)
   }
   func testPermissionDenialLeavesATappableErrorWithoutRecording() async throws {
     let (model, audio) = try makeModel()
@@ -763,4 +822,66 @@ private final class ReminderRefreshFailureFixture: URLProtocol, @unchecked Senda
     client?.urlProtocolDidFinishLoading(self)
   }
   override func stopLoading() {}
+}
+
+
+extension NativeConversationTests {
+  func testAwakeConversationListensAgainAfterPlaybackWithoutAnotherTap() async throws {
+    let (model, audio) = try makeModel()
+    defer { model.suspend() }
+    XCTAssertEqual(model.mood, .sleep)
+    XCTAssertFalse(audio.recording)
+    model.tap()
+    await eventually { model.recording }
+    model.sendText("hello")
+    await eventually { audio.played == 1 }
+    XCTAssertFalse(audio.recording, "The microphone must stay off during playback")
+    audio.complete()
+    await eventually { model.recording }
+    XCTAssertEqual(model.mood, .listen)
+    model.sendText("hello again")
+    await eventually { audio.played == 2 }
+    audio.complete()
+    await eventually { model.recording }
+  }
+  func testTapWhileListeningDiscardsRecordingAndSleeps() async throws {
+    let (model, audio) = try makeModel()
+    defer { model.suspend() }
+    model.tap()
+    await eventually { model.recording }
+    model.tap()
+    XCTAssertEqual(model.mood, .sleep)
+    XCTAssertFalse(audio.recording)
+    try await Task.sleep(for: .milliseconds(400))
+    XCTAssertEqual(audio.played, 0)
+    XCTAssertFalse(model.recording)
+  }
+  func testHushDuringReplyGapPreventsAutomaticMicrophoneRestart() async throws {
+    let (model, audio) = try makeModel()
+    defer { model.suspend() }
+    model.tap()
+    await eventually { model.recording }
+    model.sendText("hello")
+    await eventually { audio.played == 1 }
+    audio.complete()
+    model.tap()
+    try await Task.sleep(for: .milliseconds(500))
+    XCTAssertEqual(model.mood, .sleep)
+    XCTAssertFalse(audio.recording)
+  }
+  func testPlaybackLevelsDriveMouthAndLateLevelsAreIgnoredAfterHush() async throws {
+    let (model, audio) = try makeModel()
+    defer { model.suspend() }
+    model.sendText("hello")
+    await eventually { audio.played == 1 }
+    let lateMeter = audio.onPlaybackLevel
+    audio.onPlaybackLevel?(0.75)
+    XCTAssertGreaterThan(model.level, 0.5)
+    audio.onPlaybackLevel?(0)
+    XCTAssertEqual(model.level, 0)
+    model.tap()
+    lateMeter?(1)
+    XCTAssertEqual(model.level, 0)
+    XCTAssertEqual(model.mood, .sleep)
+  }
 }

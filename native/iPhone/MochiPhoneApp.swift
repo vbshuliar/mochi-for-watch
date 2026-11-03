@@ -218,12 +218,12 @@ struct PhoneConversation: View {
       VStack(spacing: 16) {
         if model.completionCall == nil {
           Button {
-            if model.hasProposal { review = true } else { model.tap() }
+            model.tap()
           } label: {
             MochiView(mood: model.mood, level: model.level, heartStart: model.heartStart, calling: model.backgroundCall?.active == true)
               .frame(width: 260, height: 260)
           }.buttonStyle(.plain).accessibilityLabel(
-            model.recording ? "Finish speaking" : "Talk to Mochi")
+            model.tapLabel)
           Text(model.caption).font(.subheadline)
         }
         if let failure = model.failure {

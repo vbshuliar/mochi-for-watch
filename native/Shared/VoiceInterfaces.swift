@@ -4,6 +4,7 @@ import MochiCore
 @MainActor protocol AudioIO: AnyObject {
   var onPCM: ((Data, Double) -> Void)? { get set }
   var onPlaybackStart: (() -> Void)? { get set }
+  var onPlaybackLevel: ((Double) -> Void)? { get set }
   var onInterruption: (() -> Void)? { get set }
   func startRecording() async throws
   func stopRecording()

@@ -90,12 +90,16 @@ struct Activity: Identifiable {
   }
   var callConfirmationUnknown = false
   private var callPoll: Task<Void, Never>?
+  var tapLabel: String { isAwake || recording || deciding || [.think, .speak].contains(mood) ? "Hush Mochi" : "Wake Mochi" }
   var hasProposal: Bool { contactLookup != nil || action != nil || documentAction != nil || gmailDraftAction != nil || callProposal != nil }
   var proposalID: String? { action?.id ?? documentAction?.id ?? gmailDraftAction?.id ?? callProposal?.id }
   var activities: [Activity] = []
   var failure: String?
   var deciding = false
   var recording = false
+  private(set) var isAwake = false
+  private var voiceSuppressed = false
+  private let listeningTimeout: TimeInterval
   private let store: ConnectionStore
   private let audio: any AudioIO
   private let transcriber: any TranscriptionIO
@@ -122,9 +126,11 @@ struct Activity: Identifiable {
   init(
     store: ConnectionStore, audio: any AudioIO, transcriber: any TranscriptionIO,
     defaults: UserDefaults = .standard,
+    listeningTimeout: TimeInterval = 30,
     contacts: any ContactSearching = UnavailableContacts(),
     makeClient: @escaping (Connection) -> APIClient = { APIClient(connection: $0) }
   ) {
+    self.listeningTimeout = max(0.1, listeningTimeout)
     self.contacts = contacts
     self.daily = DailySupportModel(store: store, makeClient: makeClient)
     self.defaults = defaults
@@ -133,7 +139,7 @@ struct Activity: Identifiable {
     self.transcriber = transcriber
     self.makeClient = makeClient
     audio.onInterruption = { [weak self] in self?.suspend() }
-    transcriber.onPartial = { [weak self] value in
+    transcriber.onPartial = { [weak self = self] value in
       guard let self, recording else { return }
       transcript = value
       detector.partial(value, at: Date.timeIntervalSinceReferenceDate)
@@ -161,19 +167,19 @@ struct Activity: Identifiable {
     }
   }
   func tap() {
-    guard !deciding else { return }
     foreground = true
-    if recording {
-      finishRecording()
+    if isAwake || recording || deciding || [.think, .speak].contains(mood) {
+      hush()
       return
     }
     guard store.connection != nil else {
       show(.sleep, "connection not ready")
       return
     }
-    // A pending Calendar write belongs to its explicit review sheet.
+    isAwake = true
+    voiceSuppressed = false
     guard !hasProposal else {
-      show(.approval, "tap to review")
+      show(.approval, "review request below")
       return
     }
     interrupt()
@@ -181,11 +187,34 @@ struct Activity: Identifiable {
     let ticket = generation
     task = Task { await listen(ticket) }
   }
+  private func hush() {
+    isAwake = false
+    voiceSuppressed = true
+    // Let an already approved provider write finish and retain its receipt.
+    // Hushing stops audio, not an in-flight Calendar decision.
+    if deciding {
+      audio.stop()
+      level = 0
+    } else { interrupt() }
+    audio.deactivate()
+    show(.sleep, "tap to wake up")
+  }
+  private func listenAgain(_ ticket: UUID) {
+    guard isAwake, foreground, !hasProposal, !voiceSuppressed else { return }
+    task = Task {
+      // Keep the mic off through the playback tail to avoid hearing Mochi itself.
+      try? await Task.sleep(for: .milliseconds(300))
+      guard !Task.isCancelled, generation == ticket, isAwake, foreground,
+        !hasProposal, !deciding, !voiceSuppressed else { return }
+      await listen(ticket)
+    }
+  }
   // Shares the voice turn path; useful for accessibility clients and deterministic tests.
   func sendText(_ text: String) {
     guard !deciding, !hasProposal, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     else { return }
     foreground = true
+    voiceSuppressed = false
     interrupt()
     sources = []
     let ticket = generation
@@ -200,7 +229,8 @@ struct Activity: Identifiable {
     }
   }
   private func listen(_ ticket: UUID) async {
-    guard let connection = store.connection else { return }
+    guard isAwake, foreground, !hasProposal, !voiceSuppressed,
+      generation == ticket, let connection = store.connection else { return }
     do {
       failure = nil
       transcript = ""
@@ -226,10 +256,8 @@ struct Activity: Identifiable {
       endpointTimer = Task {
         while !Task.isCancelled && recording && generation == ticket {
           try? await Task.sleep(for: .milliseconds(100))
-          if !detector.hasSpeech && Date.timeIntervalSinceReferenceDate - startTime >= 8 {
-            interrupt()
-            audio.deactivate()
-            show(.idle, "didn’t hear you · tap to try")
+          if !detector.hasSpeech && Date.timeIntervalSinceReferenceDate - startTime >= listeningTimeout {
+            hush()
             return
           }
           if Date.timeIntervalSinceReferenceDate - startTime >= 55 {
@@ -242,14 +270,18 @@ struct Activity: Identifiable {
   }
   private func finishRecording() {
     guard recording else { return }
+    guard !hasProposal else {
+      interrupt()
+      audio.deactivate()
+      show(.approval, "review request below")
+      return
+    }
     recording = false
     audio.stopRecording()
     endpointTimer?.cancel()
     level = 0
     guard detector.hasSpeech else {
-      transcriber.cancel()
-      audio.deactivate()
-      show(.idle, "didn’t hear you · tap to try")
+      hush()
       return
     }
     responseStartedAt = ProcessInfo.processInfo.systemUptime
@@ -267,7 +299,7 @@ struct Activity: Identifiable {
         }
         guard generation == ticket, !Task.isCancelled else { return }
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-          show(.idle, "didn’t hear you · tap to try")
+          hush()
           return
         }
         transcript = text
@@ -320,7 +352,7 @@ struct Activity: Identifiable {
     let normalized = text.lowercased().trimmingCharacters(
       in: .punctuationCharacters.union(.whitespacesAndNewlines))
     if ["stop talking", "stop speaking", "be quiet"].contains(normalized) {
-      show(.idle, "tap to talk")
+      hush()
       return
     }
     let client = try await prepare()
@@ -332,7 +364,8 @@ struct Activity: Identifiable {
       try await speechTail?.value
       if generation == ticket {
         audio.deactivate()
-        show(.idle, "tap to talk")
+        show(.idle, "tap to wake up")
+        listenAgain(ticket)
       }
       return
     }
@@ -369,7 +402,7 @@ struct Activity: Identifiable {
     } catch { collector.error = error }
   }
   private func queue(_ text: String, client: APIClient, ticket: UUID) {
-    guard foreground else { return }
+    guard foreground, !voiceSuppressed else { return }
     let fetch = Task { try await client.speech(text) }
     clips.append(fetch)
     let previous = speechTail
@@ -377,9 +410,16 @@ struct Activity: Identifiable {
       try await previous?.value
       let bytes = try await fetch.value
       try Task.checkCancellation()
-      guard generation == ticket, foreground else { throw CancellationError() }
+      guard generation == ticket, foreground, !voiceSuppressed else { throw CancellationError() }
+      level = 0
       audio.onPlaybackStart = playbackCallback(ticket)
+      audio.onPlaybackLevel = { [weak self = self] value in
+        guard let self, generation == ticket, foreground, !voiceSuppressed,
+          mood == .speak else { return }
+        level = value.isFinite ? min(1, max(0, value)) : 0
+      }
       try await audio.play(bytes)
+      if generation == ticket { level = 0 }
     }
   }
   private func playbackCallback(_ ticket: UUID) -> () -> Void {
@@ -414,8 +454,18 @@ struct Activity: Identifiable {
     clips.removeAll()
     speechTail = nil
     audio.deactivate()
+    if voiceSuppressed {
+      show(.sleep, "tap to wake up")
+      return
+    }
     if hasProposal {
-      show(.approval, "tap to review")
+      show(.approval, "review request below")
+      return
+    }
+    if isAwake {
+      affection = false
+      show(.idle, "listening shortly…")
+      listenAgain(ticket)
       return
     }
     if result.state == "happy" {
@@ -662,7 +712,11 @@ struct Activity: Identifiable {
     let tracksCall = callAction?.id == call.id
     callUpdating = true
     let blocksApproval = callProposal != nil || command == "calendar"
-    if blocksApproval { deciding = true }
+    if blocksApproval {
+      interrupt()
+      audio.deactivate()
+      deciding = true
+    }
     let scope = callGeneration
     callPoll?.cancel()
     callTask = Task {
@@ -696,7 +750,10 @@ struct Activity: Identifiable {
             dismissCallCompletion()
           }
           log("call", result.speechText)
-          if blocksApproval { show(hasProposal ? .approval : .idle, hasProposal ? "tap to review" : "tap to talk") }
+          if blocksApproval {
+            if hasProposal { show(.approval, "review request below") }
+            else { resumeAfterReview() }
+          }
         }
         failure = nil
       } catch {
@@ -721,7 +778,12 @@ struct Activity: Identifiable {
         let result = try await makeClient(connection).get("v1/sessions/\(call.sessionId)/actions/\(id)", as: Envelope.self)
         guard scope == callGeneration, store.connection == connection, !hasProposal,
           result.action.sessionId == call.sessionId, result.action.id == id else { return }
-        if ["pending", "uncertain", "executing"].contains(result.action.status) { action = result.action }
+        if ["pending", "uncertain", "executing"].contains(result.action.status) {
+          interrupt()
+          audio.deactivate()
+          action = result.action
+          show(.approval, "review request below")
+        }
       } catch {
         guard scope == callGeneration else { return }
         failure = "Couldn’t refresh the linked Calendar approval. Try again."
@@ -809,12 +871,16 @@ struct Activity: Identifiable {
   func dismissDocument() {
     guard !deciding else { return }
     documentAction = nil
-    show(.idle, "tap to talk")
+    resumeAfterReview()
   }
   func dismissGmailDraft() {
     guard !deciding else { return }
     gmailDraftAction = nil
-    show(.idle, "tap to talk")
+    resumeAfterReview()
+  }
+  private func resumeAfterReview() {
+    show(isAwake ? .idle : .sleep, isAwake ? "listening shortly…" : "tap to wake up")
+    listenAgain(generation)
   }
   func connectionChanged() {
     daily.reset()
@@ -837,10 +903,15 @@ struct Activity: Identifiable {
     failure = nil
   }
   func suspend() {
+    isAwake = false
+    voiceSuppressed = true
     foreground = false
     callPoll?.cancel()
     guard !deciding else {
       audio.stop()
+      audio.deactivate()
+      level = 0
+      show(.sleep, "tap to wake up")
       return
     }
     interrupt()
@@ -874,6 +945,8 @@ struct Activity: Identifiable {
   }
   private func fail(_ error: Error) {
     guard !(error is CancellationError) else { return }
+    isAwake = false
+    voiceSuppressed = true
     if let id = activeRequest, let sessionID, let connection = store.connection {
       let client = activeClient ?? makeClient(connection)
       cancelledTurn = (sessionID, id, client)

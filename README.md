@@ -72,7 +72,7 @@ If a booking cannot be confirmed, Mochi reports that instead of presenting an un
 
 | Your choice | What it means |
 | --- | --- |
-| **When to talk** | Tap to start a conversation. Mochi is not an always-listening recorder. |
+| **When to talk** | Tap to wake Mochi, then speak naturally between replies while the app stays in the foreground. Tap to hush; backgrounding or 30 seconds without speech puts him to sleep. |
 | **What to share** | Choose the services you connect and the preferences you save. |
 | **What to approve** | Review calls, Calendar changes, Gmail drafts and Notion saves before they happen. Drafts are not sent automatically. |
 | **What to remember** | Inspect, edit or delete saved memories from iPhone. |

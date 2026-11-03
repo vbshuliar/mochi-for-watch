@@ -23,6 +23,10 @@ public struct FacePose: Sendable {
   }
 }
 public enum MochiMotion {
+  public static func playbackLevel(averagePower: Double) -> Double {
+    guard averagePower.isFinite, averagePower > -50 else { return 0 }
+    return min(1, pow(10, averagePower / 20) * 4)
+  }
   public static func ease(_ value: Double) -> Double {
     let u = min(1, max(0, value))
     return u * u * u * (u * (u * 6 - 15) + 10)
@@ -48,20 +52,22 @@ public enum MochiMotion {
         p.angle = glance * 3
       }
     case .listen:
-      p.angle = reduced ? 0 : -5
+      p.angle = reduced ? 0 : -5 + sin(t * 0.9) * 3.5
       p.eye = 1.1
+      p.gazeX = reduced ? 0 : sin(t * 0.65) * 7
       p.gazeY = -4
-      p.scale = 1 + min(1, max(0, level)) * 0.12
+      p.y = reduced ? 0 : -2 + sin(t * 1.2) * 1.8
+      p.scale = reduced ? 1 : 1.015 + min(1, max(0, level)) * 0.015
     case .think:
       p.gazeX = reduced ? 8 : sin(t * 0.73) * 23
       p.gazeY = -10
       p.angle = reduced ? 0 : sin(max(0, t - 0.18) * 0.73) * 5
       p.smile = 14
     case .speak:
-      let phase = t.truncatingRemainder(dividingBy: 5.6)
-      let speaking = phase < 1.65 || (phase > 2.15 && phase < 4.65)
-      p.mouth = !reduced && speaking ? pow(max(0, sin(t * 13) + 0.3 * sin(t * 23)), 0.7) * 36 : 0
-      p.width = 44 + (reduced ? 0 : sin(t * 4.4) * 7)
+      let energy = level.isFinite ? min(1, max(0, level)) : 0
+      p.mouth = reduced ? 0 : pow(energy, 0.65) * 42
+      p.width = reduced ? 47 : 47 - energy * 8
+      p.smile = 20 - (reduced ? 0 : energy * 10)
       p.angle = reduced ? 0 : sin(t * 2.1) * 2.5
       p.eye = 1.03
       p.y = reduced ? 0 : sin(t * 2.8) * 1.5

@@ -32,9 +32,9 @@ Debug builds retain the old owner-token import for controlled development only. 
 
 ## What is native
 
-- `Shared/MochiView.swift`: Canvas renderer using the same plush face plate, bead-eye contours, mouth shapes, head movement, blinking and looking around. One heart burst per affectionate turn, retained across speech start. A 1.4-second speech-to-idle settle and quicker 0.4-second mouth closure. Reduced motion and inactive-scene pausing.
-- `Shared/ConversationModel.swift`: tap-to-talk flow, context-bearing sessions, bounded activity log, streamed sentence scheduling, interruption ownership, local repeat/stop commands, Calendar proposal review, and minimum one-second captions.
-- `Shared/AudioController.swift`: native audio session, 24 kHz mono PCM conversion, input-driven head scale, Jessica MP3 playback. Microphone permission is requested only when the user taps to talk.
+- `Shared/MochiView.swift`: Canvas renderer using a smooth acid-lime vector body, bead-eye contours, mouth shapes, head movement, blinking and looking around. One heart burst per affectionate turn, retained across speech start. A 1.4-second speech-to-idle settle and 80 ms speech-mouth transitions. Reduced motion and inactive-scene pausing.
+- `Shared/ConversationModel.swift`: foreground hands-free conversation after a wake tap, context-bearing sessions, bounded activity log, streamed sentence scheduling, interruption ownership, local repeat/stop commands, Calendar proposal review, and minimum one-second captions.
+- `Shared/AudioController.swift`: native audio session, 24 kHz mono PCM conversion, gentle listening head tilts, Jessica MP3 playback with metered mouth movement. Microphone permission is requested only after a wake tap. After replies, listening restarts automatically; a tap hushes, and backgrounding or 30 seconds without speech puts Mochi to sleep.
 - `Shared/RealtimeTranscriber.swift`: authenticated WebSocket transcription while speaking. Partial text never executes an action. Recorded WAV is an in-memory fallback if final live transcription fails. No microphone recordings are written to disk.
 - `iPhone/`: native inset-grouped Lists, NavigationStack, actual connector logos, Calendar switch, Google browser sign-in, reconnect/disconnect. Each connector displays its actual authorization and setup state.
 - `Watch/`: one head and one caption. Calendar proposals open a separate review sheet with title, start/end, timezone and explicit confirmation.
@@ -68,7 +68,7 @@ Before the demo, test on your SE 2:
 
 ## Scope limits
 
-The native renderer reproduces the browser design in SwiftUI; it is not a WebView or a claim of pixel-perfect device parity. Native speech gestures are procedural, not phoneme-aligned lip sync. WebSocket availability, voice routing, pairing and background restrictions must be verified on the real Watch. The app does not keep recording in the background. Future connectors are not fake integrations.
+The native renderer reproduces the browser design in SwiftUI; it is not a WebView or a claim of pixel-perfect device parity. Native mouth opening follows the energy of the audio actually playing, including pauses; this is not phoneme-aligned lip sync. WebSocket availability, voice routing, pairing and background restrictions must be verified on the real Watch. The app does not keep recording in the background. Future connectors are not fake integrations.
 
 Apple references: [WatchConnectivity](https://developer.apple.com/documentation/watchconnectivity/transferring-data-with-watch-connectivity), [audio input node](https://developer.apple.com/documentation/avfaudio/avaudioengine/inputnode), [watchOS audio activation](https://developer.apple.com/documentation/avfaudio/avaudiosession/activate(options:completionhandler:)).
 

@@ -130,7 +130,7 @@ struct MochiView: View {
         to: oldTarget, progress: MochiMotion.ease(elapsed / transition),
         mouthProgress: MochiMotion.ease(elapsed / mouthTransition))
       transition = old == .speak && mood == .idle ? 1.4 : 0.65
-      mouthTransition = mood == .speak ? 0.18 : 0.4
+      mouthTransition = mood == .speak || old == .speak ? 0.08 : 0.4
       started = now
     }
   }

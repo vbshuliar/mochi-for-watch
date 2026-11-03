@@ -85,6 +85,7 @@ struct WatchHome: View {
       if new == nil { reviewing = false }
       else if callReview { callReview = false }
     }
+    .onChange(of: page) { _, value in if value != 0 { model.suspend() } else { model.resumeCalls() } }
     .onChange(of: store.connection) { _, _ in model.connectionChanged(); notifications.configure(store.connection); model.resumeCalls() }
     .onChange(of: notifications.openedTaskID) { _, _ in openNotificationTask() }
     .onChange(of: phase) { _, new in if new == .inactive { model.becameInactive() } else if new == .background { model.suspend() } else { model.resumeCalls(); Task { await notifications.refresh() } } }
@@ -104,7 +105,7 @@ struct WatchHome: View {
         Spacer(minLength: 0)
         if model.completionCall == nil {
           Button {
-            if model.hasProposal { reviewing = true } else { model.tap() }
+            model.tap()
           } label: {
             MochiView(mood: model.mood, level: model.level, heartStart: model.heartStart, calling: model.backgroundCall?.active == true)
               .frame(width: geometry.size.width * 0.86, height: geometry.size.width * 0.86)
@@ -112,8 +113,7 @@ struct WatchHome: View {
           }
           .buttonStyle(.plain)
           .accessibilityLabel(
-            model.recording
-              ? "Finish speaking" : model.hasProposal ? "Review proposal" : "Talk to Mochi"
+            model.tapLabel
           )
           .accessibilityHint(model.caption)
           Button { showingSources = true } label: {
@@ -124,6 +124,7 @@ struct WatchHome: View {
           }.buttonStyle(.plain).disabled(model.sources.isEmpty)
             .accessibilityHint(model.sources.isEmpty ? "" : "Tap to view sources for this answer")
         }
+        if model.hasProposal { Button("Review request") { reviewing = true }.font(.caption2) }
         if let call = model.completionCall {
           ScrollView {
             BookingCompletionCard(call: call, review: { selectedTaskID = nil; callReview = true }, dismiss: { model.dismissCallCompletion() })

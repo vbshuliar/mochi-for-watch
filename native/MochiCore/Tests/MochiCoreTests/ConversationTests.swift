@@ -86,3 +86,22 @@ final class ConversationTests: XCTestCase {
     XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer \(token)")
   }
 }
+
+
+extension ConversationTests {
+  func testSpeechMouthTracksAudioLevelIncludingSilentPauses() {
+    for time in [0.2, 1.9, 3.0, 5.0] {
+      XCTAssertEqual(MochiMotion.pose(.speak, time: time, level: 0).mouth, 0)
+      XCTAssertGreaterThan(MochiMotion.pose(.speak, time: time, level: 0.8).mouth, 20)
+    }
+    XCTAssertLessThan(MochiMotion.pose(.speak, time: 1, level: 0.2).mouth,
+      MochiMotion.pose(.speak, time: 1, level: 0.8).mouth)
+  }
+  func testListeningHeadMovesGentlyWithoutLargeAudioDrivenZoom() {
+    let first = MochiMotion.pose(.listen, time: 0, level: 0)
+    let later = MochiMotion.pose(.listen, time: 2, level: 0)
+    XCTAssertGreaterThan(abs(first.angle - later.angle), 1)
+    XCTAssertLessThan(MochiMotion.pose(.listen, time: 2, level: 1).scale, 1.06)
+    XCTAssertEqual(MochiMotion.pose(.listen, time: 2, level: 1, reduced: true).angle, 0)
+  }
+}

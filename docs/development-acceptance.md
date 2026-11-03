@@ -53,7 +53,7 @@ Before any real attempt, confirm recipient readiness and obtain approval for tha
 
 | Scenario | Expected behavior | Evidence to record |
 | --- | --- | --- |
-| Tap while thinking/speaking | Old response loses ownership; new microphone turn starts; no late playback. | Screen/audio observation and bounded timing. |
+| Tap while thinking/speaking | Old response loses ownership; Mochi sleeps with microphone off; no late playback. Another tap wakes him. | Screen/audio observation and bounded timing. |
 | Wrist down/background while recording | Recording stops safely; no unintended submitted action. | Confirm microphone/voice state on resume. |
 | Phone/Watch speaker and Bluetooth route | Correct audible route; route loss releases capture/playback cleanly. | Device, route and observed failure/recovery. |
 | Network loss during reply | Honest recoverable error; no stale success or duplicate operation. | Error, reconnect and next successful turn. |

@@ -24,6 +24,7 @@ private actor ContactFake: ContactSearching {
 @MainActor private final class ContactAudio: AudioIO {
   var onPCM: ((Data, Double) -> Void)?
   var onPlaybackStart: (() -> Void)?
+  var onPlaybackLevel: ((Double) -> Void)?
   var onInterruption: (() -> Void)?
   func startRecording() async throws {}
   func stopRecording() {}
@@ -171,7 +172,9 @@ private final class ContactFixture: URLProtocol, @unchecked Sendable {
       audio.onPCM?(Data(repeating: 0, count: 4800), 1)
       try? await Task.sleep(for: .milliseconds(110))
     }
-    model.tap(); await settle()
+    try await Task.sleep(for: .milliseconds(1200))
+    audio.onPCM?(Data(repeating: 0, count: 4800), 0)
+    await settle()
     XCTAssertNotNil(model.contactLookup); XCTAssertTrue(model.contactCandidates.isEmpty)
     model.searchContacts(); await settle(); XCTAssertEqual(model.contactCandidates, [alex])
   }
