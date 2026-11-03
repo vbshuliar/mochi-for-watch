@@ -163,18 +163,16 @@ struct MochiView: View {
     body.move(to: CGPoint(x: 500, y: 145))
     body.addCurve(to: CGPoint(x: 887, y: 355),
       control1: CGPoint(x: 705, y: 145), control2: CGPoint(x: 843, y: 200))
-    body.addCurve(to: CGPoint(x: 920, y: 590),
-      control1: CGPoint(x: 915, y: 445), control2: CGPoint(x: 929, y: 525))
-    body.addCurve(to: CGPoint(x: 805, y: 775),
-      control1: CGPoint(x: 917, y: 680), control2: CGPoint(x: 885, y: 740))
+    body.addCurve(to: CGPoint(x: 920, y: 560),
+      control1: CGPoint(x: 909, y: 432.5), control2: CGPoint(x: 920, y: 485))
+    // Each lower quarter is one uninterrupted convex arc. Vertical side
+    // tangents meet a shared horizontal bottom tangent without cheek seams.
     body.addCurve(to: CGPoint(x: 500, y: 840),
-      control1: CGPoint(x: 735, y: 827), control2: CGPoint(x: 620, y: 840))
-    body.addCurve(to: CGPoint(x: 195, y: 775),
-      control1: CGPoint(x: 380, y: 840), control2: CGPoint(x: 265, y: 827))
-    body.addCurve(to: CGPoint(x: 80, y: 590),
-      control1: CGPoint(x: 115, y: 740), control2: CGPoint(x: 83, y: 680))
+      control1: CGPoint(x: 920, y: 735), control2: CGPoint(x: 740, y: 840))
+    body.addCurve(to: CGPoint(x: 80, y: 560),
+      control1: CGPoint(x: 260, y: 840), control2: CGPoint(x: 80, y: 735))
     body.addCurve(to: CGPoint(x: 113, y: 355),
-      control1: CGPoint(x: 71, y: 525), control2: CGPoint(x: 85, y: 445))
+      control1: CGPoint(x: 80, y: 485), control2: CGPoint(x: 91, y: 432.5))
     body.addCurve(to: CGPoint(x: 500, y: 145),
       control1: CGPoint(x: 157, y: 200), control2: CGPoint(x: 295, y: 145))
     body.closeSubpath()
