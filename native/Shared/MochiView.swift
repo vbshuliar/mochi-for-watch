@@ -57,7 +57,7 @@ struct MochiView: View {
           Gradient(stops: [
             .init(color: Color(red: 249 / 255, green: 255 / 255, blue: 195 / 255).opacity(0.7), location: 0),
             .init(color: .clear, location: 0.46),
-            .init(color: Color(red: 94 / 255, green: 122 / 255, blue: 28 / 255).opacity(0.28), location: 1),
+            .init(color: .clear, location: 1),
           ]), startPoint: CGPoint(x: 220, y: 180), endPoint: CGPoint(x: 800, y: 830)),
           lineWidth: 22)
         // Project the face on the front of the rounded head. Roll uses the
