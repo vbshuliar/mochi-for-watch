@@ -90,7 +90,10 @@ struct Activity: Identifiable {
   }
   var callConfirmationUnknown = false
   private var callPoll: Task<Void, Never>?
-  var tapLabel: String { isAwake || recording || deciding || [.think, .speak].contains(mood) ? "Hush Mochi" : "Wake Mochi" }
+  var tapLabel: String {
+    if recording { return "Send speech" }
+    return isAwake || deciding || [.think, .speak].contains(mood) ? "Hush Mochi" : "Wake Mochi"
+  }
   var hasProposal: Bool { contactLookup != nil || action != nil || documentAction != nil || gmailDraftAction != nil || callProposal != nil }
   var proposalID: String? { action?.id ?? documentAction?.id ?? gmailDraftAction?.id ?? callProposal?.id }
   var activities: [Activity] = []
@@ -168,7 +171,11 @@ struct Activity: Identifiable {
   }
   func tap() {
     foreground = true
-    if isAwake || recording || deciding || [.think, .speak].contains(mood) {
+    if recording {
+      finishRecording()
+      return
+    }
+    if isAwake || deciding || [.think, .speak].contains(mood) {
       hush()
       return
     }

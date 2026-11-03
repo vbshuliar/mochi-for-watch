@@ -204,6 +204,26 @@ private final class NativeFixture: URLProtocol, @unchecked Sendable {
     await eventually { model.recording }
     XCTAssertEqual(model.mood, .listen)
   }
+  func testTapWhileListeningSendsSpeechThenResumesHandsFreeListening() async throws {
+    let (model, audio) = try makeModel()
+    defer { model.suspend() }
+    model.tap()
+    await eventually { model.recording }
+    XCTAssertEqual(model.tapLabel, "Send speech")
+    for _ in 0..<4 {
+      audio.onPCM?(Data(repeating: 0, count: 4800), 0.3)
+      try await Task.sleep(for: .milliseconds(110))
+    }
+    model.tap()
+    XCTAssertFalse(model.recording)
+    XCTAssertFalse(audio.recording)
+    XCTAssertTrue(model.isAwake)
+    await eventually { audio.played == 1 }
+    XCTAssertEqual(model.transcript, "hello")
+    audio.complete()
+    await eventually { model.recording }
+    XCTAssertEqual(audio.played, 1)
+  }
   func testPermissionDenialLeavesATappableErrorWithoutRecording() async throws {
     let (model, audio) = try makeModel()
     defer { model.suspend() }
@@ -856,7 +876,7 @@ extension NativeConversationTests {
     audio.complete()
     await eventually { model.recording }
   }
-  func testTapWhileListeningDiscardsRecordingAndSleeps() async throws {
+  func testTapWhileListeningWithoutSpeechDoesNotSendAnEmptyTurn() async throws {
     let (model, audio) = try makeModel()
     defer { model.suspend() }
     model.tap()
