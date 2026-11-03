@@ -352,6 +352,15 @@ extension NativeConversationTests {
     XCTAssertEqual(model.backgroundCall?.status, "in_progress")
     XCTAssertFalse(model.hasProposal)
   }
+  func testUnconfirmedBookingResultsDescribeTheirStatus() throws {
+    for (status, title) in [("failed", "call failed"), ("cancelled", "call stopped"),
+      ("expired", "call expired"), ("uncertain", "check call status"),
+      ("completed", "booking not confirmed"), ("stopped", "call stopped"),
+      ("pending", "awaiting approval")] {
+      XCTAssertEqual(try call(status).resultTitle, title)
+    }
+    XCTAssertEqual(try call("completed", booked: true).resultTitle, "booking confirmed")
+  }
   func testCompletionWaitsForSpeechThenDismissalSurvivesRefresh() async throws {
     let (model, audio) = try makeModel()
     defer { model.suspend() }
@@ -367,6 +376,8 @@ extension NativeConversationTests {
     model.dismissCallCompletion()
     model.receiveCall(try call("completed", booked: true))
     XCTAssertNil(model.completionCall)
+    XCTAssertNil(model.callStatusText, "Dismissed results must not remain below Mochi")
+    XCTAssertTrue(model.taskCalls.contains { $0.id == "call-1" }, "Keep the result in Tasks")
     model.tap()
     await eventually { model.recording }
   }
@@ -396,6 +407,7 @@ extension NativeConversationTests {
     restored.mood = .idle
     XCTAssertNil(restored.completionCall)
     XCTAssertFalse(restored.hasProposal)
+    XCTAssertNil(restored.callStatusText)
     let (other, _) = try makeModel(defaults: defaults, token: String(repeating: "x", count: 32))
     other.resumeCalls()
     try await Task.sleep(for: .milliseconds(50))

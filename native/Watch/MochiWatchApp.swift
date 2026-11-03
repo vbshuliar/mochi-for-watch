@@ -28,7 +28,6 @@ struct WatchHome: View {
   @State private var selectedTaskID: String?
   @State private var page = 0
   @State private var showingDaily = false
-  @State private var notificationSettings = false
   private let notifications = TaskNotifications.shared
   var body: some View {
     TabView(selection: $page) {
@@ -39,17 +38,6 @@ struct WatchHome: View {
     .background(canvasColor)
     .sheet(isPresented: $showingDaily) { DailySupportView(model: model.daily) }
     .onChange(of: notifications.openedReminderID) { _, id in if id != nil { showingDaily = true; notifications.openedReminderID = nil } }
-    .sheet(isPresented: $notificationSettings) {
-      ScrollView {
-        VStack(spacing: 12) {
-          Text("Notifications").font(.headline)
-          Text(notifications.status).font(.footnote)
-          Button(notifications.optedIn ? "Turn off" : "Enable updates") {
-            Task { if notifications.optedIn { await notifications.disable() } else { await notifications.enable() } }
-          }.disabled(notifications.busy)
-        }.padding()
-      }.task { await notifications.refresh() }
-    }
     .sheet(isPresented: $showingSources) {
       NavigationStack {
         List(model.sources) { source in
@@ -117,13 +105,13 @@ struct WatchHome: View {
             model.tapLabel
           )
           .accessibilityHint(model.caption)
-          Button { showingSources = true } label: {
-            Text(store.connection == nil ? "open Mochi on your iPhone" : model.caption)
-            .font(.system(size: 11)).lineLimit(1).minimumScaleFactor(0.85)
-            .foregroundStyle(Color(white: 0.88)).padding(.top, 8).padding(.horizontal, 8)
-            .accessibilityAddTraits(.updatesFrequently)
-          }.buttonStyle(.plain).disabled(model.sources.isEmpty)
-            .accessibilityHint(model.sources.isEmpty ? "" : "Tap to view sources for this answer")
+          if model.sources.isEmpty {
+            statusCaption
+          } else {
+            Button { showingSources = true } label: { statusCaption }
+              .buttonStyle(.plain)
+              .accessibilityHint("View sources for this answer")
+          }
         }
         if model.hasProposal { Button("Review request") { reviewing = true }.font(.caption2) }
         if let call = model.completionCall {
@@ -142,6 +130,12 @@ struct WatchHome: View {
     .ignoresSafeArea(.container)
     .containerBackground(canvasColor, for: .navigation)
   }
+  private var statusCaption: some View {
+    Text(store.connection == nil ? "open Mochi on your iPhone" : model.caption)
+      .font(.system(size: 12, weight: .medium)).lineLimit(1).minimumScaleFactor(0.85)
+      .foregroundStyle(.white).padding(.top, 8).padding(.horizontal, 8)
+      .accessibilityAddTraits(.updatesFrequently)
+  }
   private var tasksPage: some View {
     TimelineView(.periodic(from: .now, by: 60)) { context in
       let active = model.taskCalls.filter { $0.active }
@@ -151,7 +145,7 @@ struct WatchHome: View {
       ScrollView {
         VStack(alignment: .leading, spacing: 12) {
           HStack {
-            Text("Menu").font(.system(.title3, design: .rounded).weight(.semibold))
+            Text("Tasks").font(.system(.title3, design: .rounded).weight(.semibold))
             Spacer()
             Button { model.resumeCalls(); Task { await notifications.refresh() } } label: {
               Image(systemName: "arrow.clockwise")
@@ -193,30 +187,10 @@ struct WatchHome: View {
             Text("Couldn’t refresh tasks. Showing the last known status.")
               .font(.caption2).foregroundStyle(.secondary)
           }
-          VStack(spacing: 6) {
-            menuButton("Today", icon: "sun.max") { showingDaily = true }
-            menuButton("Notifications", icon: "bell") { notificationSettings = true }
-          }.padding(.top, 4)
         }.padding(.horizontal, 10).padding(.top, 2).padding(.bottom, 24)
           .frame(maxWidth: .infinity, alignment: .leading)
       }
     }
-  }
-  private func menuButton(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
-    Button(action: action) {
-      HStack(spacing: 10) {
-        Image(systemName: icon).font(.system(size: 15, weight: .medium))
-          .foregroundStyle(accentColor).frame(width: 20)
-        Text(title).font(.system(.subheadline, design: .rounded).weight(.medium))
-          .foregroundStyle(.primary).fixedSize(horizontal: false, vertical: true)
-        Spacer(minLength: 0)
-        Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold))
-          .foregroundStyle(.tertiary)
-      }.padding(.horizontal, 12).padding(.vertical, 11)
-        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-        .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
-        .contentShape(RoundedRectangle(cornerRadius: 14))
-    }.buttonStyle(.plain)
   }
   @ViewBuilder private func taskSection(_ title: String, calls: [CallAction]) -> some View {
     if !calls.isEmpty {

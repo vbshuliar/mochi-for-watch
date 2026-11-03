@@ -54,7 +54,7 @@ struct Activity: Identifiable {
     return call
   }
   var callStatusText: String? {
-    guard let call = backgroundCall else { return nil }
+    guard let call = backgroundCall, call.active || !dismissedCalls.contains(call.id) else { return nil }
     return call.active ? (call.progress?.text ?? "Working on your booking") : call.resultTitle.capitalized
   }
   private var persistenceKey: String? {

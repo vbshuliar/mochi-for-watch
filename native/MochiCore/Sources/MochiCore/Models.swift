@@ -185,7 +185,16 @@ public struct CallAction: Codable, Identifiable, Sendable {
     if isConversation { return "call update" }
     if bookingCancelled { return "booking cancelled" }
     if booked { return outcome == "rescheduled" ? "booking rescheduled" : "booking confirmed" }
-    return "booking update"
+    switch status {
+    case "failed": return "call failed"
+    case "cancelled", "stopped": return "call stopped"
+    case "expired": return "call expired"
+    case "uncertain": return "check call status"
+    case "completed": return "booking not confirmed"
+    case "pending": return "awaiting approval"
+    case "starting", "queued", "in_progress": return "booking in progress"
+    default: return "check call status"
+    }
   }
   /// Completion cards show the booked instant in the viewer's current device timezone.
   public func completionDateText(timeZone: TimeZone = .autoupdatingCurrent) -> String? {

@@ -101,7 +101,7 @@ These are in-app cards, with catch-up on resume. This feature requires no APNs s
 
 ## Shared tasks, changes and notifications (28 October 2026)
 
-Both clients load the private account's task feed from authenticated `GET /v1/tasks`. A fresh device can see bookings created by the other device; conversation histories remain separate. Reviews keep the task's original session identity for approval, stop and Calendar operations. Opening a task retrieves any linked pending Calendar approval. The iPhone has a Tasks entry; the Watch keeps its Tasks page. Foreground polling checks active work every three seconds and idle feeds every fifteen seconds, and stops when the app is inactive.
+Both clients load the private account's task feed from authenticated `GET /v1/tasks`. A fresh device can see bookings created by the other device; conversation histories remain separate. Reviews keep the task's original session identity for approval, stop and Calendar operations. Opening a task retrieves any linked pending Calendar approval. The iPhone has a Tasks entry; the Watch keeps a task-only second page with refresh, active work, items needing review and recent results. Today and notification settings remain on iPhone. Foreground polling checks active work every three seconds and idle feeds every fifteen seconds, and stops when the app is inactive.
 
 Confirmed bookings offer **Reschedule booking** and **Cancel booking**. These prepare a new call proposal; they never dial immediately. A reschedule selects an allowed window in the booking's timezone. Review shows the original appointment and the requested change. Mochi must obtain a verified result from the business; any Calendar update or removal has its own clearly labelled approval. Superseded bookings link conceptually to the newer task and no longer offer change controls.
 
@@ -112,7 +112,7 @@ To enable actual push delivery later:
 1. Enable Push Notifications for both app identifiers in the Apple developer account and create compatible signing profiles. Use the app's actual bundle identifiers as the server topics.
 2. Set each target's `MOCHI_PUSH_ENVIRONMENT` to `development` for sandbox signing or `production` for distribution, and `CODE_SIGN_ENTITLEMENTS` to `Resources/Push.entitlements`. The environment must match the signing profile and backend `APNS_ENVIRONMENT`. Do not set this on an unsigned or unprovisioned build.
 3. Configure the backend APNs signing key, team/key IDs and separate iOS/watchOS topics. Keys stay server-side.
-4. Install both signed clients. Enable updates from Tasks → Notifications on each device. Test with the apps inactive and confirm tapping an alert opens the correct refreshed task without granting any approval. System routing determines which paired device presents an alert; simultaneous delivery is not guaranteed.
+4. Install both signed clients. Enable iPhone updates from Tasks → Notifications. The Watch task log has no notification-settings shortcut; previously granted Watch opt-in is retained. Test with the apps inactive and confirm tapping an alert opens the correct refreshed task without granting any approval. System routing determines which paired device presents an alert; simultaneous delivery is not guaranteed.
 5. Disable updates and confirm server registration removal. Revoking notification permission in system Settings also removes the registration on the next app refresh.
 
 ## Device acceptance checklist
