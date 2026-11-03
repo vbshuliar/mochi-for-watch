@@ -10,7 +10,7 @@ The concept was generated with the built-in image tool from a written brief desc
 
 ## Native flat-color treatment — 3 November 2026
 
-At the owner's request, the native renderer now draws an original Bézier body in `native/Shared/MochiView.swift` rather than sampling the plush bitmap. Two solid sage fills (#C4D3B4 and #AFBE9E) preserve the rounded silhouette with a broad lower shaded edge; the Watch canvas is muted dark sage (#303B38). The existing animated eyes, mouth, motion and phone indicator remain code-drawn. Website/browser artwork and the reference portrait retain their previous treatment.
+At the owner's request, the native renderer now draws an original Bézier body in `native/Shared/MochiView.swift` rather than sampling the plush bitmap. Two solid acid-lime fills (#D4F45C and #B7D843), brightened at the owner’s request, preserve the rounded silhouette with a broad lower shaded edge; the Watch canvas is muted dark sage (#303B38). The existing animated eyes, mouth, motion and phone indicator remain code-drawn. Website/browser artwork and the reference portrait retain their previous treatment.
 
 This geometry was authored directly for the project using its existing original silhouette as reference, with no third-party artwork. Project-held rights are distributed under Apache-2.0. Two attempted built-in image-tool edits produced invalid transparency and were discarded; neither generated output is used or committed.
 

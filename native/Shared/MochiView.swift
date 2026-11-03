@@ -35,7 +35,7 @@ struct MochiView: View {
         c.translateBy(x: -edge / 2, y: -edge * 0.65)
         c.scaleBy(x: edge / 1000, y: edge / 1000)
         let body = bodyPath()
-        c.fill(body, with: .color(Color(red: 196 / 255, green: 211 / 255, blue: 180 / 255)))
+        c.fill(body, with: .color(Color(red: 212 / 255, green: 244 / 255, blue: 92 / 255)))
         var shade = c
         shade.clip(to: body)
         var lowerEdge = Path()
@@ -45,7 +45,7 @@ struct MochiView: View {
         lowerEdge.addLine(to: CGPoint(x: 1000, y: 1000))
         lowerEdge.addLine(to: CGPoint(x: 0, y: 1000))
         lowerEdge.closeSubpath()
-        shade.fill(lowerEdge, with: .color(Color(red: 175 / 255, green: 190 / 255, blue: 158 / 255)))
+        shade.fill(lowerEdge, with: .color(Color(red: 183 / 255, green: 216 / 255, blue: 67 / 255)))
         for x in [335.0, 665.0] {
           var eyeContext = c
           eyeContext.translateBy(x: x + p.gazeX, y: 487 + p.gazeY)
