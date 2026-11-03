@@ -92,6 +92,7 @@ struct Activity: Identifiable {
   private var callPoll: Task<Void, Never>?
   var tapLabel: String {
     if recording { return "Send speech" }
+    if mood == .idle && !isAwake && !deciding { return "Start listening" }
     return isAwake || deciding || [.think, .speak].contains(mood) ? "Hush Mochi" : "Wake Mochi"
   }
   var hasProposal: Bool { contactLookup != nil || action != nil || documentAction != nil || gmailDraftAction != nil || callProposal != nil }
@@ -176,7 +177,7 @@ struct Activity: Identifiable {
       return
     }
     if isAwake || deciding || [.think, .speak].contains(mood) {
-      hush()
+      hush(neutral: mood == .think && !deciding)
       return
     }
     guard store.connection != nil else {
@@ -194,7 +195,7 @@ struct Activity: Identifiable {
     let ticket = generation
     task = Task { await listen(ticket) }
   }
-  private func hush() {
+  private func hush(neutral: Bool = false) {
     isAwake = false
     voiceSuppressed = true
     // Let an already approved provider write finish and retain its receipt.
@@ -204,7 +205,7 @@ struct Activity: Identifiable {
       level = 0
     } else { interrupt() }
     audio.deactivate()
-    show(.sleep, "tap to wake up")
+    show(neutral ? .idle : .sleep, neutral ? "tap to speak" : "tap to wake up")
   }
   private func listenAgain(_ ticket: UUID) {
     guard isAwake, foreground, !hasProposal, !voiceSuppressed else { return }
