@@ -36,6 +36,7 @@ public struct ServerStatus: Decodable, Sendable {
   public let calendarEnabled: Bool
   public let calendarConfigured: Bool
   public let webSearch: Bool?
+  public let integrationEnabled: [String: Bool]?
   public let gmail: String?
   public let gmailDraftsEnabled: Bool?
   public let notion: String?

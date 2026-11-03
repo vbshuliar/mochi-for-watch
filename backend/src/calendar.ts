@@ -1,3 +1,4 @@
+import { requireIntegrationEnabled } from "./integration-settings.ts";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { Config } from "./config.ts";
@@ -246,7 +247,9 @@ export class GoogleCalendar implements Calendar {
     init: RequestInit = {},
     epoch = this.epoch(),
   ) {
+    requireIntegrationEnabled(this.store, "google-calendar");
     const token = await this.token(epoch);
+    requireIntegrationEnabled(this.store, "google-calendar");
     this.assertEpoch(epoch);
     const response = await externalFetch(
       `https://www.googleapis.com/calendar/v3/calendars/primary/${path}`,
@@ -296,7 +299,9 @@ export class GoogleCalendar implements Calendar {
   }
   async busy(window: Window, signal?: AbortSignal) {
     const epoch = this.epoch();
+    requireIntegrationEnabled(this.store, "google-calendar");
     const token = await this.token(epoch);
+    requireIntegrationEnabled(this.store, "google-calendar");
     this.assertEpoch(epoch);
     // Use Google's freeBusy endpoint so all-day and transparent events are handled by Google.
     const response = await externalFetch(

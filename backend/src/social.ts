@@ -1,3 +1,4 @@
+import { requireIntegrationEnabled } from "./integration-settings.ts";
 import { randomBytes, randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { Config } from "./config.ts";
@@ -379,6 +380,7 @@ export class SocialConnections {
     });
   }
   async activity(provider: SocialProvider, signal?: AbortSignal) {
+    requireIntegrationEnabled(this.store, provider);
     return this.withGrant(provider, async (grant) => {
       const account = grant.selected;
       if (!account) throw problem("Choose a social account first", 409);

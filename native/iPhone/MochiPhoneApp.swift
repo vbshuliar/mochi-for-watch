@@ -88,21 +88,19 @@ struct PhoneHome: View {
                     .accessibilityHidden(true)
                   Text(connector.title).font(.body)
                   Spacer(minLength: 0)
-                  if (connector.id == "google-calendar" && model.status?.calendar == "connected") || (connector.id == "gmail" && model.status?.gmail == "connected") || (connector.id == "notion" && model.status?.notion == "connected") || (["instagram", "facebook"].contains(connector.id) && model.socialConnected(connector.id)) {
-                    Circle().fill(.green).frame(width: 6, height: 6).accessibilityLabel("Connected")
-                  }
+                  Circle().fill(model.connectionIsConnected(connector.id) ? Color.green : Color.gray)
+                    .frame(width: 6, height: 6)
+                    .accessibilityLabel(model.connectionIsConnected(connector.id) ? "Connected" : "Not connected")
                 }.frame(minHeight: 32)
               }
-              if connector.id == "google-calendar" {
-                Toggle(
-                  "Enable Calendar",
-                  isOn: Binding(
-                    get: {
-                      model.status?.calendar == "connected" && model.status?.calendarEnabled == true
-                    }, set: { value in Task { await model.enable(value) } })
-                )
-                .labelsHidden().disabled(model.busy || model.status?.calendar != "connected")
-              }
+              Toggle("Enable \(connector.title)", isOn: Binding(
+                get: { model.connectionIsEnabled(connector.id) },
+                set: { value in Task { await model.enableConnection(connector.id, enabled: value) } }
+              ))
+              .labelsHidden().tint(.green)
+              .disabled(model.busy || !model.canToggleConnection(connector.id))
+              .accessibilityHint(model.connectionIsConnected(connector.id)
+                ? "Allow Mochi to use this service" : "Connect this service first")
             }
           }
         }

@@ -1,3 +1,9 @@
+import {
+  integrationIDs,
+  integrationKey,
+  integrationEnabled,
+  type IntegrationID,
+} from "./integration-settings.ts";
 import { contactLookupResponseSchema } from "./domain.ts";
 import { isWebsiteRequest, registerWebsite } from "./website.ts";
 import { PassThrough } from "node:stream";
@@ -102,7 +108,7 @@ export async function buildApp(
     overrides.planner ||
       (config.APP_MODE === "mock"
         ? new MockPlanner()
-        : new MetaPlanner(config)),
+        : new MetaPlanner(config, () => integrationEnabled(store, "safari"))),
     calendar,
     config.APP_MODE === "mock",
     workflows,
@@ -327,6 +333,30 @@ export async function buildApp(
       .parse(req.body);
     return service.decideDraft(id, actionId, decision);
   });
+  const integrationConnected = (id: IntegrationID): boolean => {
+    if (id === "safari") return config.APP_MODE === "live";
+    if (id === "google-calendar")
+      return config.APP_MODE === "live" && google.connected();
+    if (id === "gmail" || id === "notion") return workflows[id].connected();
+    return social.status()[id] === "connected";
+  };
+  app.patch("/v1/integrations/:provider/enabled", async (req) => {
+    const { provider } = z
+      .object({ provider: z.enum(integrationIDs) })
+      .parse(req.params);
+    const { enabled } = z
+      .object({ enabled: z.boolean() })
+      .strict()
+      .parse(req.body);
+    if (enabled && !integrationConnected(provider))
+      throw new AppError(
+        409,
+        "integration_disconnected",
+        "Connect this service before enabling it.",
+      );
+    store.put("integration", integrationKey(provider), enabled);
+    return { enabled };
+  });
   app.get("/v1/status", async () => ({
     mode: config.APP_MODE,
     revision: config.BUILD_REVISION,
@@ -335,6 +365,12 @@ export async function buildApp(
     gmailDraftsEnabled: workflows.gmail.canDraft(),
     ...social.status(),
     webSearch: config.APP_MODE === "live",
+    integrationEnabled: Object.fromEntries(
+      integrationIDs.map((id) => [
+        id,
+        integrationConnected(id) && integrationEnabled(store, id),
+      ]),
+    ),
     calendar:
       config.APP_MODE === "mock"
         ? "simulated"

@@ -1,3 +1,4 @@
+import { requireIntegrationEnabled } from "./integration-settings.ts";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { z } from "zod";
 import { AppError } from "./domain.ts";
@@ -266,6 +267,7 @@ export class Connection {
     return this.refreshing;
   }
   async request(path: string, init: RequestInit = {}) {
+    requireIntegrationEnabled(this.store, this.provider);
     const method = (init.method ?? "GET").toUpperCase();
     // gmail.compose also permits sending at Google. Our transport deliberately
     // exposes only reads and creation of unsent drafts, never send/update/delete.
@@ -290,6 +292,7 @@ export class Connection {
         : "https://api.notion.com/v1/";
     const send = async (force = false) => {
       const token = await this.token(force);
+      requireIntegrationEnabled(this.store, this.provider);
       if (this.provider === "gmail" && method !== "GET" && !this.canDraft())
         throw new AppError(
           409,

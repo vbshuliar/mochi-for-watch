@@ -15,6 +15,9 @@ import Observation
   var error: String?
   let store: ConnectionStore
   private var connectionGeneration = UUID()
+  private var statusGeneration = 0
+  private var pendingEnabled: [String: Bool] = [:]
+  private var acknowledgedEnabled: [String: Bool] = [:]
   private let makeClient: (Connection) -> APIClient
   init(store: ConnectionStore, makeClient: @escaping (Connection) -> APIClient = { APIClient(connection: $0) }) {
     self.store = store
@@ -22,6 +25,9 @@ import Observation
   }
   func connectionChanged() {
     connectionGeneration = UUID()
+    statusGeneration += 1
+    pendingEnabled = [:]
+    acknowledgedEnabled = [:]
     memoryGeneration += 1
     status = nil; notionPages = []; notionHasMore = false; socialAccounts = [:]
     memories = []; memoryError = nil; memoryBusy = false; busy = false; error = nil
@@ -38,13 +44,16 @@ import Observation
   func refresh() async {
     let connection = store.connection, ticket = connectionGeneration
     guard store.connection != nil else { return }
+    statusGeneration += 1
+    let statusTicket = statusGeneration
     do {
       let loaded = try await client().get("v1/status", as: ServerStatus.self)
-      guard current(connection, ticket) else { return }
+      guard current(connection, ticket), statusTicket == statusGeneration else { return }
       status = loaded
+      acknowledgedEnabled = [:]
       error = nil
     } catch {
-      guard current(connection, ticket) else { return }
+      guard current(connection, ticket), statusTicket == statusGeneration else { return }
       self.error = "Couldn’t update this connection. Please try again."
     }
   }
@@ -211,15 +220,40 @@ import Observation
       return nil
     }
   }
-  func enable(_ enabled: Bool) async {
+  func connectionIsConnected(_ id: String) -> Bool {
+    switch id {
+    case "google-calendar": return status?.calendar == "connected"
+    case "gmail": return status?.gmail == "connected"
+    case "notion": return status?.notion == "connected"
+    case "instagram", "facebook": return socialConnected(id)
+    case "safari": return status?.webSearch == true
+    default: return false
+    }
+  }
+  func connectionIsEnabled(_ id: String) -> Bool {
+    guard connectionIsConnected(id) else { return false }
+    return pendingEnabled[id] ?? acknowledgedEnabled[id] ?? status?.integrationEnabled?[id] ?? (id == "google-calendar" && status?.calendarEnabled == true)
+  }
+  func canToggleConnection(_ id: String) -> Bool {
+    connectionIsConnected(id) && (id == "google-calendar" || status?.integrationEnabled?[id] != nil)
+  }
+  func enable(_ enabled: Bool) async { await enableConnection("google-calendar", enabled: enabled) }
+  func enableConnection(_ id: String, enabled: Bool) async {
     let connection = store.connection, ticket = connectionGeneration
-    guard !busy else { return }
+    guard !busy, canToggleConnection(id) else { return }
     busy = true
-    defer { if current(connection, ticket) { busy = false } }
+    statusGeneration += 1
+    pendingEnabled[id] = enabled
+    defer {
+      if current(connection, ticket) { busy = false; pendingEnabled[id] = nil }
+    }
     do {
-      _ = try await client().data(
-        "v1/integrations/google", method: "PATCH", body: JSONEncoder().encode(["enabled": enabled]))
+      let path = id == "google-calendar" ? "v1/integrations/google" : "v1/integrations/\(id)/enabled"
+      struct Update: Decodable { let enabled: Bool }
+      let bytes = try await client().data(path, method: "PATCH", body: JSONEncoder().encode(["enabled": enabled]))
+      let update = try JSONDecoder().decode(Update.self, from: bytes)
       guard current(connection, ticket) else { return }
+      acknowledgedEnabled[id] = update.enabled
       await refresh()
     } catch {
       guard current(connection, ticket) else { return }

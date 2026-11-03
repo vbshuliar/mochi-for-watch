@@ -45,6 +45,70 @@ private final class PhoneFixture: URLProtocol, @unchecked Sendable {
   private func status(_ calendar: String) -> String {
     #"{"mode":"live","calendar":"\#(calendar)","calendarEnabled":true,"calendarConfigured":true,"speechOutput":"voice"}"#
   }
+  func testDisconnectedServicesCannotBeEnabledEvenWithStaleEnabledFlags() async throws {
+    let model = try model()
+    model.status = try JSONDecoder().decode(ServerStatus.self, from: Data(#"{"mode":"live","calendar":"disconnected","calendarEnabled":true,"calendarConfigured":true,"speechOutput":"voice","gmail":"disconnected","notion":"disconnected","instagram":"disconnected","facebook":"disconnected","webSearch":false,"integrationEnabled":{"gmail":true,"notion":true,"instagram":true,"facebook":true,"safari":true}}"#.utf8))
+    for id in ["google-calendar", "gmail", "notion", "instagram", "facebook", "safari"] {
+      XCTAssertFalse(model.connectionIsConnected(id))
+      XCTAssertFalse(model.connectionIsEnabled(id))
+      XCTAssertFalse(model.canToggleConnection(id))
+      await model.enableConnection(id, enabled: true)
+    }
+    XCTAssertNil(PhoneFixture.queue.take())
+  }
+  func testSwitchKeepsConnectionAndRollsBackFailedUpdate() async throws {
+    let model = try model()
+    let connected = #"{"mode":"live","calendar":"disconnected","calendarEnabled":false,"calendarConfigured":true,"speechOutput":"voice","gmail":"connected","integrationEnabled":{"gmail":true}}"#
+    model.status = try JSONDecoder().decode(ServerStatus.self, from: Data(connected.utf8))
+    let task = Task { await model.enableConnection("gmail", enabled: false) }
+    let patch = try await request()
+    XCTAssertEqual(patch.request.httpMethod, "PATCH")
+    XCTAssertEqual(patch.request.url?.path, "/v1/integrations/gmail/enabled")
+    XCTAssertTrue(model.connectionIsConnected("gmail"))
+    XCTAssertFalse(model.connectionIsEnabled("gmail"))
+    patch.respond(#"{"error":{"message":"unavailable"}}"#, status: 503)
+    await task.value
+    XCTAssertTrue(model.connectionIsEnabled("gmail"))
+    XCTAssertFalse(model.busy)
+    XCTAssertNotNil(model.error)
+  }
+  func testAcknowledgedSwitchSurvivesFailedRefreshUntilNextSuccessfulRefresh() async throws {
+    let model = try model()
+    let connected = #"{"mode":"live","calendar":"disconnected","calendarEnabled":false,"calendarConfigured":true,"speechOutput":"voice","gmail":"connected","integrationEnabled":{"gmail":true}}"#
+    model.status = try JSONDecoder().decode(ServerStatus.self, from: Data(connected.utf8))
+    let update = Task { await model.enableConnection("gmail", enabled: false) }
+    let patch = try await request()
+    patch.respond(#"{"enabled":false}"#)
+    let failedRefresh = try await request()
+    failedRefresh.respond(#"{"error":{"message":"offline"}}"#, status: 503)
+    await update.value
+    XCTAssertFalse(model.connectionIsEnabled("gmail"))
+    XCTAssertTrue(model.connectionIsConnected("gmail"))
+    XCTAssertNotNil(model.error)
+    let reload = Task { await model.refresh() }
+    let fresh = try await request()
+    fresh.respond(connected)
+    await reload.value
+    XCTAssertTrue(model.connectionIsEnabled("gmail"), "A later authoritative status replaces the saved acknowledgement")
+  }
+  func testSuccessfulSwitchPersistsOffWhileDotRemainsConnected() async throws {
+    let model = try model()
+    let connected = #"{"mode":"live","calendar":"disconnected","calendarEnabled":false,"calendarConfigured":true,"speechOutput":"voice","gmail":"connected","integrationEnabled":{"gmail":true}}"#
+    model.status = try JSONDecoder().decode(ServerStatus.self, from: Data(connected.utf8))
+    let stale = Task { await model.refresh() }
+    let oldStatus = try await request()
+    let update = Task { await model.enableConnection("gmail", enabled: false) }
+    let patch = try await request()
+    patch.respond(#"{"enabled":false}"#)
+    let fresh = try await request()
+    fresh.respond(connected.replacingOccurrences(of: #""gmail":true"#, with: #""gmail":false"#))
+    await update.value
+    oldStatus.respond(connected)
+    await stale.value
+    XCTAssertTrue(model.connectionIsConnected("gmail"))
+    XCTAssertFalse(model.connectionIsEnabled("gmail"))
+    XCTAssertFalse(model.busy)
+  }
   func testOldStatusCannotOverwriteStatusAfterConnectionReset() async throws {
     let model = try model()
     let old = Task { await model.refresh() }

@@ -8,6 +8,7 @@ Reviewed 29 October 2026. Entry points and ownership, not a replacement for sour
 | --- | --- | --- |
 | Boot/config | `server.ts`, `config.ts`, `app.ts` | Configuration, dependencies, HTTP routes, authentication and errors |
 | Conversation | `service.ts`, `meta.ts`, `realtime.ts`, `speech.ts` | Turn lifecycle, model planning, transcription and speech |
+| Integration switches | `integration-settings.ts` | Persisted per-service access switches, independent of connection grants |
 | Booking | `calls.ts`, `booking-profile.ts` | Approved dialing, signed callbacks, outcomes, retries and usual haircut preferences |
 | Calendar | `calendar.ts` | OAuth, availability and event operations |
 | Daily support | `briefing.ts`, `reminders.ts`, `gmail-drafts.ts` | Briefing assembly, reminder state and reviewed unsent drafts |
