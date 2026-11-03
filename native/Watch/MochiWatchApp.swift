@@ -16,7 +16,7 @@ import WatchKit
   var body: some Scene { WindowGroup { WatchHome(model: conversation, store: store) } }
 }
 struct WatchHome: View {
-  private let canvasColor = Color(red: 48 / 255, green: 59 / 255, blue: 56 / 255)
+  private let canvasColor = Color.black
   let model: ConversationModel
   let store: ConnectionStore
   @Environment(\.scenePhase) private var phase
