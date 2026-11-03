@@ -8,6 +8,12 @@ The concept was generated with the built-in image tool from a written brief desc
 
 `mochi-portrait.png` is the static reference. `mochi-face-plate.png` is the blank surface for coded expressions. Runtime copies are in website assets and the native Mochi image set. Original project rights in these files are offered under the Apache-2.0 project licence; no exclusive ownership of AI-generated material is promised.
 
+## Native flat-color treatment — 3 November 2026
+
+At the owner's request, the native renderer now draws an original Bézier body in `native/Shared/MochiView.swift` rather than sampling the plush bitmap. Two solid sage fills (#C4D3B4 and #AFBE9E) preserve the rounded silhouette with a broad lower shaded edge; the Watch canvas is muted dark sage (#303B38). The existing animated eyes, mouth, motion and phone indicator remain code-drawn. Website/browser artwork and the reference portrait retain their previous treatment.
+
+This geometry was authored directly for the project using its existing original silhouette as reference, with no third-party artwork. Project-held rights are distributed under Apache-2.0. Two attempted built-in image-tool edits produced invalid transparency and were discarded; neither generated output is used or committed.
+
 ## Animation contract
 
 Use a 1000 × 1000 reference canvas. Eye centres are (335, 487) and (665, 487), neutral radii approximately 39. Mouth baseline is y=548; multiply the state-driven width by 1.25. Preserve blinking, gaze, speaking, joy, sleep, pose blending and reduced motion. Never draw animated features over the static portrait: use the blank plate.

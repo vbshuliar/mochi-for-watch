@@ -33,8 +33,19 @@ struct MochiView: View {
         c.rotate(by: .degrees(p.angle))
         c.scaleBy(x: p.scale, y: p.scale)
         c.translateBy(x: -edge / 2, y: -edge * 0.65)
-        c.draw(Image("Mochi"), in: CGRect(x: 0, y: 0, width: edge, height: edge))
         c.scaleBy(x: edge / 1000, y: edge / 1000)
+        let body = bodyPath()
+        c.fill(body, with: .color(Color(red: 196 / 255, green: 211 / 255, blue: 180 / 255)))
+        var shade = c
+        shade.clip(to: body)
+        var lowerEdge = Path()
+        lowerEdge.move(to: CGPoint(x: 50, y: 710))
+        lowerEdge.addCurve(to: CGPoint(x: 950, y: 650),
+          control1: CGPoint(x: 300, y: 850), control2: CGPoint(x: 770, y: 850))
+        lowerEdge.addLine(to: CGPoint(x: 1000, y: 1000))
+        lowerEdge.addLine(to: CGPoint(x: 0, y: 1000))
+        lowerEdge.closeSubpath()
+        shade.fill(lowerEdge, with: .color(Color(red: 175 / 255, green: 190 / 255, blue: 158 / 255)))
         for x in [335.0, 665.0] {
           var eyeContext = c
           eyeContext.translateBy(x: x + p.gazeX, y: 487 + p.gazeY)
@@ -122,6 +133,30 @@ struct MochiView: View {
       mouthTransition = mood == .speak ? 0.18 : 0.4
       started = now
     }
+  }
+  // Original native geometry follows the project's Mochi silhouette. Solid fills
+  // avoid bitmap texture and resampling noise on the small Watch display.
+  private func bodyPath() -> Path {
+    var body = Path()
+    body.move(to: CGPoint(x: 500, y: 145))
+    body.addCurve(to: CGPoint(x: 887, y: 355),
+      control1: CGPoint(x: 705, y: 145), control2: CGPoint(x: 843, y: 200))
+    body.addCurve(to: CGPoint(x: 920, y: 590),
+      control1: CGPoint(x: 915, y: 445), control2: CGPoint(x: 929, y: 525))
+    body.addCurve(to: CGPoint(x: 805, y: 775),
+      control1: CGPoint(x: 917, y: 680), control2: CGPoint(x: 885, y: 740))
+    body.addCurve(to: CGPoint(x: 500, y: 840),
+      control1: CGPoint(x: 735, y: 827), control2: CGPoint(x: 620, y: 840))
+    body.addCurve(to: CGPoint(x: 195, y: 775),
+      control1: CGPoint(x: 380, y: 840), control2: CGPoint(x: 265, y: 827))
+    body.addCurve(to: CGPoint(x: 80, y: 590),
+      control1: CGPoint(x: 115, y: 740), control2: CGPoint(x: 83, y: 680))
+    body.addCurve(to: CGPoint(x: 113, y: 355),
+      control1: CGPoint(x: 71, y: 525), control2: CGPoint(x: 85, y: 445))
+    body.addCurve(to: CGPoint(x: 500, y: 145),
+      control1: CGPoint(x: 157, y: 200), control2: CGPoint(x: 295, y: 145))
+    body.closeSubpath()
+    return body
   }
   private func eyePath(openness: Double, joy: Double) -> Path {
     let o = max(0, min(1.45, openness))

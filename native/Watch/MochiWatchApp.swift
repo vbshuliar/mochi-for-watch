@@ -16,6 +16,7 @@ import WatchKit
   var body: some Scene { WindowGroup { WatchHome(model: conversation, store: store) } }
 }
 struct WatchHome: View {
+  private let canvasColor = Color(red: 48 / 255, green: 59 / 255, blue: 56 / 255)
   let model: ConversationModel
   let store: ConnectionStore
   @Environment(\.scenePhase) private var phase
@@ -34,7 +35,7 @@ struct WatchHome: View {
       tasksPage.tag(1)
     }
     .tabViewStyle(.page(indexDisplayMode: .always))
-    .background(.black)
+    .background(canvasColor)
     .sheet(isPresented: $showingDaily) { DailySupportView(model: model.daily) }
     .onChange(of: notifications.openedReminderID) { _, id in if id != nil { showingDaily = true; notifications.openedReminderID = nil } }
     .sheet(isPresented: $notificationSettings) {
@@ -134,10 +135,10 @@ struct WatchHome: View {
         }
         Spacer(minLength: 10)
       }.animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: model.completionCall?.id)
-        .frame(maxWidth: .infinity, maxHeight: .infinity).background(.black)
+        .frame(maxWidth: .infinity, maxHeight: .infinity).background(canvasColor)
     }
     .ignoresSafeArea(.container)
-    .containerBackground(.black, for: .navigation)
+    .containerBackground(canvasColor, for: .navigation)
   }
   private var tasksPage: some View {
     TimelineView(.periodic(from: .now, by: 60)) { context in
