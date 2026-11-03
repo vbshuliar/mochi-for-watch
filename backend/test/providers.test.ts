@@ -159,7 +159,7 @@ test("Meta chat adapter sends context and accepts validated plan", async (t) => 
     assert(String(url).endsWith("/chat/completions"));
     const body = JSON.parse(init!.body as string);
     assert.equal(body.messages[0].role, "developer");
-    assert.equal(body.reasoning_effort, "low");
+    assert.equal(body.reasoning_effort, "minimal");
     assert(body.messages[0].content.includes("You are Mochi"));
     assert(body.messages[0].content.includes("Europe/London"));
     return json({
@@ -175,6 +175,27 @@ test("Meta chat adapter sends context and accepts validated plan", async (t) => 
     (await planner.plan([{ role: "user", content: "lunch" }], "Europe/London"))
       .kind,
     "create_event",
+  );
+});
+test("Meta reasoning remains explicitly configurable", async (t) => {
+  const planner = new MetaPlanner({
+    ...config(),
+    META_PLANNER_REASONING_EFFORT: "high",
+  });
+  mockFetch(t, async (_url, init) => {
+    assert.equal(JSON.parse(init!.body as string).reasoning_effort, "high");
+    return json({
+      choices: [
+        {
+          message: { content: '{"kind":"reply","text":"hello"}' },
+          finish_reason: "stop",
+        },
+      ],
+    });
+  });
+  assert.equal(
+    (await planner.plan([{ role: "user", content: "hello" }], "UTC")).kind,
+    "reply",
   );
 });
 test("Meta malformed and truncated plans fail closed", async (t) => {

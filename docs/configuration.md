@@ -22,7 +22,8 @@ Reviewed against `backend/src/config.ts`, `backend/.env.example` and `backend/pa
 | --- | --- |
 | `MODEL_API_KEY`, `META_BASE_URL` | Meta credential and HTTPS API origin (`https://api.meta.ai/v1`) |
 | `META_MODEL` | `muse-spark-1.3` |
-| `META_REASONING_EFFORT` | `low`; also accepts minimal, medium, high |
+| `META_REASONING_EFFORT` | `low` for search, document and social synthesis; also accepts minimal, medium, high |
+| `META_PLANNER_REASONING_EFFORT` | `minimal` for conversation/routing latency; also accepts low, medium, high. Overrides for conversation use this setting separately from synthesis. |
 | `META_TRANSCRIBE_MODEL` | `muse-voice-transcribe-1.0` |
 | `ELEVENLABS_API_KEY` | Optional speech-output credential |
 | `ELEVENLABS_VOICE_ID` | Jessica, `cgSgspJ2msm6clMCkdW9` |

@@ -23,6 +23,9 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env) {
       META_REASONING_EFFORT: z
         .enum(["minimal", "low", "medium", "high"])
         .default("low"),
+      META_PLANNER_REASONING_EFFORT: z
+        .enum(["minimal", "low", "medium", "high"])
+        .default("minimal"),
       META_TRANSCRIBE_MODEL: z.string().default("muse-voice-transcribe-1.0"),
       TWILIO_ACCOUNT_SID: z.string().default(""),
       TWILIO_AUTH_TOKEN: z.string().default(""),

@@ -71,7 +71,7 @@ Only propose one event per turn. Ask about missing date, ambiguous AM/PM, durati
         body: JSON.stringify({
           model: this.config.META_MODEL,
           stream: Boolean(options.onText),
-          reasoning_effort: this.config.META_REASONING_EFFORT,
+          reasoning_effort: this.config.META_PLANNER_REASONING_EFFORT,
           messages: [{ role: "developer", content: instructions }, ...messages],
           max_completion_tokens: 1600,
         }),
