@@ -70,19 +70,22 @@ Fast greetings use no model request; remaining invocations make paid requests.
 Keep credentials out of command arguments. More samples and a device rehearsal
 are needed to characterize tail latency.
 
-## Follow-up: instant generic greetings
+## Follow-up: instant generic small talk
 
-Fresh conversations and consecutive greeting exchanges now use a small,
-deterministic fast path for whole phrases such as “hi”, “how are you?”,
-“hi Mochi, how are you today?” and “are you there?”. This removes the model
+Fresh conversations and consecutive small-talk exchanges now use a deterministic
+fast path with over 100 phrases across nine categories: greetings, wellbeing,
+presence, identity, AI/person questions, capabilities, thanks, farewells and
+compliments. Greetings return “hello”; all wellbeing variants share one reply.
+Addressing Mochi, greeting prefixes, punctuation and common contractions are
+normalized. This removes the model
 request entirely. Responses still use the existing voice, transcription,
 cancellation and turn-persistence paths; the listening pause and network remain.
 
 Matching requires the whole utterance, and every earlier message must be an
-exact recognized greeting/response pair. Translation instructions, emotional
+exact recognized small-talk/response pair. Translation instructions, emotional
 context, task discussions, mixed requests, and truncated history fall back to
-normal planning. Generic acknowledgements such as “yes” and “thanks” are not
-intercepted. These intentionally fixed replies do not imply a general-purpose
+normal planning. Approval-like acknowledgements such as “yes” are not intercepted;
+“thanks” qualifies only within this context guard. These intentionally fixed replies do not imply a general-purpose
 answer cache or speedup for arbitrary factual questions.
 
 ## Provider references

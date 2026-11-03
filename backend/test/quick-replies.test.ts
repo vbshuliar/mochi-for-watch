@@ -65,7 +65,6 @@ test("greeting exchanges remain fast but context and mixed requests never match"
     "how are you feeling about what I said?",
     "hi\nplease call someone",
     "yes",
-    "thanks",
   ]) {
     assert.equal(
       quickReply([{ role: "user", content: text }]),
@@ -108,4 +107,92 @@ test("cancelled quick greetings emit no speech", async () => {
     ),
   );
   assert.deepEqual(streamed, []);
+});
+
+test("expanded small-talk categories share consistent replies across phrasing", () => {
+  const groups: [string, string[]][] = [
+    [
+      "hello",
+      [
+        "Good morning!",
+        "hiya",
+        "Howdy, Mochi!",
+        "Mochi, hello",
+        "Hey there",
+        "Nice to meet you",
+        "Hello again",
+      ],
+    ],
+    [
+      "I'm here and ready to help—how are you?",
+      [
+        "How have you been?",
+        "How's it been?",
+        "How has it been?",
+        "How was your weekend?",
+        "What's up?",
+        "How is everything?",
+        "Are you okay?",
+        "Hey Mochi, how've you been?",
+        "Good evening. How has your day been, Mochi?",
+        "how you been",
+      ],
+    ],
+    [
+      "yes, I'm here and listening.",
+      [
+        "You there?",
+        "Can you hear me now?",
+        "Mochi, are you awake?",
+        "Hey, are you listening?",
+      ],
+    ],
+    [
+      "I'm Mochi, your AI assistant.",
+      [
+        "Who are you?",
+        "What's your name?",
+        "Introduce yourself",
+        "What should I call you?",
+      ],
+    ],
+    [
+      "I'm an AI assistant, not a person.",
+      ["Are you human?", "Are you an AI?", "Are you a real person?"],
+    ],
+    [
+      "I can chat, help with plans, and work on tasks you ask me to do.",
+      [
+        "What can you do?",
+        "How can you help me?",
+        "What are your capabilities?",
+      ],
+    ],
+    [
+      "you're welcome!",
+      ["Thanks so much!", "Thank you very much, Mochi", "Cheers"],
+    ],
+    ["bye, talk soon!", ["Goodnight", "See you later", "Have a nice day"]],
+    [
+      "thank you, that's kind of you!",
+      ["You're the best!", "I love you", "Well done"],
+    ],
+  ];
+  for (const [expected, phrases] of groups)
+    for (const content of phrases)
+      assert.equal(quickReply([{ role: "user", content }]), expected, content);
+  for (const content of [
+    "Hi, what's the weather?",
+    "How has my booking been going?",
+    "Thanks, cancel the call",
+    "Good morning, book me a haircut",
+    "What is new in the news?",
+    "Are you ready to call?",
+    "What can you do about my appointment?",
+    "I'm not okay",
+    "I don't love you",
+    "yes please",
+    "what time is it",
+  ])
+    assert.equal(quickReply([{ role: "user", content }]), undefined, content);
 });
