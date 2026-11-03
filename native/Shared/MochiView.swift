@@ -35,17 +35,24 @@ struct MochiView: View {
         c.translateBy(x: -edge / 2, y: -edge * 0.65)
         c.scaleBy(x: edge / 1000, y: edge / 1000)
         let body = bodyPath()
-        c.fill(body, with: .color(Color(red: 212 / 255, green: 244 / 255, blue: 92 / 255)))
-        var shade = c
-        shade.clip(to: body)
-        var lowerEdge = Path()
-        lowerEdge.move(to: CGPoint(x: 50, y: 710))
-        lowerEdge.addCurve(to: CGPoint(x: 950, y: 650),
-          control1: CGPoint(x: 300, y: 850), control2: CGPoint(x: 770, y: 850))
-        lowerEdge.addLine(to: CGPoint(x: 1000, y: 1000))
-        lowerEdge.addLine(to: CGPoint(x: 0, y: 1000))
-        lowerEdge.closeSubpath()
-        shade.fill(lowerEdge, with: .color(Color(red: 183 / 255, green: 216 / 255, blue: 67 / 255)))
+        // Broad upper-left lighting keeps the face bright while the sides roll
+        // into shadow. Vector gradients stay smooth at Watch resolution.
+        c.fill(body, with: .radialGradient(
+          Gradient(stops: [
+            .init(color: Color(red: 235 / 255, green: 255 / 255, blue: 148 / 255), location: 0),
+            .init(color: Color(red: 212 / 255, green: 244 / 255, blue: 92 / 255), location: 0.44),
+            .init(color: Color(red: 184 / 255, green: 216 / 255, blue: 64 / 255), location: 0.76),
+            .init(color: Color(red: 133 / 255, green: 166 / 255, blue: 43 / 255), location: 1),
+          ]), center: CGPoint(x: 370, y: 325), startRadius: 0, endRadius: 650))
+        var rim = c
+        rim.clip(to: body)
+        rim.stroke(body, with: .linearGradient(
+          Gradient(stops: [
+            .init(color: Color(red: 249 / 255, green: 255 / 255, blue: 195 / 255).opacity(0.7), location: 0),
+            .init(color: .clear, location: 0.46),
+            .init(color: Color(red: 94 / 255, green: 122 / 255, blue: 28 / 255).opacity(0.28), location: 1),
+          ]), startPoint: CGPoint(x: 220, y: 180), endPoint: CGPoint(x: 800, y: 830)),
+          lineWidth: 22)
         for x in [335.0, 665.0] {
           var eyeContext = c
           eyeContext.translateBy(x: x + p.gazeX, y: 487 + p.gazeY)
@@ -134,8 +141,8 @@ struct MochiView: View {
       started = now
     }
   }
-  // Original native geometry follows the project's Mochi silhouette. Solid fills
-  // avoid bitmap texture and resampling noise on the small Watch display.
+  // Original native geometry follows the project's Mochi silhouette. Smooth vector shading
+  // avoids bitmap texture and resampling noise on the small Watch display.
   private func bodyPath() -> Path {
     var body = Path()
     body.move(to: CGPoint(x: 500, y: 145))
