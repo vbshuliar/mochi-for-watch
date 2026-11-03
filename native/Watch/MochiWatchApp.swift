@@ -105,7 +105,7 @@ struct WatchHome: View {
           Button {
             if model.hasProposal { reviewing = true } else { model.tap() }
           } label: {
-            MochiView(mood: model.mood, level: model.level, heartStart: model.heartStart)
+            MochiView(mood: model.mood, level: model.level, heartStart: model.heartStart, calling: model.backgroundCall?.active == true)
               .frame(width: geometry.size.width * 0.86, height: geometry.size.width * 0.86)
               .contentShape(Rectangle())
           }

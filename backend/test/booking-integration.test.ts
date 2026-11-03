@@ -29,7 +29,7 @@ const profile = {
   preferredStart: "14:00",
   preferredEnd: "18:00",
 };
-test("usual profile reaches planner and authorizes number provenance only, never dials; deletion removes authority", async (t) => {
+test("saving a profile does not dial; an explicit booking request uses it and deletion removes authority", async (t) => {
   let options: PlanOptions | undefined;
   const planner: Planner = {
     transcribe: async () => "",
@@ -54,8 +54,17 @@ test("usual profile reaches planner and authorizes number provenance only, never
   };
   const f = await buildApp(config, { planner });
   t.after(() => f.app.close());
-  t.mock.method(globalThis, "fetch", async () => {
-    throw Error("No provider operations during setup/proposal");
+  let dials = 0;
+  t.mock.method(globalThis, "fetch", async (url: any) => {
+    if (String(url).includes("elevenlabs"))
+      return new Response(Buffer.from("mp3"), {
+        headers: { "Content-Type": "audio/mpeg" },
+      });
+    if (String(url).endsWith("Calls.json")) {
+      dials++;
+      return Response.json({ sid: "CA" + "c".repeat(32) });
+    }
+    throw Error("Unexpected provider operation");
   });
   const headers = { authorization: `Bearer ${config.API_TOKEN}` };
   const saved = await f.app.inject({
@@ -65,13 +74,15 @@ test("usual profile reaches planner and authorizes number provenance only, never
     payload: profile,
   });
   assert.equal(saved.statusCode, 200, saved.body);
+  assert.equal(dials, 0);
   const session = f.service.createSession("Europe/London");
   const proposal = await f.service.turn(session.id, randomUUID(), {
     text: "Book my usual haircut next week",
   });
   assert.equal(options?.bookingProfile?.destinationName, "Salon");
-  assert.equal(proposal.callAction?.status, "pending");
-  assert.equal(f.store.list("call-attempt").length, 0);
+  assert.equal(proposal.callAction?.status, "queued");
+  assert.equal(f.store.list("call-attempt").length, 1);
+  assert.equal(dials, 1);
   assert.equal(
     (await f.app.inject({ url: "/v1/readiness", headers })).json().readyForDemo,
     false,

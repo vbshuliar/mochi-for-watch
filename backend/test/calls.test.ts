@@ -439,7 +439,7 @@ test("rechecked slots persist; negative confirmation asks for clarification", as
   assert.equal(calls.get(a.sessionId, a.id).outcome, undefined);
 });
 
-test("full authenticated plan, approval, signed turn, audio and outcome route flow", async (t) => {
+test("full authenticated request, immediate call, signed turn, audio and outcome route flow", async (t) => {
   const speech = "Confirmed, booked for Alex on 5 November at 10:00.";
   const counts = providers(t, {
     text: "Thank you, goodbye.",
@@ -479,8 +479,8 @@ test("full authenticated plan, approval, signed turn, audio and outcome route fl
   });
   assert.equal(response.statusCode, 200);
   const action = response.json().callAction;
-  assert.equal(action.status, "pending");
-  assert.equal(counts.dial, 0);
+  assert.equal(action.status, "queued");
+  assert.equal(counts.dial, 1);
   const root = `/v1/sessions/${session}/calls/${action.id}`;
   assert.equal(
     (
@@ -617,6 +617,7 @@ test("stopped/deleted calls discard late model work and audio", async (t) => {
 });
 
 test("current saved business phone supports call my barber; deleted or invented numbers are rejected", async (t) => {
+  providers(t);
   const seenMemories: any[] = [];
   const built = await buildApp(config, {
     calendar,
@@ -974,7 +975,10 @@ test("booking planner receives authoritative saved preferences with current-requ
     );
     assert.match(instructions, /Never guess missing fields/);
     assert.match(instructions, /book me a haircut/);
-    assert.match(instructions, /a separate approval remains required/);
+    assert.match(
+      instructions,
+      /starts the call immediately, without a separate approval screen/,
+    );
     assert.match(
       instructions,
       /do not substitute an email draft, reminder or Calendar event/,
@@ -1046,9 +1050,9 @@ test("brief introduction discloses AI and a newly connected Calendar is checked 
   assert.equal(action.slots[0].start, "2030-11-05T11:00:00.000Z");
   assert.equal(counts.dial, 1);
   const intro = store.get<any>("call-turn", `${action.id}:0`).text;
-  assert.match(intro, /Mochi, Alex’s AI assistant/);
-  assert.match(intro, /Is it okay to chat/);
-  assert.ok(intro.split(/\s+/).length <= 30);
+  assert.match(intro, /Mochi, an AI assistant calling on behalf of Alex/);
+  assert.doesNotMatch(intro, /Is it okay to chat/);
+  assert.ok(intro.split(/\s+/).length <= 45);
 });
 
 test("large call proposals keep internal candidates off the client wire", async (t) => {
@@ -1857,4 +1861,276 @@ test("rescheduling excludes the verified original event at proposal and rechecks
   assert.equal(checks, 2);
   assert.equal(result.callAction?.status, "failed");
   assert.equal(counts.dial, 0);
+});
+
+test("complete booking request dials once without a separate decision and replays its receipt", async (t) => {
+  const counts = providers(t);
+  const built = await buildApp(config, {
+    calendar,
+    planner: {
+      async plan() {
+        return { kind: "call_booking" as const, booking };
+      },
+      async transcribe() {
+        return "";
+      },
+    },
+  });
+  t.after(() => built.app.close());
+  const session = built.service.createSession("Europe/London");
+  const requestId = randomUUID();
+  const input = {
+    text: `Call Salon at ${booking.phoneNumber} to book a haircut on 5 November 2030 between 10 and 12 for Alex.`,
+  };
+  const result = await built.service.turn(session.id, requestId, input);
+  assert.equal(result.callAction?.status, "queued");
+  assert.equal(result.speechText, "Sure, I’ll call right now.");
+  assert.equal(result.state, "working");
+  assert.equal(counts.dial, 1);
+  assert.equal(built.store.list("action").length, 0);
+  assert.deepEqual(
+    await built.service.turn(session.id, requestId, input),
+    JSON.parse(JSON.stringify(result)),
+  );
+  assert.equal(counts.dial, 1);
+  const saved = built.store.get<any>("turn", `${session.id}:${requestId}`);
+  built.store.put("turn", `${session.id}:${requestId}`, {
+    ...saved,
+    status: "failed",
+    result: undefined,
+  });
+  assert.equal(
+    (await built.service.turn(session.id, requestId, input)).callAction?.id,
+    result.callAction?.id,
+  );
+  assert.equal(counts.dial, 1);
+});
+
+test("a clear yes to one proposed booking time ends with thanks instead of reconfirmation", async (t) => {
+  const counts = providers(t, {
+    text: "Please confirm the date again.",
+    outcome: "continue",
+  });
+  const { calls, store } = fixture(t);
+  const a = (
+    await calls.prepare(randomUUID(), {
+      ...booking,
+      window: { start: "2030-11-05T10:00:00Z", end: "2030-11-05T10:30:00Z" },
+    })
+  ).callAction!;
+  await calls.decide(a.sessionId, a.id, "confirm");
+  const intro = store.get<any>("call-turn", `${a.id}:0`).text;
+  assert.match(intro, /AI assistant calling on behalf of Alex/);
+  assert.match(intro, /5 November/);
+  assert.doesNotMatch(intro, /okay to chat|Is this/);
+  calls.voice(a.id, 0, callback);
+  calls.gather(a.id, 0, {
+    ...callback,
+    SpeechResult: "Hi, yes, that time works.",
+  });
+  await calls.close();
+  assert.match(calls.voice(a.id, 1, callback), /<Hangup/);
+  assert.equal(calls.get(a.sessionId, a.id).outcome, "booked");
+  assert.equal(
+    store.get<any>("call-turn", `${a.id}:1`).text,
+    "Thanks, bye bye.",
+  );
+  assert.equal(counts.meta, 0);
+});
+
+for (const speech of [
+  "Hi",
+  "Yes, if someone cancels",
+  "No, that time does not work",
+  "Yes, 11 am instead",
+  "Yes, 11 am works",
+  "That time works?",
+  "Yes, but not for Alex",
+  "Maybe",
+]) {
+  test(`ambiguous or changed response does not complete a booking: ${speech}`, async (t) => {
+    providers(t, { text: "Which time works?", outcome: "continue" });
+    const { calls } = fixture(t);
+    const a = (
+      await calls.prepare(randomUUID(), {
+        ...booking,
+        window: { start: "2030-11-05T10:00:00Z", end: "2030-11-05T10:30:00Z" },
+      })
+    ).callAction!;
+    await calls.decide(a.sessionId, a.id, "confirm");
+    calls.voice(a.id, 0, callback);
+    calls.gather(a.id, 0, { ...callback, SpeechResult: speech });
+    await calls.close();
+    calls.voice(a.id, 1, callback);
+    assert.equal(calls.get(a.sessionId, a.id).outcome, undefined);
+  });
+}
+
+test("recipient can repeat the offered clock time without repeating the date or name", async (t) => {
+  providers(t, { text: "Please repeat the date.", outcome: "continue" });
+  const { calls, store } = fixture(t);
+  const a = (
+    await calls.prepare(randomUUID(), {
+      ...booking,
+      window: { start: "2030-11-05T10:00:00Z", end: "2030-11-05T10:30:00Z" },
+    })
+  ).callAction!;
+  await calls.decide(a.sessionId, a.id, "confirm");
+  calls.voice(a.id, 0, callback);
+  calls.gather(a.id, 0, {
+    ...callback,
+    SpeechResult: "Hi, yes, 10 am works for us.",
+  });
+  await calls.close();
+  calls.voice(a.id, 1, callback);
+  assert.equal(calls.get(a.sessionId, a.id).outcome, "booked");
+  assert.equal(
+    store.get<any>("call-turn", `${a.id}:1`).text,
+    "Thanks, bye bye.",
+  );
+});
+
+test("yes to a range does not choose a booking time", async (t) => {
+  providers(t, { text: "Which start time works?", outcome: "continue" });
+  const { calls } = fixture(t);
+  const a = await started(calls);
+  calls.voice(a.id, 0, callback);
+  calls.gather(a.id, 0, { ...callback, SpeechResult: "Yes, that time works." });
+  await calls.close();
+  calls.voice(a.id, 1, callback);
+  assert.equal(calls.get(a.sessionId, a.id).outcome, undefined);
+});
+
+test("cancelling the request while intro audio is preparing prevents dialing", async (t) => {
+  let release!: () => void;
+  let preparing!: () => void;
+  const entered = new Promise<void>((resolve) => {
+    preparing = resolve;
+  });
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let dials = 0;
+  t.mock.method(globalThis, "fetch", async (url: any) => {
+    if (String(url).includes("elevenlabs")) {
+      preparing();
+      await gate;
+      return new Response(Buffer.from("mp3"), {
+        headers: { "Content-Type": "audio/mpeg" },
+      });
+    }
+    dials++;
+    return Response.json({ sid });
+  });
+  const built = await buildApp(config, {
+    calendar,
+    planner: {
+      async plan() {
+        return { kind: "call_booking" as const, booking };
+      },
+      async transcribe() {
+        return "";
+      },
+    },
+  });
+  t.after(() => built.app.close());
+  const session = built.service.createSession("Europe/London");
+  const requestId = randomUUID();
+  const pending = built.service.turn(session.id, requestId, {
+    text: `Call ${booking.phoneNumber} to book my haircut.`,
+  });
+  await entered;
+  const cancellation = built.service.cancelTurn(session.id, requestId);
+  release();
+  const result = await pending;
+  await cancellation;
+  assert.equal(dials, 0);
+  assert.equal(result.callAction?.status, "cancelled");
+});
+
+test("yes to a name spelling question does not confirm a booking", async (t) => {
+  let count = 0;
+  providers(t);
+  const fetch = globalThis.fetch;
+  t.mock.method(globalThis, "fetch", async (url: any, init: any) => {
+    if (String(url).includes("api.meta.ai"))
+      return Response.json({
+        choices: [
+          {
+            finish_reason: "stop",
+            message: {
+              content: JSON.stringify({
+                text:
+                  ++count === 1
+                    ? "For 5 November at 10 am, is Alex spelled A-l-e-x?"
+                    : "Does 5 November at 10 am work?",
+                outcome: "continue",
+              }),
+            },
+          },
+        ],
+      });
+    return fetch(url, init);
+  });
+  const { calls } = fixture(t);
+  const a = await started(calls);
+  calls.voice(a.id, 0, callback);
+  calls.gather(a.id, 0, {
+    ...callback,
+    SpeechResult: "Can you check the name?",
+  });
+  await calls.close();
+  calls.voice(a.id, 1, callback);
+  calls.gather(a.id, 1, { ...callback, SpeechResult: "Yes" });
+  await calls.close();
+  calls.voice(a.id, 2, callback);
+  assert.equal(calls.get(a.sessionId, a.id).outcome, undefined);
+});
+
+test("natural emphatic agreement to a concrete booking offer needs no reconfirmation", async (t) => {
+  providers(t, { text: "Please repeat all details", outcome: "continue" });
+  const { calls } = fixture(t);
+  const a = (
+    await calls.prepare(randomUUID(), {
+      ...booking,
+      window: { start: "2030-11-05T10:00:00Z", end: "2030-11-05T10:30:00Z" },
+    })
+  ).callAction!;
+  await calls.decide(a.sessionId, a.id, "confirm");
+  calls.voice(a.id, 0, callback);
+  calls.gather(a.id, 0, {
+    ...callback,
+    SpeechResult: "Yes, absolutely, that works.",
+  });
+  await calls.close();
+  calls.voice(a.id, 1, callback);
+  assert.equal(calls.get(a.sessionId, a.id).outcome, "booked");
+});
+
+test("a flexible booking records a concrete model offer before accepting yes", async (t) => {
+  providers(t, {
+    text: "An unnecessary long explanation",
+    outcome: "continue",
+    offeredSlotIndex: 4,
+  });
+  const { calls, store } = fixture(t);
+  const a = await started(calls);
+  calls.voice(a.id, 0, callback);
+  calls.gather(a.id, 0, { ...callback, SpeechResult: "Can you do 11 am?" });
+  await calls.close();
+  const offer = store.get<any>("call-turn", `${a.id}:1`);
+  assert.equal(offer.offeredSlot.start, "2030-11-05T11:00:00.000Z");
+  assert.match(offer.text, /^Does .*11:00 am work for Alex\?$/);
+  calls.voice(a.id, 1, callback);
+  calls.gather(a.id, 1, {
+    ...callback,
+    SpeechResult: "Yes, absolutely, that works.",
+  });
+  await calls.close();
+  calls.voice(a.id, 2, callback);
+  assert.equal(calls.get(a.sessionId, a.id).outcome, "booked");
+  assert.equal(
+    calls.get(a.sessionId, a.id).bookedSlot?.start,
+    "2030-11-05T11:00:00.000Z",
+  );
 });

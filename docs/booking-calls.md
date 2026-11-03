@@ -2,18 +2,20 @@
 
 Decision: 27 October 2026. The hackathon demo now prioritizes **memory + Calendar + one booking call**, rather than adding more generic connectors. Gmail and Notion code remains available, but account setup is paused.
 
+Updated 3 November 2026: the owner requested immediate dialing for complete new-booking requests and shorter booking conversations. Historical verification notes below describe earlier approval behavior.
+
 ## Intended demo
 
 “Mochi, call my barber and book a haircut tomorrow afternoon when I’m free.”
 
 1. Resolve the business, exact international phone number, booking name, duration and allowed time window. Ask for missing details; never invent a phone number. Saved memories may provide user-supplied preferences.
 2. Check Calendar when connected. Show whether availability was actually checked.
-3. Present the destination, number and booking instructions for explicit approval.
-4. Call the approved number. Introduce Mochi as an AI assistant calling on the user's behalf. Negotiate only within the approved scope and available time slots.
+3. The complete explicit new-booking request authorizes dialing. Say only “Sure, I’ll call right now” and show 📞; clarify missing details before starting. General delegated calls, booking changes and recovery retries retain their review controls.
+4. Call the allowlisted number. Introduce Mochi as an AI assistant calling on the user's behalf to book the service. Offer the requested time, or ask for an opening within the permitted range. A clear affirmative response to a recorded single-slot booking offer completes the booking with “Thanks, bye bye.” Do not repeat a separate consent or date/name confirmation question. A greeting alone, a yes to a range or an unrelated question, a refusal, or a changed time is not confirmation.
 5. Report the actual outcome. A completed phone connection alone is not evidence of a booking.
 6. If an appointment was explicitly confirmed, offer a Calendar proposal. A separate confirmation saves it.
 
-The first live test must use a consenting demo participant. No calls to unrelated businesses are part of automated tests. No automatic dialling from a spoken “yes”, no payments, no call recording and no automatic redial after an ambiguous provider result.
+The first live test must use a consenting demo participant. No calls to unrelated businesses are part of automated tests. No payments, call recording or automatic redial after an ambiguous provider result. Saving a profile alone never dials. Cancelling the initiating turn before dialing stops call preparation; after dialing, use the task’s Stop control. Calendar saves remain separately approved.
 
 ## Architecture
 
@@ -27,8 +29,7 @@ sequenceDiagram
     participant Business as Demo recipient
     User->>API: Booking request
     API->>Meta: Interpret request and constraints
-    API-->>User: Call proposal
-    User->>API: Approve exact call
+    API-->>User: Sure, I’ll call right now · 📞
     API->>Phone: Place bounded outbound call
     Phone->>Business: Ring
     Phone->>API: Signed voice webhook

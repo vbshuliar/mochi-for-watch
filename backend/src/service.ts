@@ -25,6 +25,7 @@ type CachedTurn = {
   hash: string;
   status: "processing" | "done" | "failed" | "cancelled";
   result?: TurnResult;
+  autoCallId?: string;
 };
 type ContactLookup = {
   id: string;
@@ -280,6 +281,9 @@ export class Service {
           "use a new request ID for different input",
         );
       if (cached?.status === "done") return cached.result!;
+      // A lost response or restart must recover the same call, never dial again.
+      if (cached?.autoCallId && this.calls)
+        return this.calls.result(this.calls.get(id, cached.autoCallId));
       const continuation = options.contactContinuation;
       if (continuation) {
         const lookup = this.store.get<ContactLookup>(
@@ -340,6 +344,7 @@ export class Service {
           throw new AppError(409, "turn_cancelled", "request cancelled");
       };
       let generatedCallId: string | undefined;
+      let autoCallId: string | undefined;
       try {
         check();
         let text: string;
@@ -636,6 +641,27 @@ export class Service {
               : this.calls.prepareConversation(id, plan.request);
           generatedCallId = result.callAction?.id;
           check();
+          if (plan.kind === "call_booking" && generatedCallId) {
+            // The owner's complete booking request authorizes dialing. Persist
+            // its binding before any provider operation so retries only recover it.
+            autoCallId = generatedCallId;
+            this.store.put("turn", key, {
+              hash,
+              status: "processing",
+              autoCallId,
+            });
+            result = await this.calls.decide(id, autoCallId, "confirm", signal);
+            if (
+              ["starting", "queued", "in_progress"].includes(
+                result.callAction!.status,
+              )
+            )
+              result = {
+                ...result,
+                speechText: "Sure, I’ll call right now.",
+                statusText: "📞",
+              };
+          }
         } else if (plan.kind === "social_task") {
           if (!this.social)
             throw new AppError(
@@ -748,7 +774,12 @@ export class Service {
               ].slice(-16);
         this.store.transaction(() => {
           this.store.put("session", id, session);
-          this.store.put("turn", key, { hash, status: "done", result });
+          this.store.put("turn", key, {
+            hash,
+            status: "done",
+            result,
+            autoCallId,
+          });
         });
         return result;
       } catch (error) {
@@ -767,6 +798,7 @@ export class Service {
         this.store.put("turn", key, {
           hash,
           status: signal.aborted ? "cancelled" : "failed",
+          autoCallId,
         });
         this.emit(
           id,

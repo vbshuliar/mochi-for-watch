@@ -67,4 +67,4 @@ Review the format diff before staging. `check:all` includes formatting, TypeScri
 - Commit only intended files and push when authorized; inspect CI for the exact SHA.
 - Deploy an isolated committed snapshot so untracked files and unrelated edits cannot leak into the image.
 - Verify `/health`, authenticated `/v1/readiness`, unauthorized rejection, machine health and exact revision after deployment.
-- Keep the demo focused on haircut request → call approval → autonomous conversation → result → Calendar approval. Gmail and Notion are optional capabilities outside this demo.
+- Keep the demo focused on complete haircut request → immediate call with a brief acknowledgement → autonomous conversation → result → Calendar approval. The owner removed the extra new-booking approval screen on 3 November 2026; other call operations retain their approval controls. Gmail and Notion are optional capabilities outside this demo.

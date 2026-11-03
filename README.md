@@ -59,8 +59,8 @@ flowchart LR
 > “Book my usual haircut next week. Any afternoon except Thursday.”
 
 1. **Mochi prepares.** He uses your saved preferences, checks Calendar availability and asks for anything missing.
-2. **You approve.** Review the business, number, service and acceptable times.
-3. **Mochi calls.** He introduces himself as your AI assistant, asks for consent and negotiates within your instructions.
+2. **Your request starts the call.** Once the business and booking details are clear, Mochi says “Sure, I’ll call right now” and shows 📞.
+3. **Mochi calls.** He introduces himself as your AI assistant calling on your behalf. A clear agreement to one proposed time is enough: “Thanks, bye bye.”
 4. **You carry on.** The call runs in the background while you keep chatting or check progress later.
 5. **Mochi reports back.** Review the outcome and separately approve adding a confirmed appointment to Calendar.
 

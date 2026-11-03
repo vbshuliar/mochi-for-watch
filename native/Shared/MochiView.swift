@@ -5,6 +5,7 @@ struct MochiView: View {
   let mood: Mood
   var level: Double = 0
   var heartStart: Date?
+  var calling = false
   @Environment(\.accessibilityReduceMotion) private var reduced
   @Environment(\.scenePhase) private var scenePhase
   @State private var started = Date()
@@ -99,6 +100,14 @@ struct MochiView: View {
         }
       }
     }
+    .overlay(alignment: .topTrailing) {
+      if calling {
+        Text("📞").font(.system(size: 28))
+          .padding(.top, 16).padding(.trailing, 10)
+          .transition(.scale.combined(with: .opacity))
+      }
+    }
+    .animation(reduced ? nil : .spring(response: 0.35, dampingFraction: 0.65), value: calling)
     .accessibilityHidden(true)
     .onChange(of: mood) { old, _ in
       let now = Date()

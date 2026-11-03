@@ -220,7 +220,7 @@ struct PhoneConversation: View {
           Button {
             if model.hasProposal { review = true } else { model.tap() }
           } label: {
-            MochiView(mood: model.mood, level: model.level, heartStart: model.heartStart)
+            MochiView(mood: model.mood, level: model.level, heartStart: model.heartStart, calling: model.backgroundCall?.active == true)
               .frame(width: 260, height: 260)
           }.buttonStyle(.plain).accessibilityLabel(
             model.recording ? "Finish speaking" : "Talk to Mochi")
