@@ -194,7 +194,12 @@ test("Meta reasoning remains explicitly configurable", async (t) => {
     });
   });
   assert.equal(
-    (await planner.plan([{ role: "user", content: "hello" }], "UTC")).kind,
+    (
+      await planner.plan(
+        [{ role: "user", content: "Explain gravity simply" }],
+        "UTC",
+      )
+    ).kind,
     "reply",
   );
 });
@@ -206,7 +211,7 @@ test("Meta malformed and truncated plans fail closed", async (t) => {
     }),
   );
   await assert.rejects(
-    planner.plan([{ role: "user", content: "hello" }], "UTC"),
+    planner.plan([{ role: "user", content: "Explain gravity simply" }], "UTC"),
   );
 });
 test("Meta transcription uses documented multipart fields and plain text", async (t) => {

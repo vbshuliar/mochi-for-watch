@@ -120,7 +120,7 @@ test("ordinary replies do not call search", async (t) => {
   assert.equal(
     (
       await new MetaPlanner(config).plan(
-        [{ role: "user", content: "hello" }],
+        [{ role: "user", content: "Explain gravity simply" }],
         "UTC",
       )
     ).kind,
@@ -211,7 +211,7 @@ test("model-authored source links on an ordinary reply are discarded", async (t)
     }),
   );
   const result = await new MetaPlanner(config).plan(
-    [{ role: "user", content: "hello" }],
+    [{ role: "user", content: "Explain gravity simply" }],
     "UTC",
   );
   assert.equal((result as any).sources, undefined);

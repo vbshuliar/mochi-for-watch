@@ -62,12 +62,28 @@ npm --prefix backend run build
 node --env-file=/path/to/private-provider.env backend/scripts/benchmark-reply.mjs --live
 ```
 
-This explicitly opt-in script makes eight paid model requests using fixed public
+This explicitly opt-in script runs eight planner invocations using fixed public
 synthetic text. It imports only the planner, loads no owner records and never
 executes a plan. Search is disabled even if the model unexpectedly requests it.
 It prints timings and plan kinds, not generated content or keys.
+Fast greetings use no model request; remaining invocations make paid requests.
 Keep credentials out of command arguments. More samples and a device rehearsal
 are needed to characterize tail latency.
+
+## Follow-up: instant generic greetings
+
+Fresh conversations and consecutive greeting exchanges now use a small,
+deterministic fast path for whole phrases such as “hi”, “how are you?”,
+“hi Mochi, how are you today?” and “are you there?”. This removes the model
+request entirely. Responses still use the existing voice, transcription,
+cancellation and turn-persistence paths; the listening pause and network remain.
+
+Matching requires the whole utterance, and every earlier message must be an
+exact recognized greeting/response pair. Translation instructions, emotional
+context, task discussions, mixed requests, and truncated history fall back to
+normal planning. Generic acknowledgements such as “yes” and “thanks” are not
+intercepted. These intentionally fixed replies do not imply a general-purpose
+answer cache or speedup for arbitrary factual questions.
 
 ## Provider references
 

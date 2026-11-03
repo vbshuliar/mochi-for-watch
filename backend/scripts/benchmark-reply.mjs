@@ -4,7 +4,9 @@ import { readConfig } from "../dist/config.js";
 import { MetaPlanner } from "../dist/meta.js";
 
 if (process.argv.slice(2).join(" ") !== "--live") {
-  throw new Error("Pass --live to authorize paid synthetic model requests.");
+  throw new Error(
+    "Pass --live to authorize synthetic model requests (which may be paid).",
+  );
 }
 const config = readConfig();
 if (config.APP_MODE !== "live")
