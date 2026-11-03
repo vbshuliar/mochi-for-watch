@@ -67,6 +67,11 @@ final class ConversationTests: XCTestCase {
       for i in 0..<100 {
         let pose = MochiMotion.pose(mood, time: Double(i) / 10, level: 1)
         XCTAssertTrue(pose.angle.isFinite)
+        XCTAssertLessThanOrEqual(abs(pose.yaw), 16)
+        XCTAssertLessThanOrEqual(abs(pose.pitch), 11)
+        let still = MochiMotion.pose(mood, time: Double(i) / 10, reduced: true)
+        XCTAssertEqual(still.yaw, 0)
+        XCTAssertEqual(still.pitch, 0)
         XCTAssertLessThanOrEqual(pose.scale, 1.13)
         XCTAssertGreaterThanOrEqual(pose.eye, 0)
       }
@@ -76,6 +81,10 @@ final class ConversationTests: XCTestCase {
     XCTAssertEqual(
       talk.blended(to: idle, progress: MochiMotion.ease(1)).angle, idle.angle, accuracy: 0.0001)
     XCTAssertEqual(MochiMotion.pose(.think, time: 2, reduced: true).angle, 0)
+    XCTAssertEqual(talk.blended(to: idle, progress: 1).yaw, idle.yaw)
+    XCTAssertEqual(talk.blended(to: idle, progress: 1).pitch, idle.pitch)
+    XCTAssertNotEqual(MochiMotion.pose(.listen, time: 0).yaw, MochiMotion.pose(.listen, time: 2).yaw)
+    XCTAssertNotEqual(MochiMotion.pose(.listen, time: 0).pitch, MochiMotion.pose(.listen, time: 2).pitch)
   }
   func testRequestHasAuthorizationHeaderNeverURLToken() throws {
     let token = String(repeating: "z", count: 32)

@@ -34,6 +34,13 @@ struct MochiView: View {
         c.scaleBy(x: p.scale, y: p.scale)
         c.translateBy(x: -edge / 2, y: -edge * 0.65)
         c.scaleBy(x: edge / 1000, y: edge / 1000)
+        let yaw = p.yaw * .pi / 180
+        let pitch = p.pitch * .pi / 180
+        // A rounded volume barely changes silhouette as it turns; its face
+        // travels across the surface and foreshortens much more noticeably.
+        c.translateBy(x: 500, y: 500)
+        c.scaleBy(x: 0.94 + 0.06 * cos(yaw), y: 0.95 + 0.05 * cos(pitch))
+        c.translateBy(x: -500, y: -500)
         let body = bodyPath()
         // Broad upper-left lighting keeps the face bright while the sides roll
         // into shadow. Vector gradients stay smooth at Watch resolution.
@@ -43,7 +50,7 @@ struct MochiView: View {
             .init(color: Color(red: 212 / 255, green: 244 / 255, blue: 92 / 255), location: 0.44),
             .init(color: Color(red: 184 / 255, green: 216 / 255, blue: 64 / 255), location: 0.76),
             .init(color: Color(red: 133 / 255, green: 166 / 255, blue: 43 / 255), location: 1),
-          ]), center: CGPoint(x: 370, y: 325), startRadius: 0, endRadius: 650))
+          ]), center: CGPoint(x: 370 - sin(yaw) * 100, y: 325 + sin(pitch) * 80), startRadius: 0, endRadius: 650))
         var rim = c
         rim.clip(to: body)
         rim.stroke(body, with: .linearGradient(
@@ -53,9 +60,17 @@ struct MochiView: View {
             .init(color: Color(red: 94 / 255, green: 122 / 255, blue: 28 / 255).opacity(0.28), location: 1),
           ]), startPoint: CGPoint(x: 220, y: 180), endPoint: CGPoint(x: 800, y: 830)),
           lineWidth: 22)
+        // Project the face on the front of the rounded head. Roll uses the
+        // outer context; yaw and pitch move the features along the other axes.
+        var face = c
+        face.translateBy(x: 500 + sin(yaw) * 235, y: 500 - sin(pitch) * 215)
+        face.scaleBy(x: cos(yaw), y: cos(pitch))
+        face.translateBy(x: -500, y: -500)
         for x in [335.0, 665.0] {
-          var eyeContext = c
+          var eyeContext = face
           eyeContext.translateBy(x: x + p.gazeX, y: 487 + p.gazeY)
+          let perspective = 1800 / (1800 + (x - 500) * sin(yaw))
+          eyeContext.scaleBy(x: perspective, y: perspective)
           let eye = eyePath(openness: p.eye, joy: p.joy)
           eyeContext.fill(
             eye,
@@ -83,17 +98,17 @@ struct MochiView: View {
           control1: CGPoint(x: x + width * 0.9, y: y + p.smile + p.mouth),
           control2: CGPoint(x: x - width * 0.9, y: y + p.smile + p.mouth))
         mouth.closeSubpath()
-        c.fill(
+        face.fill(
           mouth,
           with: .linearGradient(
             Gradient(colors: [
               Color(red: 0.16, green: 0.07, blue: 0.06), Color(red: 0.44, green: 0.2, blue: 0.18),
             ]), startPoint: CGPoint(x: x, y: y), endPoint: CGPoint(x: x, y: y + 65)))
-        c.stroke(
+        face.stroke(
           mouth, with: .color(Color(red: 0.16, green: 0.1, blue: 0.08)),
           style: StrokeStyle(lineWidth: 10, lineCap: .round, lineJoin: .round))
         if p.mouth > 8 {
-          var tongue = c
+          var tongue = face
           tongue.clip(to: mouth)
           tongue.fill(
             Path(

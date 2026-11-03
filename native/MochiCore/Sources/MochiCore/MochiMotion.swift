@@ -2,6 +2,7 @@ import Foundation
 
 public struct FacePose: Sendable {
   public var angle = 0.0, y = 0.0, scale = 1.0, eye = 1.0, gazeX = 0.0, gazeY = 0.0
+  public var yaw = 0.0, pitch = 0.0
   public var smile = 24.0, mouth = 0.0, width = 49.0, joy = 0.0
   public init() {}
   public func blended(to target: FacePose, progress: Double, mouthProgress: Double? = nil)
@@ -10,6 +11,8 @@ public struct FacePose: Sendable {
     func mix(_ a: Double, _ b: Double, _ p: Double) -> Double { a + (b - a) * min(1, max(0, p)) }
     var p = self
     p.angle = mix(angle, target.angle, progress)
+    p.yaw = mix(yaw, target.yaw, progress)
+    p.pitch = mix(pitch, target.pitch, progress)
     p.y = mix(y, target.y, progress)
     p.scale = mix(scale, target.scale, progress)
     p.eye = mix(eye, target.eye, progress)
@@ -111,6 +114,37 @@ public enum MochiMotion {
       p.angle = reduced ? 0 : -4
       p.eye = 1.08
       p.smile = 16
+    }
+    if !reduced {
+      switch mood {
+      case .idle:
+        p.yaw = sin(t * 0.48) * 9
+        p.pitch = sin(t * 0.67) * 4
+      case .listen:
+        p.yaw = sin(t * 0.72) * 13
+        p.pitch = -5 + sin(t * 1.05) * 4
+      case .think:
+        p.yaw = sin(t * 0.62) * 16
+        p.pitch = -8 + sin(t * 0.8) * 3
+      case .speak:
+        p.yaw = sin(t * 0.95) * 9
+        p.pitch = sin(t * 1.9) * 5
+      case .curious, .approval:
+        p.yaw = 10
+        p.pitch = -5
+      case .confused:
+        p.yaw = -12
+        p.pitch = 4
+      case .happy, .loved, .delighted:
+        p.yaw = sin(t * 0.8) * 7
+        p.pitch = -3 + sin(t * 1.4) * 4
+      case .sleep:
+        p.pitch = 8
+      case .surprised:
+        p.pitch = -7
+      case .error:
+        p.pitch = 4
+      }
     }
     if !reduced && ![Mood.sleep, .loved, .happy].contains(mood) {
       let blink = t.truncatingRemainder(dividingBy: 4.9)
