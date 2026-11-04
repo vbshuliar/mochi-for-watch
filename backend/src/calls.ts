@@ -114,6 +114,7 @@ export type BookingFollowUp = {
 };
 export type PublicCallAction = Omit<CallAction, "slots"> & {
   slots: [];
+  calendarActionStatus?: Action["status"];
   followUp?: BookingFollowUp;
 };
 export const bookingRetrySchema = z
@@ -466,6 +467,9 @@ export class Calls {
     // Keep the legacy field decodable without sending internal candidates.
     return {
       ...result,
+      calendarActionStatus: a.calendarActionId
+        ? this.store.get<Action>("action", a.calendarActionId)?.status
+        : undefined,
       followUp: this.followUp(a),
       summary: ["booked", "rescheduled", "booking_cancelled"].includes(
         a.outcome || "",

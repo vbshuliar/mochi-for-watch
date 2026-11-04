@@ -101,7 +101,7 @@ These are in-app cards, with catch-up on resume. This feature requires no APNs s
 
 ## Shared tasks, changes and notifications (28 October 2026)
 
-Both clients load the private account's task feed from authenticated `GET /v1/tasks`. A fresh device can see bookings created by the other device; conversation histories remain separate. Reviews keep the task's original session identity for approval, stop and Calendar operations. Opening a task retrieves any linked pending Calendar approval. The iPhone has a Tasks entry; the Watch keeps a task-only second page with refresh, active work, items needing review and recent results. Today and notification settings remain on iPhone. Foreground polling checks active work every three seconds and idle feeds every fifteen seconds, and stops when the app is inactive.
+Both clients load the private account's task feed from authenticated `GET /v1/tasks`. A fresh device can see bookings created by the other device; conversation histories remain separate. Reviews keep the task's original session identity for approval, stop and Calendar operations. Opening a task retrieves any linked pending Calendar approval. The iPhone has a Tasks entry; the Watch keeps a task-only second page with refresh, active work, items needing review and recent results. **Clear recents** hides finished tasks on the current device and remembers that choice across restarts. Active tasks, uncertain outcomes and unresolved linked Calendar approvals stay visible; server receipts are retained. Today and notification settings remain on iPhone. Foreground polling checks active work every three seconds and idle feeds every fifteen seconds, and stops when the app is inactive.
 
 Confirmed bookings offer **Reschedule booking** and **Cancel booking**. These prepare a new call proposal; they never dial immediately. A reschedule selects an allowed window in the booking's timezone. Review shows the original appointment and the requested change. Mochi must obtain a verified result from the business; any Calendar update or removal has its own clearly labelled approval. Superseded bookings link conceptually to the newer task and no longer offer change controls.
 
@@ -129,7 +129,7 @@ The owner requested builds now and physical-device testing later. No device inst
 
 ## Booking setup and follow-through
 
-Tasks now includes **My usual haircut**: save the business, international phone number, booking name, service, duration, timezone and preferred weekdays/hours. Saving preferences does not authorize a call or add a number to the server's calling allowlist. Each actual call still has a review step.
+Tasks now includes **My usual haircut**: save the business, international phone number, booking name, service, duration, timezone and preferred weekdays/hours. Saving preferences does not authorize a call or add a number to the server's calling allowlist. A complete explicit new-booking request starts the call directly with a brief explanation of Calendar availability and preferences; other call operations retain their review step.
 
 The shared iPhone/Watch call review shows the server's next-step guidance. Verified bookings offer the existing Calendar, reschedule and cancellation reviews plus a Mochi reminder at an explicitly selected time. Eligible unsuccessful calls offer a new appointment window and prepare another call for approval; uncertain outcomes do not offer automatic redial. Reminder retries retain the same request ID until the chosen time changes.
 

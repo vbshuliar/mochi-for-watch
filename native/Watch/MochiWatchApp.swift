@@ -140,7 +140,7 @@ struct WatchHome: View {
     TimelineView(.periodic(from: .now, by: 60)) { context in
       let active = model.taskCalls.filter { $0.active }
       let attention = model.taskCalls.filter { $0.needsAttention }
-      let recent = model.taskCalls.filter { $0.recentlyCompleted(now: context.date) }
+      let recent = model.visibleTaskCalls.filter { $0.recentlyCompleted(now: context.date) }
         .sorted { ($0.finishedAt ?? 0) > ($1.finishedAt ?? 0) }
       ScrollView {
         VStack(alignment: .leading, spacing: 12) {
@@ -176,6 +176,13 @@ struct WatchHome: View {
             }
           }
           taskSection("Recent", calls: recent)
+          if !recent.isEmpty {
+            Button { model.clearRecents() } label: {
+              Label("Clear recents", systemImage: "xmark.circle")
+                .font(.caption2).foregroundStyle(.secondary)
+                .frame(minHeight: 44)
+            }.buttonStyle(.plain)
+          }
           if active.isEmpty && attention.isEmpty && recent.isEmpty && !model.hasProposal && !model.tasksLoadFailed {
             VStack(alignment: .leading, spacing: 4) {
               Text("All clear").font(.subheadline.weight(.medium))

@@ -470,6 +470,53 @@ extension NativeConversationTests {
     try await Task.sleep(for: .milliseconds(50))
     XCTAssertNil(other.callAction)
   }
+  func testClearRecentsPersistsWithoutHidingActiveOrUncertainTasks() throws {
+    let defaults = UserDefaults(suiteName: "native-clear-" + UUID().uuidString)!
+    let (model, _) = try makeModel(defaults: defaults)
+    let finished = try call("completed", id: "finished", finishedAt: Date().timeIntervalSince1970 * 1000)
+    model.receiveCall(finished)
+    model.receiveCall(try call("in_progress", id: "active"))
+    model.receiveCall(try call("uncertain", id: "uncertain"))
+    model.receiveCall(try call("pending", id: "approval"))
+    XCTAssertTrue(model.canClearRecents)
+    model.clearRecents()
+    XCTAssertEqual(Set(model.visibleTaskCalls.map(\.id)), ["active", "uncertain", "approval"])
+    XCTAssertEqual(model.taskCalls.count, 4, "Clearing the display preserves task receipts")
+    XCTAssertFalse(model.canClearRecents)
+    model.receiveCall(finished)
+    XCTAssertFalse(model.visibleTaskCalls.contains { $0.id == "finished" })
+    let (restored, _) = try makeModel(defaults: defaults)
+    restored.receiveCall(finished)
+    XCTAssertTrue(restored.visibleTaskCalls.isEmpty)
+    restored.receiveCall(try call("completed", id: "new"))
+    XCTAssertEqual(restored.visibleTaskCalls.map(\.id), ["new"])
+    restored.receiveCall(try call("uncertain", id: "finished"))
+    XCTAssertEqual(Set(restored.visibleTaskCalls.map(\.id)), ["new", "finished"])
+    let (other, _) = try makeModel(defaults: defaults, token: String(repeating: "x", count: 32))
+    other.receiveCall(finished)
+    XCTAssertEqual(other.visibleTaskCalls.map(\.id), ["finished"])
+  }
+  func testClearRecentsPreservesUnresolvedLinkedCalendarApprovals() throws {
+    let (model, _) = try makeModel()
+    var data = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(callFixture.utf8)) as? [String: Any])
+    data["status"] = "completed"
+    data["calendarActionId"] = "calendar-review"
+    data["finishedAt"] = Date().timeIntervalSince1970 * 1000
+    for status in [nil, "pending", "executing", "uncertain"] as [String?] {
+      data["calendarActionStatus"] = status
+      let linked = try JSONDecoder().decode(CallAction.self, from: JSONSerialization.data(withJSONObject: data))
+      model.receiveCall(linked)
+      model.clearRecents()
+      XCTAssertEqual(model.visibleTaskCalls.count, 1)
+      XCTAssertTrue(linked.needsAttention)
+      XCTAssertFalse(linked.recentlyCompleted())
+    }
+    data["calendarActionStatus"] = "completed"
+    model.receiveCall(try JSONDecoder().decode(CallAction.self, from: JSONSerialization.data(withJSONObject: data)))
+    XCTAssertTrue(model.canClearRecents)
+    model.clearRecents()
+    XCTAssertTrue(model.visibleTaskCalls.isEmpty)
+  }
   func testStopRemainsAvailableDuringConversation() async throws {
     let (model, audio) = try makeModel()
     defer { model.suspend() }

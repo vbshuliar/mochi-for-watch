@@ -658,7 +658,9 @@ export class Service {
             )
               result = {
                 ...result,
-                speechText: "Sure, I’ll call right now.",
+                speechText: result.callAction!.calendarChecked
+                  ? "I’m using your calendar availability and preferences to find the best time and make your booking."
+                  : "I’ll use your requested times and preferences to make your booking. Calendar availability hasn’t been checked.",
                 statusText: "📞",
               };
           }

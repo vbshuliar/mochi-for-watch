@@ -13,7 +13,7 @@ struct PhoneTasksView: View {
   var body: some View {
     List {
       Section {
-        ForEach(model.taskCalls.sorted { ($0.updatedAt ?? 0) > ($1.updatedAt ?? 0) }) { call in
+        ForEach(model.visibleTaskCalls.sorted { ($0.updatedAt ?? 0) > ($1.updatedAt ?? 0) }) { call in
           Button {
             selectedID = call.id
             reviewCall = true
@@ -25,7 +25,7 @@ struct PhoneTasksView: View {
             }.frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
           }
         }
-        if model.taskCalls.isEmpty && !model.tasksLoadFailed {
+        if model.visibleTaskCalls.isEmpty && !model.tasksLoadFailed {
           Text("No current tasks. Bookings started on either device appear here.")
             .foregroundStyle(.secondary)
         }
@@ -33,6 +33,9 @@ struct PhoneTasksView: View {
           Text("Couldn’t refresh tasks. Showing the last known status.").foregroundStyle(.secondary)
         }
         Button("Refresh tasks") { model.resumeCalls(); Task { await notifications.refresh() } }
+        if model.canClearRecents {
+          Button("Clear recents", systemImage: "xmark.circle") { model.clearRecents() }
+        }
         if model.hasProposal { Button("Review proposal") { reviewProposal = true } }
       }
       Section {

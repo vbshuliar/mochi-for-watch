@@ -149,7 +149,10 @@ public struct CallAction: Codable, Identifiable, Sendable {
   public let expiresAt: Double
   public let finishedAt: Double?
   public let updatedAt: Double?
-  public var needsAttention: Bool { status == "pending" || status == "uncertain" }
+  public var needsAttention: Bool {
+    status == "pending" || status == "uncertain" ||
+      (calendarActionId != nil && !["completed", "cancelled", "expired"].contains(calendarActionStatus ?? ""))
+  }
   public func recentlyCompleted(now: Date = Date()) -> Bool {
     guard !active, !needsAttention, let finishedAt else { return false }
     let age = now.timeIntervalSince1970 - finishedAt / 1000
@@ -175,6 +178,7 @@ public struct CallAction: Codable, Identifiable, Sendable {
   public let sourceCallId: String?
   public let supersededBy: String?
   public let calendarActionId: String?
+  public let calendarActionStatus: String?
   public let originalSlot: BookingWindow?
   public let retryOfCallId: String?
   public let retriedBy: String?

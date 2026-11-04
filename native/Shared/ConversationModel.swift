@@ -33,6 +33,22 @@ struct Activity: Identifiable {
   let daily: DailySupportModel
   private var callProposal: CallAction?
   private(set) var taskCalls: [CallAction] = []
+  private var clearedRecents: Set<String> = []
+  var visibleTaskCalls: [CallAction] {
+    taskCalls.filter { !clearedRecents.contains($0.id) || $0.active || $0.needsAttention || confirmationUnknown(for: $0) }
+  }
+  var canClearRecents: Bool {
+    visibleTaskCalls.contains { !$0.active && !$0.needsAttention && !confirmationUnknown(for: $0) }
+  }
+  func clearRecents() {
+    let ids = taskCalls.filter { !$0.active && !$0.needsAttention && !confirmationUnknown(for: $0) }.map(\.id)
+    clearedRecents.formUnion(ids)
+    dismissedCalls.formUnion(ids)
+    if let key = persistenceKey {
+      defaults.set(Array(clearedRecents), forKey: key + ".clearedRecents")
+      defaults.set(Array(dismissedCalls), forKey: key + ".dismissed")
+    }
+  }
   var tasksLoadFailed = false
   var backgroundCall: CallAction?
   var callAction: CallAction? {
@@ -142,6 +158,9 @@ struct Activity: Identifiable {
     self.audio = audio
     self.transcriber = transcriber
     self.makeClient = makeClient
+    if let key = persistenceKey {
+      clearedRecents = Set(defaults.stringArray(forKey: key + ".clearedRecents") ?? [])
+    }
     audio.onInterruption = { [weak self] in self?.suspend() }
     transcriber.onPartial = { [weak self = self] value in
       guard let self, recording else { return }
@@ -667,6 +686,7 @@ struct Activity: Identifiable {
     guard let connection = store.connection else { return }
     let scope = callGeneration
     if let key = persistenceKey {
+      clearedRecents = Set(defaults.stringArray(forKey: key + ".clearedRecents") ?? [])
       dismissedCalls = Set(defaults.stringArray(forKey: key + ".dismissed") ?? [])
       unknownConfirmations = Set(defaults.stringArray(forKey: key + ".unknownCalls") ?? [])
       if defaults.bool(forKey: key + ".confirmationUnknown"), let id = defaults.string(forKey: key + ".call") { unknownConfirmations.insert(id) }
@@ -898,6 +918,7 @@ struct Activity: Identifiable {
     callUpdating = false
     deciding = false
     dismissedCalls = []
+    clearedRecents = []
     taskCalls = []
     unknownConfirmations = []
     tasksLoadFailed = false

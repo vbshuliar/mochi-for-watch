@@ -1241,11 +1241,13 @@ test("confirmed summary includes localized appointment and separate Calendar tru
   stored.calendarActionId = randomUUID();
   store.put("call", a.id, stored);
   store.put("action", stored.calendarActionId, { status: "pending" });
+  assert.equal(calls.listAll()[0].calendarActionStatus, "pending");
   assert.match(
     calls.statusReply(a.sessionId).speechText,
     /not been saved to Calendar/,
   );
   store.put("action", stored.calendarActionId, { status: "completed" });
+  assert.equal(calls.listAll()[0].calendarActionStatus, "completed");
   assert.match(calls.statusReply(a.sessionId).speechText, /Saved to Calendar/);
 });
 
@@ -1863,48 +1865,57 @@ test("rescheduling excludes the verified original event at proposal and rechecks
   assert.equal(counts.dial, 0);
 });
 
-test("complete booking request dials once without a separate decision and replays its receipt", async (t) => {
-  const counts = providers(t);
-  const built = await buildApp(config, {
-    calendar,
-    planner: {
-      async plan() {
-        return { kind: "call_booking" as const, booking };
+for (const calendarConnected of [false, true]) {
+  test(`complete booking request dials once and replays its receipt (Calendar ${calendarConnected})`, async (t) => {
+    const counts = providers(t);
+    const built = await buildApp(config, {
+      calendar,
+      planner: {
+        async plan() {
+          return { kind: "call_booking" as const, booking };
+        },
+        async transcribe() {
+          return "";
+        },
       },
-      async transcribe() {
-        return "";
-      },
-    },
+    });
+    t.after(() => built.app.close());
+    if (calendarConnected)
+      built.store.put("secret", "google", { access_token: "fixture-only" });
+    const session = built.service.createSession("Europe/London");
+    const requestId = randomUUID();
+    const input = {
+      text: `Call Salon at ${booking.phoneNumber} to book a haircut on 5 November 2030 between 10 and 12 for Alex.`,
+    };
+    const result = await built.service.turn(session.id, requestId, input);
+    assert.equal(result.callAction?.status, "queued");
+    assert.equal(
+      result.speechText,
+      calendarConnected
+        ? "I’m using your calendar availability and preferences to find the best time and make your booking."
+        : "I’ll use your requested times and preferences to make your booking. Calendar availability hasn’t been checked.",
+    );
+    assert.equal(result.state, "working");
+    assert.equal(counts.dial, 1);
+    assert.equal(built.store.list("action").length, 0);
+    assert.deepEqual(
+      await built.service.turn(session.id, requestId, input),
+      JSON.parse(JSON.stringify(result)),
+    );
+    assert.equal(counts.dial, 1);
+    const saved = built.store.get<any>("turn", `${session.id}:${requestId}`);
+    built.store.put("turn", `${session.id}:${requestId}`, {
+      ...saved,
+      status: "failed",
+      result: undefined,
+    });
+    assert.equal(
+      (await built.service.turn(session.id, requestId, input)).callAction?.id,
+      result.callAction?.id,
+    );
+    assert.equal(counts.dial, 1);
   });
-  t.after(() => built.app.close());
-  const session = built.service.createSession("Europe/London");
-  const requestId = randomUUID();
-  const input = {
-    text: `Call Salon at ${booking.phoneNumber} to book a haircut on 5 November 2030 between 10 and 12 for Alex.`,
-  };
-  const result = await built.service.turn(session.id, requestId, input);
-  assert.equal(result.callAction?.status, "queued");
-  assert.equal(result.speechText, "Sure, I’ll call right now.");
-  assert.equal(result.state, "working");
-  assert.equal(counts.dial, 1);
-  assert.equal(built.store.list("action").length, 0);
-  assert.deepEqual(
-    await built.service.turn(session.id, requestId, input),
-    JSON.parse(JSON.stringify(result)),
-  );
-  assert.equal(counts.dial, 1);
-  const saved = built.store.get<any>("turn", `${session.id}:${requestId}`);
-  built.store.put("turn", `${session.id}:${requestId}`, {
-    ...saved,
-    status: "failed",
-    result: undefined,
-  });
-  assert.equal(
-    (await built.service.turn(session.id, requestId, input)).callAction?.id,
-    result.callAction?.id,
-  );
-  assert.equal(counts.dial, 1);
-});
+}
 
 test("a clear yes to one proposed booking time ends with thanks instead of reconfirmation", async (t) => {
   const counts = providers(t, {
