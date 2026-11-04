@@ -35,13 +35,23 @@ struct Activity: Identifiable {
   private(set) var taskCalls: [CallAction] = []
   private var clearedRecents: Set<String> = []
   var visibleTaskCalls: [CallAction] {
-    taskCalls.filter { !clearedRecents.contains($0.id) || $0.active || $0.needsAttention || confirmationUnknown(for: $0) }
+    taskCalls.filter { !clearedRecents.contains($0.id) }
   }
-  var canClearRecents: Bool {
-    visibleTaskCalls.contains { !$0.active && !$0.needsAttention && !confirmationUnknown(for: $0) }
+  func showsInHistory(_ id: String) -> Bool { !clearedRecents.contains(id) }
+  var hasHistoryProposal: Bool {
+    [action?.id, documentAction?.id, gmailDraftAction?.id, callProposal?.id]
+      .compactMap { $0 }.contains { showsInHistory($0) }
   }
-  func clearRecents() {
-    let ids = taskCalls.filter { !$0.active && !$0.needsAttention && !confirmationUnknown(for: $0) }.map(\.id)
+  var canClearHistory: Bool {
+    !visibleTaskCalls.isEmpty || hasHistoryProposal || !activities.isEmpty || !transcript.isEmpty || !reply.isEmpty
+  }
+  func clearHistory() {
+    let ids = taskCalls.map(\.id) + [action?.id, documentAction?.id, gmailDraftAction?.id, callProposal?.id].compactMap { $0 }
+    activities.removeAll()
+    transcript = ""
+    reply = ""
+    sources = []
+    failure = nil
     clearedRecents.formUnion(ids)
     dismissedCalls.formUnion(ids)
     if let key = persistenceKey {

@@ -33,10 +33,10 @@ struct PhoneTasksView: View {
           Text("Couldn’t refresh tasks. Showing the last known status.").foregroundStyle(.secondary)
         }
         Button("Refresh tasks") { model.resumeCalls(); Task { await notifications.refresh() } }
-        if model.canClearRecents {
-          Button("Clear recents", systemImage: "xmark.circle") { model.clearRecents() }
+        if model.canClearHistory {
+          Button("Clear history", systemImage: "xmark.circle") { model.clearHistory() }
         }
-        if model.hasProposal { Button("Review proposal") { reviewProposal = true } }
+        if model.hasHistoryProposal { Button("Review proposal") { reviewProposal = true } }
       }
       Section {
         Button("Demo readiness") { showingReadiness = true }

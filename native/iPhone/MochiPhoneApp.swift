@@ -242,6 +242,9 @@ struct PhoneConversation: View {
           }.accessibilityHint("Review booking progress or stop the call")
         }
         if model.hasProposal { Button("Review proposal") { review = true } }
+        if !model.activities.isEmpty {
+          Button("Clear history", systemImage: "xmark.circle") { model.clearHistory() }
+        }
         ForEach(model.activities) { entry in
           VStack(alignment: .leading, spacing: 4) {
             HStack {

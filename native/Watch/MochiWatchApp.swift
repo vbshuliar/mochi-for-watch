@@ -138,8 +138,8 @@ struct WatchHome: View {
   }
   private var tasksPage: some View {
     TimelineView(.periodic(from: .now, by: 60)) { context in
-      let active = model.taskCalls.filter { $0.active }
-      let attention = model.taskCalls.filter { $0.needsAttention }
+      let active = model.visibleTaskCalls.filter { $0.active }
+      let attention = model.visibleTaskCalls.filter { $0.needsAttention }
       let recent = model.visibleTaskCalls.filter { $0.recentlyCompleted(now: context.date) }
         .sorted { ($0.finishedAt ?? 0) > ($1.finishedAt ?? 0) }
       ScrollView {
@@ -156,34 +156,34 @@ struct WatchHome: View {
             }.buttonStyle(.plain).accessibilityLabel("Refresh tasks")
           }
           taskSection("In progress", calls: active)
-          if !attention.isEmpty || model.action != nil || model.documentAction != nil || model.gmailDraftAction != nil {
+          if !attention.isEmpty || model.hasHistoryProposal {
             Text("Needs you").font(.caption2).foregroundStyle(.secondary)
             ForEach(attention) { call in taskRow(call) }
-            if let action = model.action {
+            if let action = model.action, model.showsInHistory(action.id) {
               Button { reviewing = true } label: {
                 taskLabel(action.event.title, detail: "Review Calendar event", icon: "calendar")
               }.buttonStyle(.plain)
             }
-            if let draft = model.gmailDraftAction {
+            if let draft = model.gmailDraftAction, model.showsInHistory(draft.id) {
               Button { reviewing = true } label: {
                 taskLabel(draft.subject, detail: "Review email draft", icon: "envelope")
               }.buttonStyle(.plain)
             }
-            if let document = model.documentAction {
+            if let document = model.documentAction, model.showsInHistory(document.id) {
               Button { reviewing = true } label: {
                 taskLabel(document.title, detail: "Review Notion page", icon: "doc.text")
               }.buttonStyle(.plain)
             }
           }
           taskSection("Recent", calls: recent)
-          if !recent.isEmpty {
-            Button { model.clearRecents() } label: {
-              Label("Clear recents", systemImage: "xmark.circle")
+          if model.canClearHistory {
+            Button { model.clearHistory() } label: {
+              Label("Clear history", systemImage: "xmark.circle")
                 .font(.caption2).foregroundStyle(.secondary)
                 .frame(minHeight: 44)
             }.buttonStyle(.plain)
           }
-          if active.isEmpty && attention.isEmpty && recent.isEmpty && !model.hasProposal && !model.tasksLoadFailed {
+          if active.isEmpty && attention.isEmpty && recent.isEmpty && !model.hasHistoryProposal && !model.tasksLoadFailed {
             VStack(alignment: .leading, spacing: 4) {
               Text("All clear").font(.subheadline.weight(.medium))
               Text("Your tasks will appear here.").font(.caption2).foregroundStyle(.secondary)

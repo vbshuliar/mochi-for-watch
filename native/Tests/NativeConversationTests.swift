@@ -470,7 +470,7 @@ extension NativeConversationTests {
     try await Task.sleep(for: .milliseconds(50))
     XCTAssertNil(other.callAction)
   }
-  func testClearRecentsPersistsWithoutHidingActiveOrUncertainTasks() throws {
+  func testClearHistoryEmptiesAllDisplayedTasksAndPersists() throws {
     let defaults = UserDefaults(suiteName: "native-clear-" + UUID().uuidString)!
     let (model, _) = try makeModel(defaults: defaults)
     let finished = try call("completed", id: "finished", finishedAt: Date().timeIntervalSince1970 * 1000)
@@ -478,11 +478,20 @@ extension NativeConversationTests {
     model.receiveCall(try call("in_progress", id: "active"))
     model.receiveCall(try call("uncertain", id: "uncertain"))
     model.receiveCall(try call("pending", id: "approval"))
-    XCTAssertTrue(model.canClearRecents)
-    model.clearRecents()
-    XCTAssertEqual(Set(model.visibleTaskCalls.map(\.id)), ["active", "uncertain", "approval"])
+    model.activities.append(Activity(kind: "Mochi", text: "Earlier reply"))
+    model.transcript = "Earlier request"
+    model.reply = "Earlier reply"
+    model.action = try JSONDecoder().decode(Action.self, from: Data(calendarFixture(id: "pending", status: "pending").utf8))
+    XCTAssertTrue(model.canClearHistory)
+    model.clearHistory()
+    XCTAssertTrue(model.activities.isEmpty)
+    XCTAssertEqual(model.transcript, "")
+    XCTAssertEqual(model.reply, "")
+    XCTAssertFalse(model.hasHistoryProposal)
+    XCTAssertTrue(model.hasProposal, "Clearing history must not approve or cancel a proposal")
+    XCTAssertTrue(model.visibleTaskCalls.isEmpty)
     XCTAssertEqual(model.taskCalls.count, 4, "Clearing the display preserves task receipts")
-    XCTAssertFalse(model.canClearRecents)
+    XCTAssertFalse(model.canClearHistory)
     model.receiveCall(finished)
     XCTAssertFalse(model.visibleTaskCalls.contains { $0.id == "finished" })
     let (restored, _) = try makeModel(defaults: defaults)
@@ -491,12 +500,12 @@ extension NativeConversationTests {
     restored.receiveCall(try call("completed", id: "new"))
     XCTAssertEqual(restored.visibleTaskCalls.map(\.id), ["new"])
     restored.receiveCall(try call("uncertain", id: "finished"))
-    XCTAssertEqual(Set(restored.visibleTaskCalls.map(\.id)), ["new", "finished"])
+    XCTAssertEqual(restored.visibleTaskCalls.map(\.id), ["new"])
     let (other, _) = try makeModel(defaults: defaults, token: String(repeating: "x", count: 32))
     other.receiveCall(finished)
     XCTAssertEqual(other.visibleTaskCalls.map(\.id), ["finished"])
   }
-  func testClearRecentsPreservesUnresolvedLinkedCalendarApprovals() throws {
+  func testClearHistoryHidesLinkedApprovalsWithoutResolvingThem() throws {
     let (model, _) = try makeModel()
     var data = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(callFixture.utf8)) as? [String: Any])
     data["status"] = "completed"
@@ -506,15 +515,16 @@ extension NativeConversationTests {
       data["calendarActionStatus"] = status
       let linked = try JSONDecoder().decode(CallAction.self, from: JSONSerialization.data(withJSONObject: data))
       model.receiveCall(linked)
-      model.clearRecents()
-      XCTAssertEqual(model.visibleTaskCalls.count, 1)
+      model.clearHistory()
+      XCTAssertTrue(model.visibleTaskCalls.isEmpty)
+      XCTAssertTrue(model.taskCalls[0].needsAttention)
       XCTAssertTrue(linked.needsAttention)
       XCTAssertFalse(linked.recentlyCompleted())
     }
     data["calendarActionStatus"] = "completed"
     model.receiveCall(try JSONDecoder().decode(CallAction.self, from: JSONSerialization.data(withJSONObject: data)))
-    XCTAssertTrue(model.canClearRecents)
-    model.clearRecents()
+    XCTAssertFalse(model.canClearHistory)
+    model.clearHistory()
     XCTAssertTrue(model.visibleTaskCalls.isEmpty)
   }
   func testStopRemainsAvailableDuringConversation() async throws {
