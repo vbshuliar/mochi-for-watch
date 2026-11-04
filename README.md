@@ -62,7 +62,7 @@ flowchart LR
 2. **Your request starts the call.** Once the business and booking details are clear, Mochi says “Sure, I’ll call right now” and shows 📞.
 3. **Mochi calls.** He introduces himself as your AI assistant calling on your behalf. A clear agreement to one proposed time is enough: “Thanks, bye bye.”
 4. **You carry on.** The call runs in the background while you keep chatting or check progress later.
-5. **Mochi reports back.** Review the outcome and separately approve adding a confirmed appointment to Calendar.
+5. **Mochi reports back.** Mochi automatically adds the exact confirmed new appointment to Calendar and reports the result.
 
 If a booking cannot be confirmed, Mochi reports that instead of presenting an uncertain outcome as success. Booking is one demonstration of the larger promise: **help that follows through.**
 
@@ -74,7 +74,7 @@ If a booking cannot be confirmed, Mochi reports that instead of presenting an un
 | --- | --- |
 | **When to talk** | Tap to wake Mochi, then speak naturally between replies while the app stays in the foreground. Tap to hush; backgrounding or 30 seconds without speech puts him to sleep. |
 | **What to share** | Choose the services you connect and the preferences you save. |
-| **What to approve** | Review calls, Calendar changes, Gmail drafts and Notion saves before they happen. Drafts are not sent automatically. |
+| **What to approve** | A complete new-booking request authorizes the call and automatic Calendar save after confirmation. Review rescheduling, cancellation, other Calendar changes, Gmail drafts and Notion saves. Drafts are not sent automatically. |
 | **What to remember** | Inspect, edit or delete saved memories from iPhone. |
 | **Where it runs** | The open-source app uses your private backend and configured cloud services. Internet access is required. |
 

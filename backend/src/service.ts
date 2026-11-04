@@ -1007,6 +1007,40 @@ export class Service {
       }
     });
   }
+  async saveConfirmedBooking(sessionId: string, callId: string) {
+    // A hands-free conversation may still own this session when the call ends.
+    // Do not create a proposal until it can be claimed synchronously by decide.
+    while (this.locks.has(sessionId))
+      await new Promise<void>((resolve) => setTimeout(resolve, 25));
+    if (!this.calls)
+      throw new AppError(409, "calls_unavailable", "Calls unavailable.");
+    const call = this.calls.get(sessionId, callId);
+    if (
+      !call.autoCalendar ||
+      call.operation ||
+      call.status !== "completed" ||
+      call.outcome !== "booked"
+    )
+      throw new AppError(
+        409,
+        "no_booking",
+        "No automatically authorized booking.",
+      );
+    const existing = call.calendarActionId
+      ? this.store.get<Action>("action", call.calendarActionId)
+      : undefined;
+    if (
+      existing &&
+      !["pending", "executing", "completed"].includes(existing.status)
+    )
+      throw new AppError(
+        409,
+        "calendar_review_required",
+        "Review the existing Calendar result.",
+      );
+    const proposal = this.calls.proposeCalendar(sessionId, callId);
+    return this.decide(sessionId, proposal.action!.id, "confirm");
+  }
   async decideDocument(
     sessionId: string,
     actionId: string,

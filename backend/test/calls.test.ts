@@ -2173,3 +2173,97 @@ for (const confirmation of [
     );
   });
 }
+
+for (const fails of [false, true, "deleted"]) {
+  test(`confirmed new booking automatically saves Calendar once (failure ${fails})`, async (t) => {
+    providers(t);
+    let writes = 0;
+    let releaseChat!: () => void;
+    const chatGate = new Promise<void>((resolve) => {
+      releaseChat = resolve;
+    });
+    const built = await buildApp(config, {
+      planner: {
+        async plan() {
+          await chatGate;
+          return { kind: "reply" as const, text: "Hello." };
+        },
+        async transcribe() {
+          return "";
+        },
+      },
+      calendar: {
+        ...calendar,
+        async create(id, event) {
+          writes++;
+          if (fails) throw new Error("Calendar response lost");
+          return {
+            id,
+            title: event.title,
+            start: event.start,
+            end: event.end,
+            simulated: false,
+          };
+        },
+      },
+    });
+    t.after(() => built.app.close());
+    built.store.put("secret", "google", { access_token: "fixture-only" });
+    const session = built.service.createSession("Europe/London");
+    const call = (
+      await built.calls.prepare(session.id, {
+        ...booking,
+        window: { start: "2030-11-05T10:00:00Z", end: "2030-11-05T10:30:00Z" },
+      })
+    ).callAction!;
+    await built.calls.decide(session.id, call.id, "confirm");
+    built.calls.voice(call.id, 0, callback);
+    built.calls.gather(call.id, 0, {
+      ...callback,
+      SpeechResult: "Yep, that's fine.",
+    });
+    await built.calls.close();
+    const chat = built.service.turn(session.id, randomUUID(), {
+      text: "hello",
+    });
+    built.calls.voice(call.id, 1, callback);
+    built.calls.voice(call.id, 1, callback);
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    assert.equal(
+      writes,
+      0,
+      "Wait for chat before creating or approving Calendar action",
+    );
+    assert.equal(built.store.list("action").length, 0);
+    if (fails === "deleted") built.store.delete("call", call.id);
+    releaseChat();
+    await chat;
+    if (fails === "deleted") {
+      await new Promise((resolve) => setTimeout(resolve, 75));
+      assert.equal(writes, 0);
+      assert.equal(built.store.list("action").length, 0);
+      return;
+    }
+    for (let i = 0; i < 100; i++) {
+      const action = built.store.list<any>("action")[0]?.value;
+      if (action && ["completed", "uncertain"].includes(action.status)) break;
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+    assert.equal(writes, 1);
+    const action = built.store.list<any>("action")[0].value;
+    assert.equal(action.status, fails ? "uncertain" : "completed");
+    assert.equal(action.event.start, "2030-11-05T10:00:00.000Z");
+    assert.equal(action.event.end, "2030-11-05T10:30:00.000Z");
+    assert.equal(built.calls.get(session.id, call.id).outcome, "booked");
+    assert.equal(
+      built.calls.get(session.id, call.id).calendarActionId,
+      action.id,
+    );
+    built.calls.status(call.id, {
+      ...callback,
+      CallStatus: "completed",
+      SequenceNumber: "10",
+    });
+    assert.equal(writes, 1);
+  });
+}

@@ -63,6 +63,51 @@ export async function buildApp(
   const social = new SocialConnections(config, store);
   const pairing = new Pairing(store, config.API_TOKEN);
   const notifications = new Notifications(config, store);
+  const calendarJobs = new Map<string, Promise<void>>();
+  const saveConfirmedBooking = (call: ReturnType<Calls["publicAction"]>) => {
+    if (
+      !call.autoCalendar ||
+      call.operation ||
+      call.status !== "completed" ||
+      call.outcome !== "booked" ||
+      calendarJobs.has(call.id)
+    )
+      return;
+    if (
+      call.calendarActionStatus &&
+      !["pending", "executing"].includes(call.calendarActionStatus)
+    )
+      return;
+    const job = Promise.resolve()
+      .then(async () => {
+        await service.saveConfirmedBooking(call.sessionId, call.id);
+      })
+      .catch(() => {
+        // Keep the booking and any uncertain Calendar receipt for explicit recovery.
+        console.warn(
+          JSON.stringify({
+            category: "automatic_booking_calendar_save_unverified",
+          }),
+        );
+      })
+      .finally(() => {
+        calendarJobs.delete(call.id);
+        try {
+          const current = store.get<import("./calls.ts").CallAction>(
+            "call",
+            call.id,
+          );
+          if (current) notifications.enqueue(calls.publicAction(current));
+        } catch {
+          console.warn(
+            JSON.stringify({
+              category: "automatic_booking_calendar_notification_failed",
+            }),
+          );
+        }
+      });
+    calendarJobs.set(call.id, job);
+  };
   let pairingTimer: ReturnType<typeof setInterval> | undefined;
   const expirePairings = () => {
     for (const pushId of pairing.expiredPushes()) notifications.remove(pushId);
@@ -74,7 +119,10 @@ export async function buildApp(
     () =>
       google.connected() &&
       store.get<boolean>("integration", "calendar-enabled") !== false,
-    (call) => notifications.enqueue(call),
+    (call) => {
+      notifications.enqueue(call);
+      saveConfirmedBooking(call);
+    },
   );
   const reminders = new Reminders(store, (occurrence) =>
     notifications.enqueueReminder(occurrence),
@@ -905,6 +953,7 @@ export async function buildApp(
     if (pairingTimer) clearInterval(pairingTimer);
     reminders.close();
     await calls.close();
+    await Promise.allSettled(calendarJobs.values());
     await notifications.close();
     store.close();
   });
@@ -919,7 +968,10 @@ export async function buildApp(
     }, 60000);
     pairingTimer.unref();
     // Recover an alert if the process stopped after persisting a call outcome.
-    for (const call of calls.listAll()) notifications.enqueue(call);
+    for (const call of calls.listAll()) {
+      notifications.enqueue(call);
+      saveConfirmedBooking(call);
+    }
     reminders.start();
     notifications.start();
   });

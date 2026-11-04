@@ -97,6 +97,7 @@ export type CallAction = {
   summary?: string;
   failure?: CallFailure;
   calendarActionId?: string;
+  autoCalendar?: boolean;
   decision?: "confirm" | "cancel";
   sequence?: number;
   progress?: {
@@ -655,6 +656,7 @@ export class Calls {
       status: "pending",
       expiresAt: Date.now() + 600000,
       calendarChecked,
+      autoCalendar: !change,
       slots,
       turn: 0,
       ...change,
