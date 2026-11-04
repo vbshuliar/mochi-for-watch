@@ -2139,7 +2139,7 @@ for (const confirmation of [
     await calls.close();
     const offer = store.get<any>("call-turn", `${a.id}:1`);
     assert.equal(offer.offeredSlot.start, "2030-11-05T11:00:00.000Z");
-    assert.match(offer.text, /^Does .*11:00 am work for Alex\?$/);
+    assert.equal(offer.text, "11 am for Alex, right?");
     calls.voice(a.id, 1, callback);
     calls.gather(a.id, 1, {
       ...callback,
@@ -2267,3 +2267,126 @@ for (const fails of [false, true, "deleted"]) {
     assert.equal(writes, 1);
   });
 }
+
+for (const answer of ["3pm", "Yeah, I do let's do 3:00 p.m."]) {
+  test(`range, ${answer}, short confirmation, yes completes without model`, async (t) => {
+    const counts = providers(t);
+    const { calls, store } = fixture(t, true);
+    const a = (
+      await calls.prepare(randomUUID(), {
+        ...booking,
+        window: { start: "2030-11-05T14:00:00Z", end: "2030-11-05T18:00:00Z" },
+      })
+    ).callAction!;
+    await calls.decide(a.sessionId, a.id, "confirm");
+    assert.match(
+      store.get<any>("call-turn", `${a.id}:0`).text,
+      /What time between 2 pm and 5:30 pm/,
+    );
+    calls.voice(a.id, 0, callback);
+    calls.gather(a.id, 0, { ...callback, SpeechResult: answer });
+    await calls.close();
+    assert.equal(
+      store.get<any>("call-turn", `${a.id}:1`).text,
+      "3 pm for Alex, right?",
+    );
+    assert.equal(calls.get(a.sessionId, a.id).outcome, undefined);
+    calls.voice(a.id, 1, callback);
+    calls.gather(a.id, 1, { ...callback, SpeechResult: "Yes" });
+    await calls.close();
+    calls.voice(a.id, 2, callback);
+    assert.equal(
+      store.get<any>("call-turn", `${a.id}:2`).text,
+      "Thanks, bye bye.",
+    );
+    assert.equal(
+      calls.get(a.sessionId, a.id).bookedSlot?.start,
+      "2030-11-05T15:00:00.000Z",
+    );
+    assert.equal(counts.meta, 0);
+    assert.equal(
+      calls.proposeCalendar(a.sessionId, a.id).action?.event.start,
+      "2030-11-05T15:00:00.000Z",
+    );
+  });
+}
+for (const answer of [
+  "3pm if someone cancels",
+  "3pm tomorrow",
+  "1pm",
+  "No, not 3pm",
+  "3pm or 4pm",
+]) {
+  test(`clock shortcut rejects conditional, changed or out-of-range choice: ${answer}`, async (t) => {
+    const counts = providers(t, {
+      text: "Which available time works?",
+      outcome: "continue",
+    });
+    const { calls, store } = fixture(t);
+    const a = (
+      await calls.prepare(randomUUID(), {
+        ...booking,
+        window: { start: "2030-11-05T14:00:00Z", end: "2030-11-05T18:00:00Z" },
+      })
+    ).callAction!;
+    await calls.decide(a.sessionId, a.id, "confirm");
+    calls.voice(a.id, 0, callback);
+    calls.gather(a.id, 0, { ...callback, SpeechResult: answer });
+    await calls.close();
+    assert.equal(counts.meta, 1);
+    assert.equal(
+      store.get<any>("call-turn", `${a.id}:1`).offeredSlot,
+      undefined,
+    );
+    assert.equal(calls.get(a.sessionId, a.id).outcome, undefined);
+  });
+}
+
+test("clock shortcut does not jump across a Calendar gap to an unspoken range", async (t) => {
+  const counts = providers(t, {
+    text: "What time in the afternoon works?",
+    outcome: "continue",
+  });
+  const { calls, store } = fixture(t, true, {
+    ...calendar,
+    async busy() {
+      return [{ start: "2030-11-05T15:00:00Z", end: "2030-11-05T16:00:00Z" }];
+    },
+  });
+  const a = (
+    await calls.prepare(randomUUID(), {
+      ...booking,
+      window: { start: "2030-11-05T14:00:00Z", end: "2030-11-05T18:00:00Z" },
+    })
+  ).callAction!;
+  await calls.decide(a.sessionId, a.id, "confirm");
+  assert.match(
+    store.get<any>("call-turn", `${a.id}:0`).text,
+    /between 2 pm and 2:30 pm/,
+  );
+  calls.voice(a.id, 0, callback);
+  calls.gather(a.id, 0, { ...callback, SpeechResult: "4pm" });
+  await calls.close();
+  assert.equal(counts.meta, 1);
+  assert.equal(store.get<any>("call-turn", `${a.id}:1`).offeredSlot, undefined);
+});
+
+test("clock shortcut does not choose between repeated daylight-saving times", async (t) => {
+  const counts = providers(t, {
+    text: "Which occurrence of that time?",
+    outcome: "continue",
+  });
+  const { calls, store } = fixture(t);
+  const a = (
+    await calls.prepare(randomUUID(), {
+      ...booking,
+      window: { start: "2030-10-27T00:00:00Z", end: "2030-10-27T03:00:00Z" },
+    })
+  ).callAction!;
+  await calls.decide(a.sessionId, a.id, "confirm");
+  calls.voice(a.id, 0, callback);
+  calls.gather(a.id, 0, { ...callback, SpeechResult: "1:30 am" });
+  await calls.close();
+  assert.equal(counts.meta, 1);
+  assert.equal(store.get<any>("call-turn", `${a.id}:1`).offeredSlot, undefined);
+});
