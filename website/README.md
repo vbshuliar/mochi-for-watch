@@ -28,7 +28,6 @@ The public website runs at **https://mochi-for-watch.fly.dev/** in a separate 25
 
 The Watch backend remains at `https://muse-for-watch-vlad.fly.dev/`, so installed apps and OAuth callbacks do not need changing. Its original landing page remains available; to update that copy, stage and deploy from `backend/` as documented in `docs/private-deployment.md`.
 
-The earlier owner-private Sites preview is separate. `.openai/hosting.json` records its identity; Fly is now the primary website, and Fly deployments do not update that preview.
 
 The hero uses the native Mochi face plate with SVG eyes at the coordinates from `MochiView.swift`. `dist/mouse-gaze.js` animates the eyes, blinks and head, eases the confused reaction in and out, and shows the visitor’s local time. Motion respects reduced-motion preferences. The display shows the idle caption and page indicators; hardware is the generated transparent `dist/assets/watch-3d.png` image. Generation details are in `IMAGE-PROMPT.md`.
 

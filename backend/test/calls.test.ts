@@ -1059,7 +1059,7 @@ test("large call proposals keep internal candidates off the client wire", async 
   const { calls } = fixture(t);
   const result = await calls.prepare(randomUUID(), {
     ...booking,
-    window: { start: "2030-11-05T00:00:00Z", end: "2030-11-15T00:00:00Z" },
+    window: { start: "2030-11-05T00:00:00Z", end: "2030-11-25T00:00:00Z" },
   });
   const a = result.callAction!;
   assert.ok(calls.get(a.sessionId, a.id).slots.length > 900);
@@ -1955,6 +1955,9 @@ for (const speech of [
   "Yep, that’s fine if someone cancels",
   "That’s fine?",
   "That’s not fine",
+  "Yes, that’s correct if someone cancels",
+  "That’s correct?",
+  "That’s not correct",
   "No, that time does not work",
   "Yes, 11 am instead",
   "Yes, 11 am works",
@@ -2125,6 +2128,10 @@ for (const confirmation of [
   "Yes, absolutely, that works.",
   "Yep, that's fine.",
   "Yep, that’s fine.",
+  "Yes, that’s correct.",
+  "Yes, that is correct.",
+  "Correct.",
+  "Yes, that’s right.",
 ]) {
   test(`a concrete offer accepts ${confirmation} without another model request`, async (t) => {
     const counts = providers(t, {
@@ -2268,7 +2275,14 @@ for (const fails of [false, true, "deleted"]) {
   });
 }
 
-for (const answer of ["3pm", "Yeah, I do let's do 3:00 p.m."]) {
+for (const answer of [
+  "3pm",
+  "Yeah, I do let's do 3:00 p.m.",
+  "We have 3 pm available.",
+  "3 pm works",
+  "3 pm would work for me",
+  "3:00 p.m. Woodwork for me",
+]) {
   test(`range, ${answer}, short confirmation, yes completes without model`, async (t) => {
     const counts = providers(t);
     const { calls, store } = fixture(t, true);
@@ -2380,6 +2394,8 @@ test("clock shortcut does not choose between repeated daylight-saving times", as
   const a = (
     await calls.prepare(randomUUID(), {
       ...booking,
+      purpose: "overnight equipment inspection",
+      destinationName: "Equipment workshop",
       window: { start: "2030-10-27T00:00:00Z", end: "2030-10-27T03:00:00Z" },
     })
   ).callAction!;
@@ -2390,3 +2406,112 @@ test("clock shortcut does not choose between repeated daylight-saving times", as
   assert.equal(counts.meta, 1);
   assert.equal(store.get<any>("call-turn", `${a.id}:1`).offeredSlot, undefined);
 });
+
+for (const scenario of [
+  {
+    zone: "Europe/London",
+    start: "2030-11-05T20:00:00Z",
+    end: "2030-11-05T23:00:00Z",
+    last: "2030-11-05T20:30:00.000Z",
+  },
+  {
+    zone: "America/New_York",
+    start: "2030-11-06T01:00:00Z",
+    end: "2030-11-06T04:00:00Z",
+    last: "2030-11-06T01:30:00.000Z",
+  },
+  {
+    zone: "Europe/London",
+    start: "2030-07-05T19:00:00Z",
+    end: "2030-07-05T22:00:00Z",
+    last: "2030-07-05T19:30:00.000Z",
+  },
+]) {
+  test(`haircut must finish by 9pm in ${scenario.zone} (${scenario.start})`, async (t) => {
+    const { calls } = fixture(t);
+    const a = (
+      await calls.prepare(randomUUID(), {
+        ...booking,
+        timeZone: scenario.zone,
+        window: { start: scenario.start, end: scenario.end },
+      })
+    ).callAction!;
+    assert.equal(
+      calls.get(a.sessionId, a.id).slots.at(-1)?.start,
+      scenario.last,
+    );
+    assert.equal(calls.get(a.sessionId, a.id).slots.length, 3);
+  });
+}
+test("multi-day afternoon haircut envelope never includes nights or mornings", async (t) => {
+  const { calls } = fixture(t);
+  const a = (
+    await calls.prepare(randomUUID(), {
+      ...booking,
+      window: { start: "2030-11-05T14:00:00Z", end: "2030-11-09T18:00:00Z" },
+    })
+  ).callAction!;
+  const slots = calls.get(a.sessionId, a.id).slots;
+  assert.equal(slots.length, 75);
+  assert.ok(
+    slots.every(
+      (s) =>
+        new Date(s.start).getUTCHours() >= 14 &&
+        new Date(s.end).getUTCHours() <= 18,
+    ),
+  );
+  assert.match(
+    startTimeRanges(slots, booking.timeZone)[0],
+    /between 2 pm and 5:30 pm/,
+  );
+});
+test("night-only haircut window is rejected without dialing", async (t) => {
+  const counts = providers(t);
+  const { calls } = fixture(t);
+  await assert.rejects(
+    calls.prepare(randomUUID(), {
+      ...booking,
+      window: { start: "2030-11-05T22:00:00Z", end: "2030-11-05T23:00:00Z" },
+    }),
+    /No available booking times/,
+  );
+  assert.equal(counts.dial, 0);
+});
+test("barber cutoff is rechecked before dialing an older proposal", async (t) => {
+  providers(t);
+  const { calls, store } = fixture(t);
+  const a = (await calls.prepare(randomUUID(), booking)).callAction!;
+  const stored = calls.get(a.sessionId, a.id);
+  stored.slots.push({
+    start: "2030-11-05T22:00:00Z",
+    end: "2030-11-05T22:30:00Z",
+  });
+  store.put("call", a.id, stored);
+  await calls.decide(a.sessionId, a.id, "confirm");
+  assert.ok(
+    calls
+      .get(a.sessionId, a.id)
+      .slots.every((s) => new Date(s.end).getUTCHours() <= 21),
+  );
+});
+
+for (const purpose of [
+  "hair styling",
+  "trim",
+  "beard grooming",
+  "shave",
+  "fade",
+]) {
+  test(`barber service alias cannot bypass 9pm: ${purpose}`, async (t) => {
+    const { calls } = fixture(t);
+    await assert.rejects(
+      calls.prepare(randomUUID(), {
+        ...booking,
+        purpose,
+        destinationName: "Appointments",
+        window: { start: "2030-11-05T22:00:00Z", end: "2030-11-05T23:00:00Z" },
+      }),
+      /No available booking times/,
+    );
+  });
+}
