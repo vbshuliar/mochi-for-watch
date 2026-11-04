@@ -125,6 +125,24 @@ private final class NativeFixture: URLProtocol, @unchecked Sendable {
     }
     XCTFail("Timed out waiting for native conversation state")
   }
+  func testAppearancePersistsAndWatchUpdatesIgnoreMissingOrUnknownColours() throws {
+    let suite = "mochi-appearance-\(UUID().uuidString)"
+    let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+    defer { defaults.removePersistentDomain(forName: suite) }
+    let connection = try Connection(baseURL: URL(string: "https://native.fixture")!, token: String(repeating: "t", count: 32))
+    let store = ConnectionStore(connection: connection, appearanceDefaults: defaults)
+    XCTAssertEqual(store.mochiColour, .lime)
+    store.setColour(.lilac)
+    XCTAssertEqual(ConnectionStore(connection: connection, appearanceDefaults: defaults).mochiColour, .lilac)
+    store.receiveColour(nil)
+    store.receiveColour("unknown-future-colour")
+    XCTAssertEqual(store.mochiColour, .lilac)
+    store.receiveColour("sky")
+    XCTAssertEqual(store.mochiColour, .sky)
+    XCTAssertEqual(store.connection, connection)
+    defaults.set("invalid", forKey: ConnectionStore.colourKey)
+    XCTAssertEqual(ConnectionStore(connection: connection, appearanceDefaults: defaults).mochiColour, .lime)
+  }
   func testApprovalPausesListeningAndExplicitDecisionResumesIt() async throws {
     let (model, audio) = try makeModel()
     defer { model.suspend() }

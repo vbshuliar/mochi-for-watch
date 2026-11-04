@@ -71,6 +71,11 @@ struct PhoneHome: View {
             Label("Memory", systemImage: "brain.head.profile")
           }
         }
+        Section {
+          NavigationLink { MochiAppearanceView(store: store, changed: { bridge.publish() }) } label: {
+            Label("Appearance", systemImage: "paintpalette")
+          }
+        }
         Section("Connections") {
           ForEach(Connector.all) { connector in
             HStack(spacing: 10) {
@@ -387,5 +392,41 @@ struct SocialConnectionView: View {
         Task { await model.disconnectWorkspace(provider); awaitingConsent = false }
       }
     }
+  }
+}
+
+struct MochiAppearanceView: View {
+  let store: ConnectionStore
+  let changed: () -> Void
+  var body: some View {
+    ScrollView {
+      VStack(spacing: 24) {
+        MochiView(mood: .idle, colour: store.mochiColour)
+          .frame(width: 220, height: 220)
+          .frame(maxWidth: .infinity)
+          .background(.black, in: RoundedRectangle(cornerRadius: 28))
+        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
+          ForEach(MochiColour.allCases) { colour in
+            Button { store.setColour(colour); changed() } label: {
+              VStack(spacing: 8) {
+                Circle().fill(Color(mochiHex: colour.shades[1]))
+                  .frame(width: 48, height: 48)
+                  .overlay {
+                    if store.mochiColour == colour {
+                      Image(systemName: "checkmark").font(.headline.bold()).foregroundStyle(.black)
+                    }
+                  }
+                Text(colour.title).font(.subheadline).foregroundStyle(.primary)
+              }.frame(maxWidth: .infinity).padding(.vertical, 8).contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(colour.title)
+            .accessibilityAddTraits(store.mochiColour == colour ? .isSelected : [])
+          }
+        }
+        Text("Syncs to your Apple Watch when connected.")
+          .font(.footnote).foregroundStyle(.secondary)
+      }.padding(20)
+    }.navigationTitle("Appearance").navigationBarTitleDisplayMode(.inline)
   }
 }

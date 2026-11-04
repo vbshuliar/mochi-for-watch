@@ -13,19 +13,23 @@ import WatchConnectivity
     }
   }
   func publish() {
-    guard WCSession.default.activationState == .activated, let connection = store.connection else {
+    guard WCSession.default.activationState == .activated else {
       return
     }
     do {
-      let data = try JSONEncoder().encode(connection)
-      try WCSession.default.updateApplicationContext(["connection": data])
-    } catch { store.error = "Couldn’t send setup to your Watch. Open both apps and try again." }
+      var context: [String: Any] = ["mochiColour": store.mochiColour.rawValue]
+      if let connection = store.connection {
+        context["connection"] = try JSONEncoder().encode(connection)
+      }
+      try WCSession.default.updateApplicationContext(context)
+    } catch { store.error = "Couldn’t sync with your Watch. Open both apps and try again." }
   }
   nonisolated func session(
     _ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState,
     error: Error?
   ) {
     let received = session.receivedApplicationContext["connection"] as? Data
+    let colour = session.receivedApplicationContext["mochiColour"] as? String
     Task { @MainActor in
       if error != nil {
         store.error = "Watch pairing is unavailable. Open both apps and try again."
@@ -34,6 +38,7 @@ import WatchConnectivity
       #if os(iOS)
         publish()
       #else
+        store.receiveColour(colour)
         if let received { receive(received) }
       #endif
     }
@@ -41,11 +46,20 @@ import WatchConnectivity
   nonisolated func session(
     _ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]
   ) {
-    guard let data = applicationContext["connection"] as? Data else { return }
-    Task { @MainActor in receive(data) }
+    let data = applicationContext["connection"] as? Data
+    let colour = applicationContext["mochiColour"] as? String
+    Task { @MainActor in
+      #if os(watchOS)
+        store.receiveColour(colour)
+      #endif
+      if let data { receive(data) }
+    }
   }
   private func receive(_ data: Data) {
-    do { try store.save(JSONDecoder().decode(Connection.self, from: data)) } catch {
+    do {
+      let connection = try JSONDecoder().decode(Connection.self, from: data)
+      if store.connection != connection { try store.save(connection) }
+    } catch {
       store.error = "Couldn’t read the connection from your iPhone."
     }
   }

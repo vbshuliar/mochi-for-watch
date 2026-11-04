@@ -3,6 +3,8 @@ import SwiftUI
 
 struct MochiView: View {
   let mood: Mood
+  @AppStorage("mochi.colour") private var savedColour = "lime"
+  var colour: MochiColour? = nil
   var level: Double = 0
   var heartStart: Date?
   var calling = false
@@ -28,7 +30,7 @@ struct MochiView: View {
       Canvas { context, size in
         let p = pose(at: timeline.date)
         let edge = min(size.width, size.height)
-        Self.drawHead(context: context, size: size, pose: p)
+        Self.drawHead(context: context, size: size, pose: p, colour: colour ?? MochiColour(rawValue: savedColour) ?? .lime)
         if let heartStart {
           let elapsed = timeline.date.timeIntervalSince(heartStart)
           for (i, point) in [
@@ -71,7 +73,8 @@ struct MochiView: View {
     }
   }
   // Shared by the live character and deterministic app/web artwork exports.
-  static func drawHead(context: GraphicsContext, size: CGSize, pose p: FacePose, includeFace: Bool = true) {
+  static func drawHead(context: GraphicsContext, size: CGSize, pose p: FacePose, includeFace: Bool = true, colour: MochiColour = .lime) {
+    let shades = colour.shades.map { Color(mochiHex: $0) }
     let edge = min(size.width, size.height)
     var c = context
     c.translateBy(x: size.width / 2, y: size.height / 2 + edge * 0.15 + p.y * edge / 368)
@@ -91,16 +94,16 @@ struct MochiView: View {
     // into shadow. Vector gradients stay smooth at Watch resolution.
     c.fill(body, with: .radialGradient(
       Gradient(stops: [
-        .init(color: Color(red: 235 / 255, green: 255 / 255, blue: 148 / 255), location: 0),
-        .init(color: Color(red: 212 / 255, green: 244 / 255, blue: 92 / 255), location: 0.44),
-        .init(color: Color(red: 184 / 255, green: 216 / 255, blue: 64 / 255), location: 0.76),
-        .init(color: Color(red: 133 / 255, green: 166 / 255, blue: 43 / 255), location: 1),
+        .init(color: shades[0], location: 0),
+        .init(color: shades[1], location: 0.44),
+        .init(color: shades[2], location: 0.76),
+        .init(color: shades[3], location: 1),
       ]), center: CGPoint(x: 370 - sin(yaw) * 100, y: 325 + sin(pitch) * 80), startRadius: 0, endRadius: 650))
     var rim = c
     rim.clip(to: body)
     rim.stroke(body, with: .linearGradient(
       Gradient(stops: [
-        .init(color: Color(red: 249 / 255, green: 255 / 255, blue: 195 / 255).opacity(0.7), location: 0),
+        .init(color: shades[4].opacity(0.7), location: 0),
         .init(color: .clear, location: 0.46),
         .init(color: .clear, location: 1),
       ]), startPoint: CGPoint(x: 220, y: 180), endPoint: CGPoint(x: 800, y: 830)),
@@ -207,5 +210,13 @@ struct MochiView: View {
       control2: CGPoint(x: -rx, y: ry * k))
     p.closeSubpath()
     return p
+  }
+}
+
+extension Color {
+  init(mochiHex: UInt32) {
+    self.init(red: Double((mochiHex >> 16) & 255) / 255,
+              green: Double((mochiHex >> 8) & 255) / 255,
+              blue: Double(mochiHex & 255) / 255)
   }
 }

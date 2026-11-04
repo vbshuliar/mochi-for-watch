@@ -5,9 +5,22 @@ import Security
 
 @MainActor @Observable final class ConnectionStore {
   private(set) var connection: Connection?
+  private(set) var mochiColour: MochiColour
+  private let appearanceDefaults: UserDefaults
+  static let colourKey = "mochi.colour"
+  func setColour(_ colour: MochiColour) {
+    mochiColour = colour
+    appearanceDefaults.set(colour.rawValue, forKey: Self.colourKey)
+  }
+  func receiveColour(_ raw: String?) {
+    guard let raw, let colour = MochiColour(rawValue: raw) else { return }
+    setColour(colour)
+  }
   var error: String?
   private let service = "com.museforwatch.connection"
-  init(connection: Connection? = nil) {
+  init(connection: Connection? = nil, appearanceDefaults: UserDefaults = .standard) {
+    self.appearanceDefaults = appearanceDefaults
+    mochiColour = MochiColour(rawValue: appearanceDefaults.string(forKey: Self.colourKey) ?? "") ?? .lime
     if let connection {
       self.connection = connection
       return

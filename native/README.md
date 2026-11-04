@@ -150,3 +150,12 @@ Synthetic host tests and SDK builds do not prove contact permission, syncing or 
 ## Connection switches
 
 Every iPhone connection row has a green/gray connection dot and a separate enable switch. Disconnected services stay off and cannot be enabled until connected; connected services keep their green dot when paused. Web Search uses the backend capability and needs no separate sign-in. Switch preferences persist on the backend and apply to both devices. Pausing retains credentials and blocks new service requests; it does not revoke grants or undo work already sent. Older backends expose only the Calendar switch until updated.
+
+## Appearance
+
+Open **Appearance** on iPhone to preview and select Lime, Mint, Sky, Lilac, Peach or Rose.
+The selection is saved locally and sent to the paired Watch through WatchConnectivity;
+open both apps if the Watch has not received it yet. Lime remains the default. The
+black background, smooth shaded body, expressions and animation are unchanged.
+Colour changes do not reset the backend connection or conversation. App icons and
+public artwork retain the default lime identity.
