@@ -51,7 +51,7 @@ sequenceDiagram
     API-->>Client: Durable receipt / uncertain outcome
 ```
 
-A successful HTTP response is not always proof of an external write. Preserve uncertain outcomes and reconcile them. Booking confirmation is separate from Calendar approval; do not collapse those state machines.
+A successful HTTP response is not always proof of an external write. Preserve uncertain outcomes and reconcile them. A confirmed new booking triggers an automatic save of the agreed slot. The call result and the Calendar receipt are separate records. Rescheduling, cancellation, and other Calendar changes use their own approval flow.
 
 ## Deployment boundaries
 

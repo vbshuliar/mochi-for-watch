@@ -1,6 +1,14 @@
 # Setup guide for coding agents
 
-Last reviewed: 29 October 2026. This guide describes the implementation, not a claim of completed live-call or device acceptance.
+## Reviewing without credentials
+
+Begin with the [booking trace in the README](../README.md#trace-the-booking). Each row links an implementation to the tests that exercise it. To follow the confirmed Calendar handoff locally:
+
+```sh
+rg -n 'saveConfirmedBooking|confirmed new booking automatically saves Calendar once' backend/src backend/test
+```
+
+For an executable check, use the [fresh-clone mock walkthrough](../README.md#run-the-browser-demo). Its lunch receipt demonstrates duplicate-confirmation handling. The [call tests](../backend/test/calls.test.ts) exercise the barber exchange with synthetic providers. The [acceptance checklist](development-acceptance.md) records what requires a real device or provider.
 
 ## Read in this order
 

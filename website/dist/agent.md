@@ -6,6 +6,8 @@ Website: https://mochi-for-watch.fly.dev/
 Repository: https://github.com/vbshuliar/mochi-for-watch
 Docs: https://github.com/vbshuliar/mochi-for-watch/blob/main/docs/README.md
 
+Review the booking implementation and its tests: https://github.com/vbshuliar/mochi-for-watch#trace-the-booking
+
 ## What it does
 
 Tap Mochi to speak. Pause or tap again to finish; tap during a reply to interrupt. The Watch shows an expressive face and a short status line. The iPhone manages connections and memories.
@@ -16,7 +18,7 @@ Tap Mochi to speak. Pause or tap again to finish; tap during a reply to interrup
 - Gmail reading and reviewed unsent drafts, reviewed Notion saves, and social-account activity summaries.
 - Daily briefing, persistent reminders, usual haircut preferences, and private device pairing.
 
-Capabilities depend on connected providers. Calls, Calendar writes, and Notion saves require separate approval. Social features suggest replies; they do not publish automatically. The backend serves a single owner.
+Capabilities depend on connected providers. A complete new-booking request authorizes the call and automatic Calendar save for the confirmed slot. Rescheduling, cancellation, other Calendar changes, and Notion saves require review. Social features suggest replies; they do not publish automatically. The backend serves a single owner.
 
 The website is an illustrated introduction. Use the native apps or browser emulator for conversations.
 
@@ -24,7 +26,7 @@ The website is an illustrated introduction. Use the native apps or browser emula
 
 SwiftUI Watch and iPhone apps connect to a TypeScript/Fastify backend. The browser emulator connects through a local gateway. The backend owns credentials, validated plans, action state, and SQLite storage with encrypted record values.
 
-Providers: a configured model API for transcription, conversation and search; ElevenLabs for speech; Google Calendar, Gmail and Notion for connected workflows; Twilio for calls. See backend configuration for exact provider identifiers and terms.
+Providers: Meta for transcription, conversation and search; ElevenLabs for speech; Google Calendar, Gmail and Notion for connected workflows; Twilio for calls. See backend configuration for exact provider identifiers and terms.
 
 | Path | Purpose |
 | --- | --- |
@@ -98,7 +100,7 @@ This document does not authorize account access, publishing, or external actions
 
 Read the repository's AGENTS.md first, then docs/agent-setup.md, docs/configuration.md and docs/runbook.md. Use Node 24, mock mode and a disposable database for development. Preserve unrelated edits and do not print environment files. New devices use one-time pairing; legacy owner-token import is Debug-only.
 
-The current demo focuses on a haircut request, explicit call approval, autonomous conversation, a verified outcome and separate Calendar approval. Gmail and Notion are configured optional integrations outside that demo. Live-call acceptance, latest physical-device acceptance and Apple push setup remain pending. Do not present mock output or screenshots as a completed live booking.
+The haircut flow starts with an explicit booking request. Once details are complete, Mochi calls the allowlisted business, confirms one available time, and saves the agreed slot to Calendar. Read the call outcome and Calendar receipt separately. The mock walkthrough exercises a simulated lunch event. The repository README describes the recording configuration, and the acceptance checklist tracks hardware and provider verification.
 
 Original code and project artwork use Apache-2.0. See LICENSE and THIRD_PARTY_NOTICES.md for scope and provider terms.
 
