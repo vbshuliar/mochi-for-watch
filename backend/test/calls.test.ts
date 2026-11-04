@@ -1952,6 +1952,9 @@ test("a clear yes to one proposed booking time ends with thanks instead of recon
 for (const speech of [
   "Hi",
   "Yes, if someone cancels",
+  "Yep, that’s fine if someone cancels",
+  "That’s fine?",
+  "That’s not fine",
   "No, that time does not work",
   "Yes, 11 am instead",
   "Yes, 11 am works",
@@ -2118,30 +2121,55 @@ test("natural emphatic agreement to a concrete booking offer needs no reconfirma
   assert.equal(calls.get(a.sessionId, a.id).outcome, "booked");
 });
 
-test("a flexible booking records a concrete model offer before accepting yes", async (t) => {
-  providers(t, {
-    text: "An unnecessary long explanation",
-    outcome: "continue",
-    offeredSlotIndex: 4,
+for (const confirmation of [
+  "Yes, absolutely, that works.",
+  "Yep, that's fine.",
+  "Yep, that’s fine.",
+]) {
+  test(`a concrete offer accepts ${confirmation} without another model request`, async (t) => {
+    const counts = providers(t, {
+      text: "An unnecessary long explanation",
+      outcome: "continue",
+      offeredSlotIndex: 4,
+    });
+    const { calls, store } = fixture(t, true);
+    const a = await started(calls);
+    calls.voice(a.id, 0, callback);
+    calls.gather(a.id, 0, { ...callback, SpeechResult: "Can you do 11 am?" });
+    await calls.close();
+    const offer = store.get<any>("call-turn", `${a.id}:1`);
+    assert.equal(offer.offeredSlot.start, "2030-11-05T11:00:00.000Z");
+    assert.match(offer.text, /^Does .*11:00 am work for Alex\?$/);
+    calls.voice(a.id, 1, callback);
+    calls.gather(a.id, 1, {
+      ...callback,
+      SpeechResult: confirmation,
+    });
+    await calls.close();
+    calls.voice(a.id, 2, callback);
+    assert.equal(calls.get(a.sessionId, a.id).outcome, "booked");
+    assert.equal(
+      calls.get(a.sessionId, a.id).bookedSlot?.start,
+      "2030-11-05T11:00:00.000Z",
+    );
+    const calendarProposal = calls.proposeCalendar(a.sessionId, a.id);
+    assert.equal(calendarProposal.action?.status, "pending");
+    assert.equal(
+      calendarProposal.action?.event.start,
+      "2030-11-05T11:00:00.000Z",
+    );
+    assert.equal(
+      calls.proposeCalendar(a.sessionId, a.id).action?.id,
+      calendarProposal.action?.id,
+    );
+    assert.equal(
+      counts.meta,
+      1,
+      "Only the time negotiation needs a model request",
+    );
+    assert.equal(
+      store.get<any>("call-turn", `${a.id}:2`).text,
+      "Thanks, bye bye.",
+    );
   });
-  const { calls, store } = fixture(t);
-  const a = await started(calls);
-  calls.voice(a.id, 0, callback);
-  calls.gather(a.id, 0, { ...callback, SpeechResult: "Can you do 11 am?" });
-  await calls.close();
-  const offer = store.get<any>("call-turn", `${a.id}:1`);
-  assert.equal(offer.offeredSlot.start, "2030-11-05T11:00:00.000Z");
-  assert.match(offer.text, /^Does .*11:00 am work for Alex\?$/);
-  calls.voice(a.id, 1, callback);
-  calls.gather(a.id, 1, {
-    ...callback,
-    SpeechResult: "Yes, absolutely, that works.",
-  });
-  await calls.close();
-  calls.voice(a.id, 2, callback);
-  assert.equal(calls.get(a.sessionId, a.id).outcome, "booked");
-  assert.equal(
-    calls.get(a.sessionId, a.id).bookedSlot?.start,
-    "2030-11-05T11:00:00.000Z",
-  );
-});
+}

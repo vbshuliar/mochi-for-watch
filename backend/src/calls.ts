@@ -1936,6 +1936,7 @@ export class Calls {
 function acceptedOfferedSlot(speech: string, slot: Window, timeZone: string) {
   const reply = speech
     .toLowerCase()
+    .replace(/\bthat['’]s\b/g, "that is")
     .replace(/[,.!]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
